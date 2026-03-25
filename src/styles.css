@@ -1,0 +1,116 @@
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap");
+
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* ── Root ─────────────────────────────────────────────────────────────────────
+   The ONLY correct way to prevent mobile browser viewport-resize jumping:
+   1. html/body must NOT use height:100vh or overflow:hidden
+   2. The app shell uses position:fixed (done in App.js)
+   3. Scrolling happens inside the fixed shell, not on body
+────────────────────────────────────────────────────────────────────────────── */
+html {
+  height: 100%;
+  /* Prevent iOS font-size adjustment (causes layout shifts) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  font-family: "Outfit", sans-serif;
+  /* Do NOT set overflow:hidden here — causes the very jumping we're fixing */
+  /* Do NOT set height:100vh here — 100vh changes when address bar hides */
+  overscroll-behavior: none;
+  /* Prevent horizontal scroll on body level */
+  overflow-x: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ── Inputs ── */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+/* Prevent input zoom on iOS (inputs smaller than 16px trigger zoom = layout shift) */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* ── Animations ── */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.28s ease;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.bebas {
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 1px;
+}
+
+/* ── Buttons ── */
+button {
+  /* Prevent tap highlight flash on mobile (also causes a brief layout recalc) */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
