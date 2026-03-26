@@ -4533,7 +4533,7 @@ function CreateProgramView({ program, onSave, onBack }) {
           style={{
             width: "100%",
             background: "none",
-            border: `1px dashed ${th.inputB}`,
+            border: `1px dashed ${th.text}`,
             borderRadius: 13,
             padding: 13,
             cursor: "pointer",
