@@ -3702,7 +3702,7 @@ function HomeView({
                         letterSpacing: 0.5,
                       }}
                     >
-                      ✎ EDIT
+                      EDIT
                     </button>
                   </div>
                 )}
