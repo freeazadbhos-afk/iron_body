@@ -2630,8 +2630,8 @@ function AuthView() {
           style={{
             background: "none",
             border: "none",
-            color: "rgba(255,255,255,0.35)",
-            fontSize: 12,
+            color: "rgba(255,255,255,50.35)",
+            fontSize: 15,
             cursor: "pointer",
             marginTop: 14,
             width: "100%",
@@ -2649,8 +2649,8 @@ function AuthView() {
           style={{
             background: "none",
             border: "none",
-            color: "rgba(255,255,255,0.25)",
-            fontSize: 11,
+            color: "rgba(255,255,255,100.25)",
+            fontSize: 12,
             cursor: "pointer",
             marginTop: 8,
             width: "100%",
@@ -2659,13 +2659,13 @@ function AuthView() {
             fontFamily: "'Outfit',sans-serif",
           }}
         >
-          Continue as guest (data saved locally)
+          Continue as guest
         </button>
         <div
           style={{
             marginTop: 48,
             textAlign: "center",
-            color: "rgba(255,255,255,0.2)",
+            color: "rgba(255,255,100,1.2)",
             fontSize: 11,
             letterSpacing: "1.5px",
           }}
