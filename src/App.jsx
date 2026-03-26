@@ -3665,6 +3665,24 @@ function HomeView({
                 ) : (
                   <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                     <button
+                      onClick={() => onTemplate(p)}
+                      style={{
+                        flex: 2,
+                        background: th.accentBg,
+                        border: "none",
+                        borderRadius: 8,
+                        color: th.accentT,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "6px 0",
+                        cursor: "pointer",
+                        fontFamily: "'Outfit',sans-serif",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      START
+                    </button>
+                    <button
                       onClick={() => {
                         setEditShortcuts(true);
                         setEditingShortcutProg({ ...p });
@@ -3685,24 +3703,6 @@ function HomeView({
                       }}
                     >
                       ✎ EDIT
-                    </button>
-                    <button
-                      onClick={() => onTemplate(p)}
-                      style={{
-                        flex: 2,
-                        background: th.accentBg,
-                        border: "none",
-                        borderRadius: 8,
-                        color: th.accentT,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: "6px 0",
-                        cursor: "pointer",
-                        fontFamily: "'Outfit',sans-serif",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      ▶ START
                     </button>
                   </div>
                 )}
