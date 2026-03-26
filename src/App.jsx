@@ -3714,7 +3714,7 @@ function HomeView({
               onClick={() => setAddingShortcut((a) => !a)}
               style={{
                 background: "transparent",
-                border: `1px dashed ${th.inputB}`,
+                border: `1px dashed ${th.text}`,
                 borderRadius: 14,
                 padding: "15px 13px",
                 cursor: "pointer",
