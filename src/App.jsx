@@ -21,6 +21,9 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updateProfile as fbUpdateProfile,
+  deleteUser,
+  linkWithCredential,
+  signInAnonymously,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -1495,13 +1498,14 @@ async function fsSaveSettings(uid, settings) {
     console.error("fsSaveSettings:", e.code, e.message);
   }
 }
-async function fsSendFeedback(uid, email, text) {
+async function fsSendFeedback(uid, email, text, stars = 0) {
   try {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
     await setDoc(doc(fbDb, "feedback", id), {
       uid,
       email,
       text,
+      stars,
       date: Date.now(),
       read: false,
     });
@@ -2359,6 +2363,27 @@ function AuthView() {
     }
   };
 
+  const handleGuest = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      // Use anonymous Firebase auth — gives a uid for keying local data
+      const cred = await signInAnonymously(fbAuth);
+      const guestName = "Guest";
+      saveLocalProfile(cred.user.uid, {
+        name: guestName,
+        email: "",
+        isGuest: true,
+      });
+      lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
+      lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [] });
+    } catch (e) {
+      setErr(friendlyError(e.code));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignup = async () => {
     if (!name.trim() || !email.trim() || !pw) {
       setErr("All fields required.");
@@ -2616,6 +2641,25 @@ function AuthView() {
           {tab === "login"
             ? "No account? Sign up →"
             : "Already registered? Log in →"}
+        </button>
+        {/* Guest sign in */}
+        <button
+          onClick={handleGuest}
+          disabled={loading}
+          style={{
+            background: "none",
+            border: "none",
+            color: "rgba(255,255,255,0.25)",
+            fontSize: 11,
+            cursor: "pointer",
+            marginTop: 8,
+            width: "100%",
+            textAlign: "center",
+            textDecoration: "underline",
+            fontFamily: "'Outfit',sans-serif",
+          }}
+        >
+          Continue as guest (data saved locally)
         </button>
         <div
           style={{
@@ -3404,6 +3448,7 @@ function HomeView({
                 onClick={() => {
                   onUpdateProgram(editingShortcutProg);
                   setEditingShortcutProg(null);
+                  setEditShortcuts(false);
                 }}
                 style={{
                   background: th.accentBg,
@@ -3417,7 +3462,7 @@ function HomeView({
                   fontFamily: "'Outfit',sans-serif",
                 }}
               >
-                Save
+                Save Changes
               </button>
             </div>
           </div>
@@ -3618,23 +3663,48 @@ function HomeView({
                     {editingShortcutProg?.id === p.id ? "▲ Close" : "✎ Edit"}
                   </button>
                 ) : (
-                  <div
-                    onClick={() => onTemplate(p)}
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      cursor: "pointer",
-                      borderRadius: 14,
-                    }}
-                    onMouseEnter={(e) =>
-                      e.currentTarget.previousSibling &&
-                      (e.currentTarget.style.opacity = ".8")
-                    }
-                    onMouseLeave={(e) =>
-                      e.currentTarget.previousSibling &&
-                      (e.currentTarget.style.opacity = "1")
-                    }
-                  />
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <button
+                      onClick={() => {
+                        setEditShortcuts(true);
+                        setEditingShortcutProg({ ...p });
+                        setShowPickerForShortcut(false);
+                      }}
+                      style={{
+                        flex: 1,
+                        background: th.row,
+                        border: "none",
+                        borderRadius: 8,
+                        color: th.muted,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "6px 0",
+                        cursor: "pointer",
+                        fontFamily: "'Outfit',sans-serif",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      ✎ EDIT
+                    </button>
+                    <button
+                      onClick={() => onTemplate(p)}
+                      style={{
+                        flex: 2,
+                        background: th.accentBg,
+                        border: "none",
+                        borderRadius: 8,
+                        color: th.accentT,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "6px 0",
+                        cursor: "pointer",
+                        fontFamily: "'Outfit',sans-serif",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      ▶ START
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -6079,6 +6149,7 @@ function ProfileView({
   onThemeChange,
   onThemeAutoToggle,
   onGoWorkout,
+  onClearUnread,
 }) {
   const th = useTheme();
   const S = useS();
@@ -6094,6 +6165,7 @@ function ProfileView({
   // Feedback
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackStars, setFeedbackStars] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [adminFeedbacks, setAdminFeedbacks] = useState([]);
@@ -6101,16 +6173,24 @@ function ProfileView({
   const handleSendFeedback = async () => {
     if (!feedbackText.trim()) return;
     setFeedbackSending(true);
-    const ok = await fsSendFeedback(user.id, user.email, feedbackText.trim());
+    const ok = await fsSendFeedback(
+      user.id,
+      user.email,
+      feedbackText.trim(),
+      feedbackStars
+    );
     setFeedbackSending(false);
     if (ok) {
       setFeedbackSent(true);
       setFeedbackText("");
+      setFeedbackStars(0);
     }
   };
   const handleLoadFeedbacks = async () => {
     const data = await fsGetAllFeedback();
     setAdminFeedbacks(data);
+    // Mark all as read when admin views them (we just clear local count)
+    if (onClearUnread) onClearUnread();
   };
   // Body measurements
   const [showMeasure, setShowMeasure] = useState(false);
@@ -6235,9 +6315,147 @@ function ProfileView({
       setEditErr(friendlyError(e.code));
     }
   };
+  // Guest upgrade state
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgEmail, setUpgEmail] = useState("");
+  const [upgPw, setUpgPw] = useState("");
+  const [upgName, setUpgName] = useState("");
+  const [upgErr, setUpgErr] = useState("");
+  const handleUpgrade = async () => {
+    if (!upgName.trim() || !upgEmail.trim() || !upgPw) {
+      setUpgErr("All fields required.");
+      return;
+    }
+    if (upgPw.length < 6) {
+      setUpgErr("Password must be 6+ chars.");
+      return;
+    }
+    try {
+      const fbUser = fbAuth.currentUser;
+      const cred = EmailAuthProvider.credential(upgEmail.trim(), upgPw);
+      await linkWithCredential(fbUser, cred);
+      await fbUpdateProfile(fbUser, { displayName: upgName.trim() });
+      saveLocalProfile(fbUser.uid, {
+        name: upgName.trim(),
+        email: upgEmail.trim().toLowerCase(),
+        isGuest: false,
+      });
+      // Push local data to Firestore
+      const localProgs = ls(uKey(fbUser.uid, "programs"), []);
+      if (localProgs.length > 0) await fsSavePrograms(fbUser.uid, localProgs);
+      const localSess = ls(uKey(fbUser.uid, "sessions"), []);
+      for (const s of localSess) await fsAddSession(fbUser.uid, s);
+      onUpdateUser({
+        ...user,
+        name: upgName.trim(),
+        email: upgEmail.trim().toLowerCase(),
+        isGuest: false,
+      });
+      setShowUpgrade(false);
+    } catch (e) {
+      setUpgErr(friendlyError(e.code));
+    }
+  };
+
   return (
     <div className="slide-up" style={{ paddingBottom: 90 }}>
       <div style={{ marginBottom: 16, marginTop: 4 }} />
+      {/* Guest upgrade banner */}
+      {user.isGuest && (
+        <div
+          style={{
+            ...S.card,
+            padding: 16,
+            marginBottom: 12,
+            border: `1px solid ${th.accentBg}33`,
+          }}
+        >
+          <div style={{ fontWeight: 700, color: th.text, marginBottom: 4 }}>
+            You're signed in as a guest
+          </div>
+          <div style={{ fontSize: 12, color: th.muted, marginBottom: 12 }}>
+            Create an account to sync your data across devices.
+          </div>
+          {!showUpgrade ? (
+            <button
+              onClick={() => setShowUpgrade(true)}
+              style={{
+                background: th.accentBg,
+                border: "none",
+                borderRadius: 10,
+                color: th.accentT,
+                padding: "10px 18px",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 13,
+                fontFamily: "'Outfit',sans-serif",
+                width: "100%",
+              }}
+            >
+              CREATE ACCOUNT & SAVE DATA
+            </button>
+          ) : (
+            <div>
+              <input
+                type="text"
+                placeholder="First name"
+                value={upgName}
+                onChange={(e) => setUpgName(e.target.value)}
+                style={{ ...S.input, marginBottom: 8 }}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={upgEmail}
+                onChange={(e) => setUpgEmail(e.target.value)}
+                style={{ ...S.input, marginBottom: 8 }}
+              />
+              <input
+                type="password"
+                placeholder="Password (6+ chars)"
+                value={upgPw}
+                onChange={(e) => setUpgPw(e.target.value)}
+                style={{ ...S.input, marginBottom: 8 }}
+              />
+              {upgErr && (
+                <div
+                  style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 8 }}
+                >
+                  {upgErr}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => {
+                    setShowUpgrade(false);
+                    setUpgErr("");
+                  }}
+                  style={{
+                    flex: 1,
+                    background: th.row,
+                    border: "none",
+                    borderRadius: 10,
+                    color: th.muted,
+                    padding: "11px",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontFamily: "'Outfit',sans-serif",
+                  }}
+                >
+                  Cancel
+                </button>
+                <Btn
+                  onClick={handleUpgrade}
+                  style={{ flex: 2, fontSize: 14, padding: "11px" }}
+                >
+                  SAVE & CREATE
+                </Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ ...S.card, padding: 18, marginBottom: 12 }}>
         <div
           style={{
@@ -6913,10 +7131,57 @@ function ProfileView({
           fontWeight: 700,
           fontSize: 14,
           fontFamily: "'Outfit',sans-serif",
-          marginBottom: 24,
+          marginBottom: 10,
         }}
       >
         LOG OUT
+      </button>
+      <button
+        onClick={async () => {
+          if (
+            !window.confirm(
+              "Permanently delete your account and all data? This cannot be undone."
+            )
+          )
+            return;
+          try {
+            const fbUser = fbAuth.currentUser;
+            if (!fbUser) {
+              return;
+            }
+            // Delete Firestore data
+            try {
+              await fsSavePrograms(fbUser.uid, []);
+            } catch {}
+            try {
+              await fsSaveMeasurements(fbUser.uid, []);
+            } catch {}
+            // Delete Firebase Auth account
+            await deleteUser(fbUser);
+            onLogout();
+          } catch (e) {
+            if (e.code === "auth/requires-recent-login") {
+              alert("Please log out and log back in, then try again.");
+            } else {
+              alert("Could not delete account: " + e.message);
+            }
+          }
+        }}
+        style={{
+          width: "100%",
+          background: "transparent",
+          border: `1px solid ${th.delText}`,
+          borderRadius: 13,
+          padding: 12,
+          cursor: "pointer",
+          color: th.delText,
+          fontWeight: 600,
+          fontSize: 13,
+          fontFamily: "'Outfit',sans-serif",
+          marginBottom: 24,
+        }}
+      >
+        DELETE ACCOUNT
       </button>
       {/* Feedback card */}
       <div style={{ ...S.card, marginBottom: 12, overflow: "hidden" }}>
@@ -6995,6 +7260,42 @@ function ProfileView({
               </div>
             ) : (
               <>
+                {/* Star rating */}
+                <div style={{ marginBottom: 12 }}>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: th.muted,
+                      fontWeight: 700,
+                      letterSpacing: "1.5px",
+                      marginBottom: 8,
+                    }}
+                  >
+                    RATE YOUR EXPERIENCE
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setFeedbackStars(n)}
+                        style={{
+                          fontSize: 24,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          lineHeight: 1,
+                          filter:
+                            n <= feedbackStars
+                              ? "none"
+                              : "grayscale(1) opacity(0.3)",
+                          transition: "filter .15s",
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <textarea
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
@@ -7072,6 +7373,11 @@ function ProfileView({
                       {fmtDate(f.date)}
                     </span>
                   </div>
+                  {f.stars > 0 && (
+                    <div style={{ marginBottom: 4 }}>
+                      {"★".repeat(f.stars) + "☆".repeat(5 - f.stars)}
+                    </div>
+                  )}
                   <div
                     style={{ fontSize: 13, color: th.text, lineHeight: 1.5 }}
                   >
@@ -7120,6 +7426,18 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  // Unread feedback count (admin only)
+  const [unreadFeedback, setUnreadFeedback] = useState(0);
+  useEffect(() => {
+    if (!user || user.email !== "freeazadbhos@gmail.com") return;
+    // Check for unread feedback on load
+    fsGetAllFeedback()
+      .then((items) => {
+        setUnreadFeedback(items.filter((f) => !f.read).length);
+      })
+      .catch(() => {});
+  }, [user]);
+
   // Listen to Firebase auth state — single source of truth
   useEffect(() => {
     const unsub = onAuthStateChanged(fbAuth, (fbUser) => {
@@ -7128,19 +7446,35 @@ export default function App() {
         const local = getLocalProfile(fbUser.uid) || {};
         // local.name is written BEFORE onAuthStateChanged fires at signup — always reliable
         // Firebase displayName may lag on first fire; local cache is the source of truth
-        const resolvedName =
-          local.name ||
-          fbUser.displayName ||
-          fbUser.email?.split("@")[0].replace(/[._]/g, " ") ||
-          "";
-        const resolvedPhoto = local.photoURL || null; // photos stored locally only
+        const isGuest = fbUser.isAnonymous || local.isGuest || false;
+        // Priority: 1) local cache (written at signup before this fires)
+        // 2) Firebase displayName  3) Never fall back to email
+        const resolvedName = local.name || fbUser.displayName || "";
+        const resolvedPhoto = local.photoURL || null;
         setUser({
           id: fbUser.uid,
-          name: resolvedName || "Athlete",
+          name: resolvedName || (isGuest ? "Guest" : ""),
           email: fbUser.email || local.email || "",
           photoURL: resolvedPhoto,
+          isGuest,
         });
-        // Sync Firebase displayName if local has a better name
+        // If name is blank after all fallbacks — keep polling until displayName propagates
+        if (!resolvedName && !isGuest && fbUser.email) {
+          // Try reloading once to get fresh displayName from Firebase
+          fbUser
+            .reload()
+            .then(() => {
+              const fresh = fbAuth.currentUser;
+              if (fresh?.displayName) {
+                saveLocalProfile(fbUser.uid, {
+                  name: fresh.displayName,
+                  email: fbUser.email || "",
+                });
+                setUser((u) => (u ? { ...u, name: fresh.displayName } : u));
+              }
+            })
+            .catch(() => {});
+        }
         if (resolvedName && !fbUser.displayName) {
           fbUpdateProfile(fbUser, { displayName: resolvedName }).catch(
             () => {}
@@ -7501,8 +7835,24 @@ export default function App() {
     {
       id: "profile",
       label: "PROFILE",
-      icon: (c) => (
-        <span style={{ fontSize: 22, lineHeight: 1, color: c }}>◉</span>
+      icon: (c, isA) => (
+        <div style={{ position: "relative", display: "inline-flex" }}>
+          <span style={{ fontSize: 22, lineHeight: 1, color: c }}>◉</span>
+          {isA && unreadFeedback > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: -2,
+                right: -2,
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#ff6b6b",
+                animation: "pulse 1.5s ease-in-out infinite",
+              }}
+            />
+          )}
+        </div>
       ),
     },
   ];
@@ -7841,7 +8191,7 @@ export default function App() {
               <div
                 className="bebas"
                 style={{
-                  fontSize: 26,
+                  fontSize: 32,
                   letterSpacing: 2,
                   color: th.text,
                   lineHeight: 1,
@@ -8099,6 +8449,7 @@ export default function App() {
                 if (auto) setTheme(getAutoTheme());
               }}
               onGoWorkout={() => setView("workout")}
+              onClearUnread={() => setUnreadFeedback(0)}
             />
           )}
         </div>
@@ -8145,7 +8496,7 @@ export default function App() {
                     position: "relative",
                   }}
                 >
-                  {tab.icon(col)}
+                  {tab.icon(col, user?.email === "freeazadbhos@gmail.com")}
                   <span>{tab.label}</span>
                   {tab.id === "home" && active && view !== "workout" && (
                     <div
