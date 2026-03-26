@@ -1079,7 +1079,7 @@ const SUGGESTED = [
 const DEFAULT_PROGRAMS = [
   {
     id: "p1",
-    name: "Chest + Biceps",
+    name: "Chest Biceps",
     exs: [
       { id: "e1", s: 5, r: 10, w: 60 },
       { id: "e2", s: 4, r: 10, w: 20 },
@@ -1099,7 +1099,7 @@ const DEFAULT_PROGRAMS = [
   },
   {
     id: "p2",
-    name: "Back + Triceps",
+    name: "Back Triceps",
     exs: [
       { id: "e15", s: 5, r: 10, w: 50 },
       { id: "e16", s: 5, r: 10, w: 50 },
@@ -1118,7 +1118,7 @@ const DEFAULT_PROGRAMS = [
   },
   {
     id: "p3",
-    name: "Shoulders + Delts",
+    name: "Shoulders Delts",
     exs: [
       { id: "e28", s: 4, r: 10, w: 40 },
       { id: "e29", s: 4, r: 10, w: 16 },
@@ -1138,7 +1138,7 @@ const DEFAULT_PROGRAMS = [
   },
   {
     id: "p4",
-    name: "Leg Day",
+    name: "Legs Glutes",
     exs: [
       { id: "e42", s: 5, r: 10, w: 80 },
       { id: "e43", s: 4, r: 10, w: 80 },
