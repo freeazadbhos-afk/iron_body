@@ -2442,7 +2442,7 @@ function AuthView() {
           position: "absolute",
           inset: 0,
           backgroundImage:
-            "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=480&q=80)",
+            "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1920&q=80)",
           backgroundSize: "cover",
           backgroundPosition: "center",
           filter: "brightness(0.18)",
@@ -7861,8 +7861,8 @@ export default function App() {
   // Dark: dumbbells photo; Light: bright, airy gym
   const appBg =
     theme === "dark"
-      ? "url(https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=480&q=60) center/cover no-repeat"
-      : "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=480&q=60) center/cover no-repeat";
+      ? "url(https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1920&q=60) center/cover no-repeat"
+      : "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1920&q=60) center/cover no-repeat";
   const bgOverlay =
     theme === "dark" ? "rgba(8,8,9,0.87)" : "rgba(248,246,240,0.77)";
 
