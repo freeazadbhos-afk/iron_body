@@ -985,7 +985,7 @@ const SUGGESTED = [
     ],
   },
   {
-    name: "Leg Day",
+    name: "Legs Glutes",
     exs: [
       { id: "e92", s: 5, r: 8, w: 80 },
       { id: "e45", s: 4, r: 10, w: 120 },
@@ -997,7 +997,7 @@ const SUGGESTED = [
     ],
   },
   {
-    name: "Chest + Biceps",
+    name: "Chest Biceps",
     exs: [
       { id: "e51", s: 4, r: 10, w: 60 },
       { id: "e2", s: 4, r: 10, w: 20 },
@@ -1009,7 +1009,7 @@ const SUGGESTED = [
     ],
   },
   {
-    name: "Back + Triceps",
+    name: "Back Triceps",
     exs: [
       { id: "e15", s: 5, r: 10, w: 50 },
       { id: "e18", s: 5, r: 10, w: 60 },
@@ -1020,7 +1020,7 @@ const SUGGESTED = [
     ],
   },
   {
-    name: "Shoulders + Traps",
+    name: "Shoulders Traps",
     exs: [
       { id: "e28", s: 4, r: 10, w: 40 },
       { id: "e30", s: 4, r: 10, w: 40 },
@@ -3587,13 +3587,13 @@ function HomeView({
                     top: 7,
                     right: 7,
                     zIndex: 5,
-                    background: "rgba(0,0,0,.55)",
+                    background: "transparent",
                     border: "none",
                     borderRadius: "50%",
                     width: 22,
                     height: 22,
                     cursor: "pointer",
-                    color: "#fff",
+                    color: th.text,
                     fontSize: 13,
                     display: "flex",
                     alignItems: "center",
@@ -4104,21 +4104,6 @@ function ProgramsView({
                   START
                 </button>
                 <button
-                  onClick={() => onEdit(p)}
-                  style={{
-                    background: th.row,
-                    border: "none",
-                    borderRadius: 8,
-                    color: th.sub,
-                    padding: "7px 12px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontFamily: "'Outfit',sans-serif",
-                  }}
-                >
-                  Edit
-                </button>
-                <button
                   onClick={() => {
                     if (window.confirm("Delete this program?")) onDelete(p.id);
                   }}
@@ -4296,6 +4281,7 @@ function CreateProgramView({ program, onSave, onBack }) {
           const isCardio = db?.type === "cardio";
           return (
             <div key={ex.id} style={{ ...S.card, marginBottom: 7 }}>
+              
               <div
                 style={{
                   padding: "13px 14px",
@@ -4305,7 +4291,23 @@ function CreateProgramView({ program, onSave, onBack }) {
                   cursor: "pointer",
                 }}
                 onClick={() => setExpandedEx(isOpen ? null : ex.id)}
+                
               >
+                <span
+                    style={{
+                      color: th.accentFg,
+                      fontSize: 12,
+                      display: "inline-block",
+                      transition: "transform .2s",
+                      transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+
+                      marginLeft: "4px",    // Pushes the triangle away from the left wall
+  marginRight: "12px",  // Pushes the text to the right
+  marginTop: "2px"      // Fine-tunes the vertical alignment with the text
+                    }}
+                  >
+                    ▼
+                  </span>
                 <div style={{ flex: 1 }}>
                   <div
                     style={{ fontWeight: 600, fontSize: 14, color: th.text }}
@@ -4321,17 +4323,7 @@ function CreateProgramView({ program, onSave, onBack }) {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <span
-                    style={{
-                      color: th.accentFg,
-                      fontSize: 12,
-                      display: "inline-block",
-                      transition: "transform .2s",
-                      transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    }}
-                  >
-                    ▼
-                  </span>
+                  
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
