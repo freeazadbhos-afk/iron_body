@@ -2439,7 +2439,7 @@ function AuthView() {
       {/* Gym photo background */}
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           inset: 0,
           backgroundImage:
             "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1920&q=80)",
@@ -2451,7 +2451,7 @@ function AuthView() {
       />
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           bottom: 0,
           left: 0,
           right: 0,
