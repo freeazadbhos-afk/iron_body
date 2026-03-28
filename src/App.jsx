@@ -1526,6 +1526,17 @@ async function fsGetAllFeedback() {
     return [];
   }
 }
+async function fsMarkFeedbackRead(uid, timestamp) {
+  try {
+    await setDoc(
+      doc(fbDb, "users", uid, "data", "settings"),
+      { lastReadFeedback: timestamp },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error("fsMarkFeedbackRead:", e.code, e.message);
+  }
+}
 async function fsGetMeasurements(uid) {
   try {
     const snap = await getDoc(doc(fbDb, "users", uid, "data", "measurements"));
@@ -2747,6 +2758,7 @@ function HomeView({
   measurements,
   onTemplate,
   onUpdateProgram,
+  onOpenShortcut,
   onUpdateSettings,
   onGoWorkout,
   onViewSession,
@@ -2754,8 +2766,6 @@ function HomeView({
   const th = useTheme();
   const S = useS();
   const [editShortcuts, setEditShortcuts] = useState(false);
-  const [editingShortcutProg, setEditingShortcutProg] = useState(null);
-  const [showPickerForShortcut, setShowPickerForShortcut] = useState(false);
   const [addingShortcut, setAddingShortcut] = useState(false);
   const today = new Date();
   const dow = today
@@ -3402,156 +3412,6 @@ function HomeView({
         </button>
       </div>
 
-      {/* Inline program editor sheet — appears when tapping Edit on a shortcut */}
-      {editingShortcutProg && (
-        <div
-          style={{
-            ...S.card,
-            padding: 16,
-            marginBottom: 12,
-            border: `1px solid ${th.accentBg}`,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: th.text }}>
-                {editingShortcutProg.name}
-              </div>
-              <div style={{ fontSize: 11, color: th.muted, marginTop: 2 }}>
-                Editing exercises
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setEditingShortcutProg(null)}
-                style={{
-                  background: th.row,
-                  border: "none",
-                  borderRadius: 8,
-                  color: th.muted,
-                  fontSize: 12,
-                  padding: "6px 12px",
-                  cursor: "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  onUpdateProgram(editingShortcutProg);
-                  setEditingShortcutProg(null);
-                  setEditShortcuts(false);
-                }}
-                style={{
-                  background: th.accentBg,
-                  border: "none",
-                  borderRadius: 8,
-                  color: th.accentT,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: "6px 14px",
-                  cursor: "pointer",
-                  fontFamily: "'Outfit',sans-serif",
-                }}
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-          {/* Exercise list */}
-          {editingShortcutProg.exs.map((ex, idx) => {
-            const db = DB.find((d) => d.id === ex.id);
-            return (
-              <div
-                key={ex.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "9px 0",
-                  borderBottom: `1px solid ${th.border}`,
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{ fontSize: 13, fontWeight: 600, color: th.text }}
-                  >
-                    {db?.name || ex.id}
-                  </div>
-                  <div style={{ fontSize: 11, color: th.muted, marginTop: 2 }}>
-                    {ex.s} sets · {ex.r} reps · {ex.w}kg
-                  </div>
-                </div>
-                <button
-                  onClick={() =>
-                    setEditingShortcutProg((p) => ({
-                      ...p,
-                      exs: p.exs.filter((_, i) => i !== idx),
-                    }))
-                  }
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: th.dim,
-                    cursor: "pointer",
-                    fontSize: 15,
-                    padding: "2px 6px",
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-            );
-          })}
-          <button
-            onClick={() => setShowPickerForShortcut(true)}
-            style={{
-              width: "100%",
-              background: "none",
-              border: `1px dashed ${th.inputB}`,
-              borderRadius: 10,
-              padding: 10,
-              cursor: "pointer",
-              color: th.muted,
-              fontSize: 13,
-              fontFamily: "'Outfit',sans-serif",
-              marginTop: 10,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-            }}
-          >
-            <span style={{ color: th.accentFg, fontSize: 16, fontWeight: 700 }}>
-              +
-            </span>{" "}
-            Add Exercise
-          </button>
-          {showPickerForShortcut && (
-            <ExercisePicker
-              onAdd={(dbId) => {
-                const db = DB.find((e) => e.id === dbId);
-                if (!db) return;
-                setEditingShortcutProg((p) => ({
-                  ...p,
-                  exs: [...p.exs, { id: dbId, s: 4, r: 10, w: 20 }],
-                }));
-              }}
-              onClose={() => setShowPickerForShortcut(false)}
-              added={editingShortcutProg.exs.map((e) => e.id)}
-            />
-          )}
-        </div>
-      )}
-
       {shownPrograms.length === 0 && !editShortcuts && (
         <div
           style={{
@@ -3605,16 +3465,16 @@ function HomeView({
                 </button>
               )}
               <div
+                onClick={() => onOpenShortcut(p)}
                 style={{
                   width: "100%",
                   background: th.card,
-                  border: `1px solid ${
-                    editingShortcutProg?.id === p.id ? th.accentBg : th.border
-                  }`,
+                  border: `1px solid ${th.border}`,
                   borderRadius: 14,
                   padding: "15px 13px",
                   textAlign: "left",
                   transition: "border-color .2s",
+                  cursor: "pointer",
                 }}
               >
                 <div style={{ marginBottom: 8 }}>
@@ -3634,78 +3494,10 @@ function HomeView({
                   style={{
                     fontSize: 11,
                     color: th.muted,
-                    marginBottom: editShortcuts ? 8 : 0,
                   }}
                 >
                   {p.exs.length} exercises
                 </div>
-                {editShortcuts ? (
-                  <button
-                    onClick={() => {
-                      setEditingShortcutProg(
-                        editingShortcutProg?.id === p.id ? null : { ...p }
-                      );
-                      setShowPickerForShortcut(false);
-                    }}
-                    style={{
-                      background: th.accentBg,
-                      border: "none",
-                      borderRadius: 8,
-                      color: th.accentT,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "5px 12px",
-                      cursor: "pointer",
-                      fontFamily: "'Outfit',sans-serif",
-                      width: "100%",
-                    }}
-                  >
-                    {editingShortcutProg?.id === p.id ? "▲ Close" : "✎ Edit"}
-                  </button>
-                ) : (
-                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button
-                      onClick={() => onTemplate(p)}
-                      style={{
-                        flex: 2,
-                        background: th.accentBg,
-                        border: "none",
-                        borderRadius: 8,
-                        color: th.accentT,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: "6px 0",
-                        cursor: "pointer",
-                        fontFamily: "'Outfit',sans-serif",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      START
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditShortcuts(true);
-                        setEditingShortcutProg({ ...p });
-                        setShowPickerForShortcut(false);
-                      }}
-                      style={{
-                        flex: 1,
-                        background: th.row,
-                        border: "none",
-                        borderRadius: 8,
-                        color: th.muted,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: "6px 0",
-                        cursor: "pointer",
-                        fontFamily: "'Outfit',sans-serif",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      EDIT
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           ))}
@@ -4281,7 +4073,6 @@ function CreateProgramView({ program, onSave, onBack }) {
           const isCardio = db?.type === "cardio";
           return (
             <div key={ex.id} style={{ ...S.card, marginBottom: 7 }}>
-              
               <div
                 style={{
                   padding: "13px 14px",
@@ -4291,23 +4082,22 @@ function CreateProgramView({ program, onSave, onBack }) {
                   cursor: "pointer",
                 }}
                 onClick={() => setExpandedEx(isOpen ? null : ex.id)}
-                
               >
                 <span
-                    style={{
-                      color: th.accentFg,
-                      fontSize: 12,
-                      display: "inline-block",
-                      transition: "transform .2s",
-                      transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  style={{
+                    color: th.accentFg,
+                    fontSize: 12,
+                    display: "inline-block",
+                    transition: "transform .2s",
+                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
 
-                      marginLeft: "4px",    // Pushes the triangle away from the left wall
-  marginRight: "12px",  // Pushes the text to the right
-  marginTop: "2px"      // Fine-tunes the vertical alignment with the text
-                    }}
-                  >
-                    ▼
-                  </span>
+                    marginLeft: "4px", // Pushes the triangle away from the left wall
+                    marginRight: "12px", // Pushes the text to the right
+                    marginTop: "2px", // Fine-tunes the vertical alignment with the text
+                  }}
+                >
+                  ▼
+                </span>
                 <div style={{ flex: 1 }}>
                   <div
                     style={{ fontWeight: 600, fontSize: 14, color: th.text }}
@@ -4323,7 +4113,6 @@ function CreateProgramView({ program, onSave, onBack }) {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -6182,6 +5971,11 @@ function ProfileView({
     const data = await fsGetAllFeedback();
     setAdminFeedbacks(data);
     // Mark all as read when admin views them (we just clear local count)
+    // Persist read-up-to timestamp so dot doesn't reappear on reboot
+    const fbUserNow = fbAuth.currentUser;
+    if (fbUserNow && data.length > 0) {
+      await fsMarkFeedbackRead(fbUserNow.uid, data[0].date);
+    }
     if (onClearUnread) onClearUnread();
   };
   // Body measurements
@@ -6190,22 +5984,66 @@ function ProfileView({
   const [mWeight, setMWeight] = useState("");
   const [mMuscle, setMuscle] = useState("");
   const [mFat, setFat] = useState("");
+  const [mWaist, setMWaist] = useState("");
+  const [mBelly, setMBelly] = useState("");
+  const [mHip, setMHip] = useState("");
+  const [mChest, setMChest] = useState("");
+  const [mArm, setMArm] = useState("");
+  const [mThigh, setMThigh] = useState("");
+  const [showCircumferences, setShowCircumferences] = useState(false);
+  const circumFields = [
+    { l: "WAIST (cm)", v: mWaist, set: setMWaist, k: "waist" },
+    { l: "BELLY (cm)", v: mBelly, set: setMBelly, k: "belly" },
+    { l: "HIP (cm)", v: mHip, set: setMHip, k: "hip" },
+    { l: "CHEST (cm)", v: mChest, set: setMChest, k: "chest" },
+    { l: "ARM (cm)", v: mArm, set: setMArm, k: "arm" },
+    { l: "THIGH (cm)", v: mThigh, set: setMThigh, k: "thigh" },
+  ];
+  const clearCircum = () => {
+    setMWaist("");
+    setMBelly("");
+    setMHip("");
+    setMChest("");
+    setMArm("");
+    setMThigh("");
+  };
   const openMeasureForm = (idx) => {
     if (idx === null) {
       setMWeight("");
       setMuscle("");
       setFat("");
+      clearCircum();
     } else {
       const m = measurements[idx];
       setMWeight(m.weight != null ? String(m.weight) : "");
       setMuscle(m.muscle != null ? String(m.muscle) : "");
       setFat(m.fat != null ? String(m.fat) : "");
+      setMWaist(m.waist != null ? String(m.waist) : "");
+      setMBelly(m.belly != null ? String(m.belly) : "");
+      setMHip(m.hip != null ? String(m.hip) : "");
+      setMChest(m.chest != null ? String(m.chest) : "");
+      setMArm(m.arm != null ? String(m.arm) : "");
+      setMThigh(m.thigh != null ? String(m.thigh) : "");
+      // auto-open circumferences panel if entry has any
+      setShowCircumferences(
+        !!(m.waist || m.belly || m.hip || m.chest || m.arm || m.thigh)
+      );
     }
     setEditingMeasureIdx(idx);
     setShowMeasure(true);
   };
   const handleSaveMeasurement = () => {
-    if (!mWeight && !mMuscle && !mFat) {
+    if (
+      !mWeight &&
+      !mMuscle &&
+      !mFat &&
+      !mWaist &&
+      !mBelly &&
+      !mHip &&
+      !mChest &&
+      !mArm &&
+      !mThigh
+    ) {
       return;
     }
     const entry = {
@@ -6216,6 +6054,12 @@ function ProfileView({
       weight: parseFloat(mWeight) || null,
       muscle: parseFloat(mMuscle) || null,
       fat: parseFloat(mFat) || null,
+      waist: parseFloat(mWaist) || null,
+      belly: parseFloat(mBelly) || null,
+      hip: parseFloat(mHip) || null,
+      chest: parseFloat(mChest) || null,
+      arm: parseFloat(mArm) || null,
+      thigh: parseFloat(mThigh) || null,
     };
     let next;
     if (editingMeasureIdx === null) {
@@ -6227,8 +6071,10 @@ function ProfileView({
     setMWeight("");
     setMuscle("");
     setFat("");
+    clearCircum();
     setShowMeasure(false);
     setEditingMeasureIdx(null);
+    setShowCircumferences(false);
   };
   const handleDeleteMeasurement = (idx) => {
     onSaveMeasurement(measurements.filter((_, i) => i !== idx));
@@ -7019,6 +6865,64 @@ function ProfileView({
                 </div>
               ))}
             </div>
+            {/* Optional circumferences — collapsible */}
+            <button
+              onClick={() => setShowCircumferences((v) => !v)}
+              style={{
+                background: "none",
+                border: "none",
+                color: th.accentFg,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                padding: "6px 0 10px",
+                textAlign: "left",
+                fontFamily: "'Outfit',sans-serif",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {showCircumferences
+                ? "▲ Hide circumferences"
+                : "▼ + Add circumferences (optional)"}
+            </button>
+            {showCircumferences && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
+                {circumFields.map((f) => (
+                  <div key={f.k}>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: th.muted,
+                        fontWeight: 700,
+                        letterSpacing: "1px",
+                        marginBottom: 5,
+                      }}
+                    >
+                      {f.l}
+                    </div>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={f.v}
+                      onChange={(e) => f.set(e.target.value)}
+                      style={{
+                        ...S.input,
+                        padding: "10px 10px",
+                        fontSize: 15,
+                        textAlign: "center",
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
             <div
               style={{
                 fontSize: 10,
@@ -7071,7 +6975,23 @@ function ProfileView({
                 <span style={{ fontSize: 12, color: th.sub, flex: 1 }}>
                   {m.weight ? m.weight + "kg" : ""}
                   {m.muscle ? ` · ${m.muscle}%m` : ""}
-                  {m.fat ? ` · ${m.fat}%f` : ""}
+                  {m.fat ? ` · ${m.fat}%bf` : ""}
+                  {(m.waist ||
+                    m.belly ||
+                    m.hip ||
+                    m.chest ||
+                    m.arm ||
+                    m.thigh) && (
+                    <span style={{ color: th.dim, fontSize: 11 }}>
+                      {m.waist ? ` · W:${m.waist}` : ""}
+                      {m.belly ? ` B:${m.belly}` : ""}
+                      {m.hip ? ` H:${m.hip}` : ""}
+                      {m.chest ? ` Ch:${m.chest}` : ""}
+                      {m.arm ? ` A:${m.arm}` : ""}
+                      {m.thigh ? ` T:${m.thigh}` : ""}
+                      {" cm"}
+                    </span>
+                  )}
                 </span>
                 <button
                   onClick={() => openMeasureForm(i)}
@@ -7399,6 +7319,353 @@ function ProfileView({
 /* ═══════════════════════════════════════════════════════════════════════════════
    ROOT APP
 ═══════════════════════════════════════════════════════════════════════════════ */
+/* ─── ShortcutDetailView — opens when tapping a shortcut card ───────────────── */
+function ShortcutDetailView({ program, onSave, onStart, onBack }) {
+  const th = useTheme();
+  const S = useS();
+  const [exs, setExs] = useState(program?.exs || []);
+  const [showPicker, setShowPicker] = useState(false);
+  const [expandedEx, setExpandedEx] = useState(null);
+
+  // Auto-save whenever exercises change
+  const updateExs = (next) => {
+    setExs(next);
+    onSave({ ...program, exs: next });
+  };
+
+  const addEx = (dbId) => {
+    const db = DB.find((e) => e.id === dbId);
+    const isCardio = db?.type === "cardio";
+    updateExs([
+      ...exs,
+      isCardio
+        ? { id: dbId, type: "cardio", duration: 0, calories: 0, intensity: 0 }
+        : { id: dbId, s: 4, r: 10, w: 20 },
+    ]);
+  };
+  const removeEx = (id) => updateExs(exs.filter((e) => e.id !== id));
+  const updateEx = (id, f, val) =>
+    updateExs(
+      exs.map((e) =>
+        e.id === id ? { ...e, [f]: Math.max(0, parseFloat(val) || 0) } : e
+      )
+    );
+
+  return (
+    <>
+      {showPicker && (
+        <ExercisePicker
+          onAdd={addEx}
+          onClose={() => setShowPicker(false)}
+          added={exs.map((e) => e.id)}
+        />
+      )}
+      <div className="slide-up" style={{ paddingBottom: 100, paddingTop: 4 }}>
+        <div style={{ ...S.label, marginBottom: 12 }}>
+          EXERCISES ({exs.length})
+        </div>
+
+        {exs.map((ex) => {
+          const db = DB.find((d) => d.id === ex.id);
+          const isOpen = expandedEx === ex.id;
+          const isCardio = db?.type === "cardio";
+          return (
+            <div key={ex.id} style={{ ...S.card, marginBottom: 7 }}>
+              <div
+                style={{
+                  padding: "13px 14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+                onClick={() => setExpandedEx(isOpen ? null : ex.id)}
+              >
+                <span
+                  style={{
+                    color: th.accentFg,
+                    fontSize: 12,
+                    display: "inline-block",
+                    transition: "transform .2s",
+                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    marginLeft: "4px",
+                    marginRight: "12px",
+                    marginTop: "2px",
+                  }}
+                >
+                  ▼
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{ fontWeight: 600, fontSize: 14, color: th.text }}
+                  >
+                    {db?.name || ex.id}
+                  </div>
+                  <div style={{ fontSize: 12, color: th.muted, marginTop: 3 }}>
+                    {isCardio
+                      ? `${ex.duration || 0}min · ${
+                          ex.calories || 0
+                        }kcal · intensity ${ex.intensity || 0}/10`
+                      : `${ex.s} sets · ${ex.r} reps · ${ex.w}kg`}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeEx(ex.id);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: th.dim,
+                      cursor: "pointer",
+                      fontSize: 15,
+                      padding: "2px 6px",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {isOpen && (
+                <div
+                  style={{
+                    borderTop: `1px solid ${th.border}`,
+                    padding: "13px 14px",
+                  }}
+                >
+                  {isCardio ? (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr",
+                        gap: 8,
+                      }}
+                    >
+                      {[
+                        { l: "DURATION", f: "duration", unit: "min" },
+                        { l: "CALORIES", f: "calories", unit: "kcal" },
+                        { l: "INTENSITY", f: "intensity", unit: "/10" },
+                      ].map((c) => (
+                        <div key={c.f}>
+                          <div
+                            style={{
+                              ...S.label,
+                              fontSize: 10,
+                              marginBottom: 6,
+                            }}
+                          >
+                            {c.l}
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              background: th.row,
+                              borderRadius: 9,
+                              overflow: "hidden",
+                            }}
+                          >
+                            <input
+                              type="number"
+                              value={ex[c.f] || ""}
+                              placeholder="0"
+                              onChange={(e) =>
+                                updateEx(ex.id, c.f, e.target.value)
+                              }
+                              style={{
+                                flex: 1,
+                                background: "none",
+                                border: "none",
+                                color: th.text,
+                                textAlign: "center",
+                                fontSize: 16,
+                                fontWeight: 700,
+                                outline: "none",
+                                fontFamily: "'Outfit',sans-serif",
+                                padding: "10px 6px",
+                                width: 0,
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: th.dim,
+                                padding: "0 8px",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {c.unit}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 8,
+                          marginBottom: 12,
+                        }}
+                      >
+                        {[
+                          { l: "SETS", f: "s", mn: 1, mx: 10 },
+                          { l: "REPS", f: "r", mn: 1, mx: 50 },
+                        ].map((c) => (
+                          <div key={c.f}>
+                            <div
+                              style={{
+                                ...S.label,
+                                fontSize: 10,
+                                marginBottom: 6,
+                              }}
+                            >
+                              {c.l}
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                background: th.row,
+                                borderRadius: 9,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <button
+                                onClick={() =>
+                                  updateEx(
+                                    ex.id,
+                                    c.f,
+                                    Math.max(c.mn, ex[c.f] - 1)
+                                  )
+                                }
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: th.muted,
+                                  padding: "7px 11px",
+                                  cursor: "pointer",
+                                  fontSize: 17,
+                                  lineHeight: 1,
+                                }}
+                              >
+                                −
+                              </button>
+                              <input
+                                type="number"
+                                value={ex[c.f]}
+                                onChange={(e) =>
+                                  updateEx(ex.id, c.f, e.target.value)
+                                }
+                                style={{
+                                  flex: 1,
+                                  background: "none",
+                                  border: "none",
+                                  color: th.text,
+                                  textAlign: "center",
+                                  fontSize: 16,
+                                  fontWeight: 700,
+                                  outline: "none",
+                                  fontFamily: "'Outfit',sans-serif",
+                                  width: 0,
+                                }}
+                              />
+                              <button
+                                onClick={() =>
+                                  updateEx(
+                                    ex.id,
+                                    c.f,
+                                    Math.min(c.mx, ex[c.f] + 1)
+                                  )
+                                }
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: th.muted,
+                                  padding: "7px 11px",
+                                  cursor: "pointer",
+                                  fontSize: 17,
+                                  lineHeight: 1,
+                                }}
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div
+                        style={{ ...S.label, fontSize: 10, marginBottom: 8 }}
+                      >
+                        WEIGHT
+                      </div>
+                      <WeightPicker
+                        value={ex.w || 0}
+                        onChange={(v) => updateEx(ex.id, "w", v)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {exs.length === 0 && (
+          <div style={{ textAlign: "center", padding: "32px 0 20px" }}>
+            <div className="bebas" style={{ fontSize: 36, color: th.dim }}>
+              NO EXERCISES
+            </div>
+            <div style={{ fontSize: 13, color: th.muted, marginTop: 8 }}>
+              Add exercises below
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={() => setShowPicker(true)}
+          style={{
+            width: "100%",
+            background: "none",
+            border: `1px dashed ${th.inputB}`,
+            borderRadius: 13,
+            padding: 13,
+            cursor: "pointer",
+            color: th.muted,
+            fontSize: 14,
+            fontFamily: "'Outfit',sans-serif",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            marginTop: 4,
+          }}
+        >
+          <span style={{ color: th.accentFg, fontSize: 18, fontWeight: 700 }}>
+            +
+          </span>{" "}
+          Add Exercise
+        </button>
+      </div>
+
+      <div style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
+        <Btn
+          onClick={() => onStart({ ...program, exs })}
+          disabled={exs.length === 0}
+          style={{ width: "100%", fontSize: 16, padding: "15px" }}
+        >
+          START WORKOUT →
+        </Btn>
+      </div>
+    </>
+  );
+}
+
 export default function App() {
   const [theme, setTheme] = useState(getAutoTheme);
   const [themeAuto, setThemeAuto] = useState(true);
@@ -7422,10 +7689,10 @@ export default function App() {
   const [unreadFeedback, setUnreadFeedback] = useState(0);
   useEffect(() => {
     if (!user || user.email !== "freeazadbhos@gmail.com") return;
-    // Check for unread feedback on load
-    fsGetAllFeedback()
-      .then((items) => {
-        setUnreadFeedback(items.filter((f) => !f.read).length);
+    Promise.all([fsGetAllFeedback(), fsGetSettings(user.id)])
+      .then(([items, fsSet]) => {
+        const lastRead = fsSet?.lastReadFeedback || 0;
+        setUnreadFeedback(items.filter((f) => f.date > lastRead).length);
       })
       .catch(() => {});
   }, [user]);
@@ -7489,6 +7756,7 @@ export default function App() {
   const [editingProg, setEditingProg] = useState(null);
   const [selSession, setSelSession] = useState(null);
   const [selSessionOrigin, setSelSessionOrigin] = useState("history");
+  const [selShortcut, setSelShortcut] = useState(null); // program opened from shortcuts
   const [measurements, setMeasurements] = useState([]);
   const [paused, setPaused] = useState(false);
   const elRef = useRef(0);
@@ -7792,6 +8060,7 @@ export default function App() {
     "create",
     "editProgram",
     "sessionDetail",
+    "shortcutDetail",
   ].includes(view);
 
   const NAV = [
@@ -8153,15 +8422,20 @@ export default function App() {
               }}
             >
               {/* Back button — shown for sub-views */}
-              {["create", "editProgram", "sessionDetail", "complete"].includes(
-                view
-              ) && (
+              {[
+                "create",
+                "editProgram",
+                "sessionDetail",
+                "complete",
+                "shortcutDetail",
+              ].includes(view) && (
                 <button
                   onClick={() => {
                     if (view === "sessionDetail")
                       setView(selSessionOrigin || "history");
                     else if (view === "editProgram") setView("programs");
                     else if (view === "create") setView("home");
+                    else if (view === "shortcutDetail") setView("home");
                     else if (view === "complete") {
                       /* complete has its own save/flow */
                     }
@@ -8211,6 +8485,8 @@ export default function App() {
                   ? "SESSION DETAIL"
                   : view === "complete"
                   ? "SESSION COMPLETE"
+                  : view === "shortcutDetail"
+                  ? selShortcut?.name || "SHORTCUT"
                   : ""}
               </div>
               {/* Date — only shown on Home tab, top-right of header */}
@@ -8322,6 +8598,10 @@ export default function App() {
               onUpdateProgram={(p) =>
                 savePrograms(programs.map((x) => (x.id === p.id ? p : x)))
               }
+              onOpenShortcut={(p) => {
+                setSelShortcut(p);
+                setView("shortcutDetail");
+              }}
               onNew={() => {
                 setDraft({ name: "", exercises: [] });
                 setView("create");
@@ -8419,6 +8699,22 @@ export default function App() {
               session={selSession}
               onBack={() => setView(selSessionOrigin || "history")}
               onOrigin={selSessionOrigin}
+            />
+          )}
+          {view === "shortcutDetail" && selShortcut && (
+            <ShortcutDetailView
+              program={selShortcut}
+              onSave={(updated) => {
+                savePrograms(
+                  programs.map((x) => (x.id === updated.id ? updated : x))
+                );
+                setSelShortcut(updated);
+              }}
+              onStart={(p) => {
+                setView("home");
+                handleTemplate(p);
+              }}
+              onBack={() => setView("home")}
             />
           )}
           {view === "profile" && (
