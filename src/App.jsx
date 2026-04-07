@@ -8224,9 +8224,9 @@ export default function App() {
       label: "PROGRAMS",
       icon: (c) => (
         <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          viewBox="0 0 26 26"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -8926,7 +8926,7 @@ export default function App() {
                     background: "none",
                     border: "none",
                     cursor: "pointer",
-                    padding: "22px 0 20px",
+                    padding: "20px 0 18px",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
