@@ -1371,6 +1371,104 @@ function sessionVol(s) {
     0
   );
 }
+/* ─── Drag-to-reorder (Todoist-style: card sticks to pointer) ───────────────── */
+function useDragSort(items, setItems) {
+  const [dragIdx, setDragIdx] = useState(null);
+  const [insertIdx, setInsertIdx] = useState(null);
+  const itemRects = useRef([]);
+  const dragIdxRef = useRef(null);
+  const insertIdxRef = useRef(null);
+
+  const start = (e, idx, containerRef) => {
+    e.preventDefault();
+    const startY = e.touches ? e.touches[0].clientY : e.clientY;
+    let hasMoved = false;
+    // Cache all item rects at drag start (before dragged item fades)
+    const children = containerRef.current
+      ? Array.from(containerRef.current.querySelectorAll('[data-drag-item]'))
+      : [];
+    itemRects.current = children.map((c) => c.getBoundingClientRect());
+    dragIdxRef.current = idx;
+    insertIdxRef.current = idx;
+    setDragIdx(idx);
+    setInsertIdx(idx);
+
+    const onMove = (ev) => {
+      if (!hasMoved && Math.abs((ev.touches ? ev.touches[0].clientY : ev.clientY) - startY) > 4) {
+        hasMoved = true;
+      }
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const rects = itemRects.current;
+      // Find which gap the pointer is in.
+      // Gap i is between item i-1 and item i (gap 0 = before first, gap n = after last).
+      let insert = 0;
+      for (let i = 0; i < rects.length; i++) {
+        if (clientY > rects[i].top + rects[i].height / 2) {
+          insert = i + 1;
+        }
+      }
+      // Clamp
+      insert = Math.max(0, Math.min(rects.length, insert));
+      if (insert !== insertIdxRef.current) {
+        insertIdxRef.current = insert;
+        setInsertIdx(insert);
+      }
+    };
+
+    const onEnd = () => {
+      const from = dragIdxRef.current;
+      const to = insertIdxRef.current;
+      if (hasMoved) {
+        // Suppress the synthetic click that fires after pointerup
+        window.addEventListener('click', (ev) => ev.stopPropagation(), { capture: true, once: true });
+      }
+      // 'to' is an insert gap index. Convert to final array index.
+      // After removing item at 'from', insert at 'to' (adjusted for removal).
+      if (from !== null && to !== null) {
+        const rawTo = to > from ? to - 1 : to; // adjust for splice
+        if (rawTo !== from) {
+          const next = [...items];
+          const [moved] = next.splice(from, 1);
+          next.splice(rawTo, 0, moved);
+          setItems(next);
+        }
+      }
+      dragIdxRef.current = null;
+      insertIdxRef.current = null;
+      setDragIdx(null);
+      setInsertIdx(null);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+
+    // Attach to window so drag works even if pointer leaves the grip
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  };
+
+  return { dragIdx, insertIdx, start };
+}
+
+/* ─── 3×3 dot grip icon — denser dots ───────────────────────────────────────── */
+function GripIcon() {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,3px)", gap: 2, padding: "2px 10px 2px 2px", cursor: "grab", flexShrink: 0, touchAction: "none", userSelect: "none" }}>
+      {Array.from({ length: 9 }).map((_, i) => (
+        <div key={i} style={{ width: 3, height: 3, borderRadius: "50%", background: "#888" }} />
+      ))}
+    </div>
+  );
+}
+
+/* ─── Drop line between cards ────────────────────────────────────────────────── */
+function DropLine() {
+  return <div style={{ height: 3, background: "#c8f030", borderRadius: 2, margin: "2px 0", boxShadow: "0 0 8px #c8f030" }} />;
+}
+
 function mkEx(te) {
   const db = DB.find((e) => e.id === te.id);
   if (!db) return null;
@@ -1617,6 +1715,12 @@ async function fsSaveSettings(uid, settings) {
   } catch (e) {
     console.error("fsSaveSettings:", e.code, e.message);
   }
+}
+async function fsUpdateChangelog(id, text) {
+  try {
+    await setDoc(doc(fbDb, "changelog", id), { text }, { merge: true });
+    return true;
+  } catch (e) { console.error("fsUpdateChangelog:", e); return false; }
 }
 async function fsGetAllChangelog() {
   try {
@@ -3044,82 +3148,20 @@ function HomeView({
               </div>
             </div>
           ))}
-          {/* Daily activity bars */}
-          <div
-            style={{
-              flex: 2,
-              background: th.sect,
-              borderRadius: 10,
-              padding: "10px 10px 8px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 9,
-                color: th.dim,
-                letterSpacing: "1.5px",
-                marginBottom: 6,
-              }}
-            >
-              ACTIVITY
-            </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 3,
-                alignItems: "flex-end",
-                height: 32,
-              }}
-            >
-              {Array.from({ length: 7 }, (_, i) => {
-                const d = new Date(weekStart);
-                d.setDate(d.getDate() + i);
-                const ds = ws.filter(
-                  (s) =>
-                    new Date(s.startTime).toDateString() === d.toDateString()
-                );
-                const has = ds.length > 0;
-                const isToday = d.toDateString() === today.toDateString();
-                const ai = has
-                  ? ds.reduce((a, s) => a + (s.intensity || 0), 0) / ds.length
-                  : 0;
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 2,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "100%",
-                        height: has ? 26 : 5,
-                        background: has
-                          ? intColor(ai)
-                          : isToday
-                          ? th.row
-                          : th.input,
-                        borderRadius: "2px 2px 0 0",
-                        transition: "height .3s",
-                      }}
-                    />
-                    <div
-                      style={{
-                        fontSize: 8,
-                        color: isToday ? th.accentFg : th.dim,
-                        fontWeight: isToday ? 700 : 400,
-                      }}
-                    >
-                      {"SMTWTFS"[i]}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Loads lifted this week */}
+          <div key="loads" style={{ flex: 1, background: th.sect, borderRadius: 10, padding: "12px 8px", textAlign: "center" }}>
+            {(() => {
+              const totalKg = ws.reduce((a, s) => a + sessionVol(s), 0);
+              const display = totalKg >= 1000
+                ? `${(totalKg / 1000).toFixed(1)}t`
+                : `${totalKg}kg`;
+              return (
+                <>
+                  <div className="bebas" style={{ fontSize: 26, color: th.accentFg, lineHeight: 1 }}>{display}</div>
+                  <div style={{ fontSize: 10, color: th.dim, letterSpacing: "1.5px", marginTop: 3 }}>LOADS</div>
+                </>
+              );
+            })()}
           </div>
         </div>
         {/* Granular muscles trained */}
@@ -3187,12 +3229,9 @@ function HomeView({
               {
                 v:
                   (() => {
-                    const c = sessions.reduce(
-                      (a, s) => a + (s.calories || 0),
-                      0
-                    );
-                    return c >= 1000 ? `${(c / 1000).toFixed(1)}k` : String(c);
-                  })() + "kcal",
+                    const c = sessions.reduce((a, s) => a + (s.calories || 0), 0);
+                    return c.toLocaleString();
+                  })() + " kcal",
                 l: "CALS BURNED",
               },
               {
@@ -3232,166 +3271,55 @@ function HomeView({
               </div>
             ))}
           </div>
-          {/* Row 2 — last 8 sessions intensity bar chart */}
-          <div
-            style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 16 }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 10,
-              }}
-            >
+          {/* Row 2 — intensity-only bar chart */}
+          <div style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ ...S.label }}>RECENT PERFORMANCE</div>
-              <div style={{ fontSize: 10, color: th.dim }}>
-                {last8.length} sessions
-              </div>
+              <div style={{ fontSize: 10, color: th.dim }}>{last8.length} sessions</div>
             </div>
-            {/* Dual bar: intensity (dynamic colour) + duration (lime) */}
             {(() => {
-              const maxDur =
-                Math.max(...last8.map((x) => x.duration || 0)) || 1;
-              // Fixed bar width — each session gets equal space, labels centered above
-              const BAR_W = 48; // total column width %
+              // Deduplicate by date — keep best intensity per date
+              // Group by date, compute weighted average intensity (weighted by sessionVol)
+              const byDate = {};
+              last8.forEach((s) => {
+                const dk = s.startTime ? new Date(s.startTime).toDateString() : "unknown";
+                if (!byDate[dk]) byDate[dk] = { sessions: [], startTime: s.startTime };
+                byDate[dk].sessions.push(s);
+              });
+              const dedupedSessions = Object.values(byDate).map((g) => {
+                const sessions = g.sessions;
+                // Weighted by volume — higher-volume sessions count more
+                const totalVol = sessions.reduce((a, s) => a + sessionVol(s), 0) || sessions.length;
+                const weightedInt = sessions.reduce((a, s) => {
+                  const w = totalVol > 0 ? sessionVol(s) / totalVol : 1 / sessions.length;
+                  return a + (s.intensity || 0) * w;
+                }, 0);
+                return { ...sessions[0], intensity: Math.round(weightedInt * 10) / 10 };
+              }).sort((a, b) => (a.startTime || 0) - (b.startTime || 0));
               return (
-                <>
-                  <div
-                    style={{ display: "flex", gap: 3, alignItems: "flex-end" }}
-                  >
-                    {last8.map((s, i) => {
-                      const n = s.intensity || 0;
-                      const durH = Math.max(
-                        6,
-                        ((s.duration || 0) / maxDur) * 56
-                      );
-                      const intH = Math.max(6, (n / 10) * 80);
-                      const intCol = intColor(n); // red ≤4 / orange 5-7 / lime ≥8
-                      const durCol = "#c8f030";
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                          }}
-                        >
-                          {/* Values centred above each bar pair */}
-                          <div
-                            style={{
-                              display: "flex",
-                              width: "100%",
-                              gap: 1,
-                              justifyContent: "center",
-                              marginBottom: 2,
-                            }}
-                          >
-                            <span
-                              style={{
-                                flex: 1,
-                                fontSize: 8,
-                                color: intCol,
-                                fontWeight: 700,
-                                textAlign: "center",
-                                lineHeight: 1,
-                              }}
-                            >
-                              {n || "—"}
-                            </span>
-                            <span
-                              style={{
-                                flex: 1,
-                                fontSize: 8,
-                                color: durCol,
-                                fontWeight: 700,
-                                textAlign: "center",
-                                lineHeight: 1,
-                              }}
-                            >
-                              {s.duration || "—"}
-                            </span>
-                          </div>
-                          {/* Bars aligned to baseline */}
-                          <div
-                            style={{
-                              display: "flex",
-                              width: "100%",
-                              gap: 1,
-                              alignItems: "flex-end",
-                              height: 80,
-                            }}
-                          >
-                            <div
-                              style={{
-                                flex: 1,
-                                height: intH,
-                                background: intCol,
-                                borderRadius: "2px 2px 0 0",
-                              }}
-                            />
-                            <div
-                              style={{
-                                flex: 1,
-                                height: durH,
-                                background: durCol + "55",
-                                borderRadius: "2px 2px 0 0",
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Legend — swatch colours match bars: intColor sample + lime */}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 16,
-                      marginTop: 9,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 5 }}
-                    >
-                      {/* Gradient swatch showing the 3 intensity colours */}
-                      <div
-                        style={{
-                          width: 24,
-                          height: 10,
-                          borderRadius: 2,
-                          background:
-                            "linear-gradient(to right,#ff6b6b,#fd9644,#c8f030)",
-                        }}
-                      />
-                      <span style={{ fontSize: 10, color: th.dim }}>
-                        intensity
-                      </span>
-                    </div>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 5 }}
-                    >
-                      <div
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 2,
-                          background: "#c8f03055",
-                          border: "1px solid #c8f030",
-                        }}
-                      />
-                      <span style={{ fontSize: 10, color: th.dim }}>
-                        duration (min)
-                      </span>
-                    </div>
-                  </div>
-                </>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  {dedupedSessions.map((s, i) => {
+                    const n = s.intensity || 0;
+                    const h = Math.max(8, (n / 10) * 80);
+                    const col = intColor(n);
+                    const dateLabel = s.startTime
+                      ? new Date(s.startTime).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                      : "";
+                    return (
+                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: col, marginBottom: 3, lineHeight: 1 }}>{n || "—"}</span>
+                        <div style={{ width: "100%", height: h, background: col, borderRadius: "3px 3px 0 0" }} />
+                        <span style={{ fontSize: 8, color: th.dim, marginTop: 4, lineHeight: 1, textAlign: "center", whiteSpace: "nowrap" }}>{dateLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               );
             })()}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, justifyContent: "center" }}>
+              <div style={{ width: 28, height: 10, borderRadius: 2, background: "linear-gradient(to right,#ff6b6b,#fd9644,#c8f030)" }} />
+              <span style={{ fontSize: 10, color: th.dim }}>Intensity (accounts for volume, weights & completion)</span>
+            </div>
           </div>
         </>
       )}
@@ -3412,11 +3340,11 @@ function HomeView({
                 col:
                   f === "fat"
                     ? d < 0
-                      ? "#c8f030"
-                      : "#ff6b6b"
+                      ? "#1db954"   // green — fat decreased (good)
+                      : "#ff6b6b"   // red — fat increased (bad)
                     : d > 0
-                    ? "#c8f030"
-                    : "#ff6b6b",
+                    ? "#1db954"     // green — weight/muscle increased (good)
+                    : "#ff6b6b",    // red — decreased
               };
             };
             return (
@@ -3484,75 +3412,51 @@ function HomeView({
                     );
                   })}
                 </div>
-                {/* Mini trend chart — last 6 weight entries */}
-                {measurements.filter((m) => m.weight != null).length > 1 && (
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        color: th.dim,
-                        letterSpacing: "1.5px",
-                        marginBottom: 6,
-                      }}
-                    >
-                      WEIGHT TREND
-                    </div>
-                    {(() => {
-                      const pts = measurements
-                        .filter((m) => m.weight != null)
-                        .slice(0, 6)
-                        .reverse();
-                      const mn = Math.min(...pts.map((p) => p.weight));
-                      const mx = Math.max(...pts.map((p) => p.weight));
-                      const range = mx - mn || 1;
-                      return (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-end",
-                            gap: 4,
-                            height: 40,
-                          }}
-                        >
+                {/* Trend charts — weight, muscle %, body fat % */}
+                {(() => {
+                  const trendFields = [
+                    { f: "weight", label: "WEIGHT TREND", unit: "kg", barColor: th.accentBg },
+                    { f: "muscle", label: "MUSCLE TREND", unit: "%",  barColor: "#4ecdc4" },
+                    { f: "fat",    label: "BODY FAT TREND", unit: "%", barColor: "#ff6b6b" },
+                  ];
+                  return trendFields.map(({ f, label, unit, barColor }) => {
+                    const pts = measurements
+                      .filter((m) => m[f] != null)
+                      .slice(0, 6)
+                      .reverse();
+                    if (pts.length < 2) return null;
+                    const mn = Math.min(...pts.map((p) => p[f]));
+                    const mx = Math.max(...pts.map((p) => p[f]));
+                    const range = mx - mn || 1;
+                    return (
+                      <div key={f} style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 10, color: th.dim, letterSpacing: "1.5px", marginBottom: 6 }}>
+                          {label}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
                           {pts.map((p, i) => {
-                            const h = Math.max(
-                              6,
-                              ((p.weight - mn) / range) * 36 + 4
-                            );
+                            const h = Math.max(8, ((p[f] - mn) / range) * 70 + 8);
                             const isLatest = i === pts.length - 1;
                             return (
-                              <div
-                                key={i}
-                                style={{
-                                  flex: 1,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  alignItems: "center",
-                                  gap: 2,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    width: "100%",
-                                    height: h,
-                                    background: isLatest
-                                      ? th.accentBg
-                                      : th.accentBg + "55",
-                                    borderRadius: "3px 3px 0 0",
-                                    transition: "height .3s",
-                                  }}
-                                />
-                                <div style={{ fontSize: 8, color: th.dim }}>
-                                  {p.weight}
+                              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                                <div style={{
+                                  width: "100%",
+                                  height: h,
+                                  background: isLatest ? barColor : barColor + "55",
+                                  borderRadius: "3px 3px 0 0",
+                                  transition: "height .3s",
+                                }} />
+                                <div style={{ fontSize: 8, color: th.dim, textAlign: "center" }}>
+                                  {p[f]}{unit}
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-                      );
-                    })()}
-                  </div>
-                )}
+                      </div>
+                    );
+                  });
+                })()}
               </>
             );
           })()}
@@ -4108,6 +4012,8 @@ function CreateProgramView({ program, onSave, onBack }) {
   const [showPicker, setShowPicker] = useState(false);
   const [expandedEx, setExpandedEx] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(!editing);
+  const listRef = useRef(null);
+  const { dragIdx, insertIdx, start: dragStart } = useDragSort(exs, setExs);
 
   const loadSuggestion = (s) => {
     setName(s.name);
@@ -4241,15 +4147,24 @@ function CreateProgramView({ program, onSave, onBack }) {
           onChange={(e) => setName(e.target.value)}
           style={{ ...S.input, marginBottom: 18 }}
         />
-        <div style={{ ...S.label, marginBottom: 12 }}>
-          EXERCISES ({exs.length})
+        <div style={{ ...S.label, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
+          <span>EXERCISES ({exs.length})</span>
+          <span style={{ fontSize: 12, color: th.dim, fontWeight: 400, letterSpacing: 0 }}>hold ⠿ to reorder</span>
         </div>
-        {exs.map((ex) => {
+        <div
+          ref={listRef}
+          style={{ position: "relative" }}
+        >
+        {exs.map((ex, exI) => {
           const db = DB.find((d) => d.id === ex.id);
           const isOpen = expandedEx === ex.id;
           const isCardio = db?.type === "cardio";
+          const isBeingDragged = dragIdx === exI;
+          const showLine = insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
           return (
-            <div key={ex.id} style={{ ...S.card, marginBottom: 7 }}>
+            <div key={ex.id} data-drag-item="">
+              {showLine && <DropLine />}
+              <div style={{ ...S.card, marginBottom: 7, opacity: isBeingDragged ? 0.35 : 1, transition: "opacity .15s" }}>
               <div
                 style={{
                   padding: "13px 14px",
@@ -4260,21 +4175,9 @@ function CreateProgramView({ program, onSave, onBack }) {
                 }}
                 onClick={() => setExpandedEx(isOpen ? null : ex.id)}
               >
-                <span
-                  style={{
-                    color: th.accentFg,
-                    fontSize: 12,
-                    display: "inline-block",
-                    transition: "transform .2s",
-                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-
-                    marginLeft: "4px", // Pushes the triangle away from the left wall
-                    marginRight: "12px", // Pushes the text to the right
-                    marginTop: "2px", // Fine-tunes the vertical alignment with the text
-                  }}
-                >
-                  ▼
-                </span>
+                <div onPointerDown={(e) => { e.stopPropagation(); dragStart(e, exI, listRef); }}>
+                  <GripIcon />
+                </div>
                 <div style={{ flex: 1 }}>
                   <div
                     style={{ fontWeight: 600, fontSize: 14, color: th.text }}
@@ -4488,8 +4391,11 @@ function CreateProgramView({ program, onSave, onBack }) {
                 </div>
               )}
             </div>
+            </div>
           );
         })}
+        {insertIdx === exs.length && dragIdx !== null && <DropLine />}
+        </div>
         <button
           onClick={() => setShowPicker(true)}
           style={{
@@ -6130,6 +6036,8 @@ function ProfileView({
   const [changelogSending, setChangelogSending] = useState(false);
   const [changelogSent, setChangelogSent] = useState(false);
   const [changelogEntries, setChangelogEntries] = useState([]);
+  const [editingChangelogId, setEditingChangelogId] = useState(null);
+  const [editingChangelogText, setEditingChangelogText] = useState("");
   const handleLoadChangelog = async () => {
     const data = await fsGetAllChangelog();
     setChangelogEntries(data);
@@ -6966,7 +6874,7 @@ function ProfileView({
               fontWeight: 700,
             }}
           >
-            {showMeasure ? "Cancel" : "+ Log"}
+            {showMeasure ? "Cancel" : "Log"}
           </button>
         </div>
         {/* Latest snapshot */}
@@ -7333,7 +7241,7 @@ function ProfileView({
               fontWeight: 700,
             }}
           >
-            {showFeedback ? "Close" : isAdmin ? "View All" : "+ Send"}
+            {showFeedback ? "Close" : isAdmin ? "View All" : "Send"}
           </button>
         </div>
 
@@ -7609,46 +7517,56 @@ function ProfileView({
                 No updates posted yet.
               </div>
             ) : (
-              changelogEntries.map((entry, i) => (
-                <div
-                  key={entry.id}
-                  style={{
-                    padding: "12px 18px",
-                    borderBottom:
-                      i < changelogEntries.length - 1
-                        ? `1px solid ${th.input}`
-                        : "none",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 4,
-                    }}
-                  >
-                    {entry.version && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: th.accentFg,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {entry.version}
-                      </span>
+              changelogEntries.map((entry, i) => {
+                const isEditingThis = editingChangelogId === entry.id;
+                return (
+                  <div key={entry.id} style={{ padding: "12px 18px", borderBottom: i < changelogEntries.length - 1 ? `1px solid ${th.input}` : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {entry.version && <span style={{ fontSize: 11, color: th.accentFg, fontWeight: 700 }}>{entry.version}</span>}
+                        <span style={{ fontSize: 11, color: th.dim }}>{fmtDate(entry.date)}</span>
+                      </div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            if (isEditingThis) { setEditingChangelogId(null); setEditingChangelogText(""); }
+                            else { setEditingChangelogId(entry.id); setEditingChangelogText(entry.text); }
+                          }}
+                          style={{ background: "none", border: `1px solid ${th.inputB}`, borderRadius: 7, color: isEditingThis ? th.accentFg : th.muted, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
+                        >
+                          {isEditingThis ? "Cancel" : "Edit"}
+                        </button>
+                      )}
+                    </div>
+                    {isEditingThis ? (
+                      <div>
+                        <textarea
+                          value={editingChangelogText}
+                          onChange={(e) => setEditingChangelogText(e.target.value)}
+                          rows={3}
+                          style={{ width: "100%", background: th.input, border: `1px solid ${th.inputB}`, borderRadius: 10, padding: "10px 12px", color: th.text, fontSize: 13, outline: "none", fontFamily: "'Outfit',sans-serif", resize: "none", marginBottom: 8, boxSizing: "border-box" }}
+                        />
+                        <Btn
+                          onClick={async () => {
+                            if (!editingChangelogText.trim()) return;
+                            const ok = await fsUpdateChangelog(entry.id, editingChangelogText.trim());
+                            if (ok) {
+                              setChangelogEntries(prev => prev.map(e => e.id === entry.id ? { ...e, text: editingChangelogText.trim() } : e));
+                              setEditingChangelogId(null);
+                              setEditingChangelogText("");
+                            }
+                          }}
+                          style={{ width: "100%", fontSize: 13, padding: "10px" }}
+                        >
+                          SAVE EDIT
+                        </Btn>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 13, color: th.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{entry.text}</div>
                     )}
-                    <span style={{ fontSize: 11, color: th.dim }}>
-                      {fmtDate(entry.date)}
-                    </span>
                   </div>
-                  <div
-                    style={{ fontSize: 13, color: th.text, lineHeight: 1.6 }}
-                  >
-                    {entry.text}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -7665,7 +7583,7 @@ function ProfileView({
           }}
         >
           IRON BODY{" "}
-          <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.1.1</span>
+          <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.2.0</span>
         </div>
         <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
           DEVELOPED BY AZAD
@@ -7685,12 +7603,15 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
   const [exs, setExs] = useState(program?.exs || []);
   const [showPicker, setShowPicker] = useState(false);
   const [expandedEx, setExpandedEx] = useState(null);
+  const listRef = useRef(null);
 
   // Auto-save whenever exercises change
   const updateExs = (next) => {
     setExs(next);
     onSave({ ...program, exs: next });
   };
+
+  const { dragIdx, insertIdx, start: dragStart } = useDragSort(exs, updateExs);
 
   const addEx = (dbId) => {
     const db = DB.find((e) => e.id === dbId);
@@ -7720,16 +7641,22 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
         />
       )}
       <div className="slide-up" style={{ paddingBottom: 100, paddingTop: 4 }}>
-        <div style={{ ...S.label, marginBottom: 12 }}>
-          EXERCISES ({exs.length})
+        <div style={{ ...S.label, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
+          <span>EXERCISES ({exs.length})</span>
+          <span style={{ fontSize: 12, color: th.dim, fontWeight: 400, letterSpacing: 0 }}>hold ⠿ to reorder</span>
         </div>
 
-        {exs.map((ex) => {
+        <div ref={listRef}>
+        {exs.map((ex, exI) => {
           const db = DB.find((d) => d.id === ex.id);
           const isOpen = expandedEx === ex.id;
           const isCardio = db?.type === "cardio";
+          const isBeingDragged = dragIdx === exI;
+          const showLine = insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
           return (
-            <div key={ex.id} style={{ ...S.card, marginBottom: 7 }}>
+            <div key={ex.id}>
+              {showLine && <DropLine />}
+              <div style={{ ...S.card, marginBottom: 7, opacity: isBeingDragged ? 0.35 : 1, transition: "opacity .15s" }}>
               <div
                 style={{
                   padding: "13px 14px",
@@ -7740,20 +7667,9 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
                 }}
                 onClick={() => setExpandedEx(isOpen ? null : ex.id)}
               >
-                <span
-                  style={{
-                    color: th.accentFg,
-                    fontSize: 12,
-                    display: "inline-block",
-                    transition: "transform .2s",
-                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    marginLeft: "4px",
-                    marginRight: "12px",
-                    marginTop: "2px",
-                  }}
-                >
-                  ▼
-                </span>
+                <div onPointerDown={(e) => { e.stopPropagation(); dragStart(e, exI, listRef); }}>
+                  <GripIcon />
+                </div>
                 <div style={{ flex: 1 }}>
                   <div
                     style={{ fontWeight: 600, fontSize: 14, color: th.text }}
@@ -7968,8 +7884,11 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
                 </div>
               )}
             </div>
+            </div>
           );
         })}
+        {insertIdx === exs.length && dragIdx !== null && <DropLine />}
+        </div>
 
         {exs.length === 0 && (
           <div style={{ textAlign: "center", padding: "32px 0 20px" }}>
