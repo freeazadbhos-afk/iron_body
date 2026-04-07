@@ -692,6 +692,124 @@ const DB = [
   { id: "x47", name: "Landmine Rotation", muscle: "Core", group: "Core" },
   { id: "x48", name: "Pallof Press", muscle: "Core", group: "Core" },
 
+  /* ── MACHINE EXERCISES ── */
+  {
+    id: "m1",
+    name: "Pectoral Machine (Pec Deck)",
+    muscle: "Chest",
+    group: "Chest",
+  },
+  {
+    id: "m2",
+    name: "Incline Chest Press Machine",
+    muscle: "Upper Chest",
+    group: "Chest",
+  },
+  {
+    id: "m3",
+    name: "Decline Chest Press Machine",
+    muscle: "Lower Chest",
+    group: "Chest",
+  },
+  {
+    id: "m4",
+    name: "Plate-Loaded Chest Fly Machine",
+    muscle: "Chest",
+    group: "Chest",
+  },
+  { id: "m5", name: "Lat Pulldown Machine", muscle: "Lats", group: "Back" },
+  {
+    id: "m6",
+    name: "Plate-Loaded Row Machine",
+    muscle: "Mid Back",
+    group: "Back",
+  },
+  {
+    id: "m7",
+    name: "Reverse Fly Machine",
+    muscle: "Rear Delts",
+    group: "Back",
+  },
+  {
+    id: "m8",
+    name: "Back Extension Machine",
+    muscle: "Lower Back",
+    group: "Back",
+  },
+  {
+    id: "m9",
+    name: "Shoulder Press Machine",
+    muscle: "Shoulders",
+    group: "Shoulders",
+  },
+  {
+    id: "m10",
+    name: "Lateral Raise Machine",
+    muscle: "Side Delts",
+    group: "Shoulders",
+  },
+  {
+    id: "m11",
+    name: "Rear Delt Machine",
+    muscle: "Rear Delts",
+    group: "Shoulders",
+  },
+  { id: "m12", name: "Shrug Machine", muscle: "Traps", group: "Shoulders" },
+  { id: "m13", name: "Bicep Curl Machine", muscle: "Biceps", group: "Arms" },
+  { id: "m14", name: "Preacher Curl Machine", muscle: "Biceps", group: "Arms" },
+  {
+    id: "m15",
+    name: "Tricep Extension Machine",
+    muscle: "Triceps",
+    group: "Arms",
+  },
+  { id: "m16", name: "Tricep Dip Machine", muscle: "Triceps", group: "Arms" },
+  { id: "m17", name: "Leg Extension Machine", muscle: "Quads", group: "Legs" },
+  {
+    id: "m18",
+    name: "Lying Leg Curl Machine",
+    muscle: "Hamstrings",
+    group: "Legs",
+  },
+  {
+    id: "m19",
+    name: "Seated Leg Curl Machine",
+    muscle: "Hamstrings",
+    group: "Legs",
+  },
+  {
+    id: "m20",
+    name: "Leg Adductor Machine",
+    muscle: "Inner Thigh",
+    group: "Legs",
+  },
+  {
+    id: "m21",
+    name: "Leg Abductor Machine",
+    muscle: "Outer Thigh",
+    group: "Legs",
+  },
+  { id: "m22", name: "Hip Thrust Machine", muscle: "Glutes", group: "Legs" },
+  {
+    id: "m23",
+    name: "Glute Kickback Machine",
+    muscle: "Glutes",
+    group: "Legs",
+  },
+  {
+    id: "m24",
+    name: "Seated Calf Raise Machine",
+    muscle: "Calves",
+    group: "Legs",
+  },
+  {
+    id: "m25",
+    name: "Standing Calf Raise Machine",
+    muscle: "Calves",
+    group: "Legs",
+  },
+  { id: "m26", name: "Hack Squat Machine", muscle: "Quads", group: "Legs" },
+
   /* ── CARDIO ── type:"cardio" marks these as cardio log entries (no sets/reps/weight) */
   {
     id: "c1",
@@ -1154,13 +1272,15 @@ const DEFAULT_PROGRAMS = [
 ];
 
 const WEIGHT_PRESETS = [
-  0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 27.5, 30, 32.5, 35, 37.5,
-  40, 42.5, 45, 47.5, 50, 52.5, 55, 57.5, 60, 62.5, 65, 67.5, 70, 72.5, 75,
-  77.5, 80, 82.5, 85, 87.5, 90, 92.5, 95, 97.5, 100, 102.5, 105, 107.5, 110,
-  112.5, 115, 117.5, 120, 122.5, 125, 127.5, 130, 132.5, 135, 137.5, 140, 142.5,
-  145, 147.5, 150, 152.5, 155, 157.5, 160, 162.5, 165, 167.5, 170, 172.5, 175,
-  177.5, 180, 182.5, 185, 187.5, 190, 192.5, 195, 197.5, 200,
-];
+  0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140,
+]; // quick-tap dropdown
+const SLIDER_PRESETS = [
+  0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0,
+  32.5, 35.0, 37.5, 40.0, 42.5, 45.0, 47.5, 50.0, 52.5, 55.0, 57.5, 60.0, 62.5,
+  65.0, 67.5, 70.0, 72.5, 75.0, 77.5, 80.0, 82.5, 85.0, 87.5, 90.0, 92.5, 95.0,
+  97.5, 100.0, 102.5, 105.0, 107.5, 110.0, 112.5, 115.0, 117.5, 120.0, 122.5,
+  125.0, 127.5, 130.0, 132.5, 135.0, 137.5, 140.0,
+]; // ruler: 0–140 in 2.5kg steps
 const GC = {
   Chest: "#ff6b6b",
   Back: "#4ecdc4",
@@ -1695,23 +1815,53 @@ function WeightPicker({ value, onChange }) {
   const th = useTheme();
   const [open, setOpen] = useState(false);
   const scrollRef = useRef(null);
-  const ITEM_W = 64; // px per weight cell
+  const timerRef = useRef(null);
+  const ITEM_W = 72;
 
-  // Scroll to current value when opened
+  // Scroll ruler to selected value when sheet opens
   useEffect(() => {
-    if (open && scrollRef.current) {
-      const idx = WEIGHT_PRESETS.indexOf(value);
-      if (idx >= 0) {
-        const el = scrollRef.current;
-        const target = idx * ITEM_W - el.offsetWidth / 2 + ITEM_W / 2;
-        el.scrollLeft = Math.max(0, target);
-      }
-    }
-  }, [open, value]);
+    if (!open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const idx =
+      SLIDER_PRESETS.indexOf(value) >= 0
+        ? SLIDER_PRESETS.indexOf(value)
+        : SLIDER_PRESETS.reduce(
+            (best, w, i) =>
+              Math.abs(w - value) < Math.abs(SLIDER_PRESETS[best] - value)
+                ? i
+                : best,
+            0
+          );
+    // With padding = calc(50% - ITEM_W/2) on each side,
+    // item[idx] is centered when scrollLeft = idx * ITEM_W
+    requestAnimationFrame(() => {
+      el.scrollLeft = idx * ITEM_W;
+    });
+  }, [open]);
+
+  const scrollToIdx = (idx) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // Same formula: scrollLeft = idx * ITEM_W
+    el.scrollTo({ left: idx * ITEM_W, behavior: "smooth" });
+  };
+
+  const handleScroll = (e) => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      const el = e.target;
+      // With the padding convention, idx = round(scrollLeft / ITEM_W)
+      const idx = Math.max(
+        0,
+        Math.min(SLIDER_PRESETS.length - 1, Math.round(el.scrollLeft / ITEM_W))
+      );
+      onChange(SLIDER_PRESETS[idx]);
+    }, 120);
+  };
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Trigger button */}
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
@@ -1732,7 +1882,6 @@ function WeightPicker({ value, onChange }) {
         {value}kg
       </div>
 
-      {/* Full-width sliding scale sheet */}
       {open && (
         <>
           <div
@@ -1823,13 +1972,13 @@ function WeightPicker({ value, onChange }) {
                 DONE
               </button>
             </div>
-            {/* Sliding scale */}
+            {/* Ruler */}
             <div style={{ position: "relative", marginBottom: 16 }}>
-              {/* Centre indicator line */}
               <div
                 style={{
                   position: "absolute",
                   left: "50%",
+                  transform: "translateX(-1px)",
                   top: 0,
                   bottom: 0,
                   width: 2,
@@ -1841,33 +1990,32 @@ function WeightPicker({ value, onChange }) {
               />
               <div
                 ref={scrollRef}
+                onScroll={handleScroll}
                 style={{
                   overflowX: "auto",
                   display: "flex",
                   scrollSnapType: "x mandatory",
                   WebkitOverflowScrolling: "touch",
                   scrollbarWidth: "none",
-                  padding: "0 calc(50% - 32px)",
-                }}
-                onScroll={(e) => {
-                  const el = e.currentTarget;
-                  const scrollCenter = el.scrollLeft + el.offsetWidth / 2;
-                  const idx = Math.round((scrollCenter - ITEM_W / 2) / ITEM_W);
-                  const clamped = Math.max(
-                    0,
-                    Math.min(WEIGHT_PRESETS.length - 1, idx)
-                  );
-                  if (WEIGHT_PRESETS[clamped] !== value)
-                    onChange(WEIGHT_PRESETS[clamped]);
+                  padding: `0 calc(50% - ${ITEM_W / 2}px)`,
                 }}
               >
-                {WEIGHT_PRESETS.map((w, i) => {
+                {SLIDER_PRESETS.map((w) => {
                   const isSel = w === value;
                   return (
                     <div
                       key={w}
                       onClick={() => {
                         onChange(w);
+                        scrollToIdx(
+                          SLIDER_PRESETS.reduce(
+                            (b, v, i) =>
+                              Math.abs(v - w) < Math.abs(SLIDER_PRESETS[b] - w)
+                                ? i
+                                : b,
+                            0
+                          )
+                        );
                       }}
                       style={{
                         flexShrink: 0,
@@ -1876,43 +2024,36 @@ function WeightPicker({ value, onChange }) {
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
-                        justifyContent: "center",
-                        padding: "14px 0",
+                        paddingTop: 10,
+                        paddingBottom: 8,
                         cursor: "pointer",
-                        transition: "all .1s",
                       }}
                     >
                       <div
                         style={{
                           width: 2,
-                          height: isSel ? 28 : w % 10 === 0 ? 18 : 10,
-                          background: isSel
-                            ? th.accentBg
-                            : w % 10 === 0
-                            ? th.sub
-                            : th.inputB,
+                          height: isSel ? 32 : 20,
+                          background: isSel ? th.accentBg : th.sub,
                           borderRadius: 1,
-                          marginBottom: 4,
-                          transition: "height .15s",
+                          marginBottom: 6,
                         }}
                       />
-                      {(isSel || w % 10 === 0 || w === 0) && (
-                        <div
-                          style={{
-                            fontSize: isSel ? 13 : 10,
-                            fontWeight: isSel ? 700 : 500,
-                            color: isSel ? th.accentFg : th.dim,
-                            lineHeight: 1,
-                          }}
-                        >
-                          {w}
-                        </div>
-                      )}
+                      {/* Always render label — never conditional — to prevent layout shifts */}
+                      <div
+                        style={{
+                          fontSize: isSel ? 14 : 12,
+                          fontWeight: isSel ? 700 : 500,
+                          color: isSel ? th.accentFg : th.dim,
+                          lineHeight: 1,
+                          minHeight: 14,
+                        }}
+                      >
+                        {w}
+                      </div>
                     </div>
                   );
                 })}
               </div>
-              {/* Gradient fade edges */}
               <div
                 style={{
                   position: "absolute",
@@ -1936,7 +2077,7 @@ function WeightPicker({ value, onChange }) {
                 }}
               />
             </div>
-            {/* Quick-tap common weights */}
+            {/* Quick-tap: all presets (0–140 in 10kg steps) */}
             <div
               style={{
                 display: "flex",
@@ -1945,12 +2086,23 @@ function WeightPicker({ value, onChange }) {
                 flexWrap: "wrap",
               }}
             >
-              {[10, 20, 30, 40, 50, 60, 70, 80, 100, 120].map((w) => (
+              {WEIGHT_PRESETS.map((w) => (
                 <button
                   key={w}
-                  onClick={() => onChange(w)}
+                  onClick={() => {
+                    onChange(w);
+                    scrollToIdx(
+                      SLIDER_PRESETS.reduce(
+                        (b, v, i) =>
+                          Math.abs(v - w) < Math.abs(SLIDER_PRESETS[b] - w)
+                            ? i
+                            : b,
+                        0
+                      )
+                    );
+                  }}
                   style={{
-                    padding: "6px 12px",
+                    padding: "6px 10px",
                     borderRadius: 8,
                     border: `1px solid ${
                       value === w ? th.accentBg : th.inputB
@@ -4258,25 +4410,21 @@ function CreateProgramView({ program, onSave, onBack }) {
                               >
                                 −
                               </button>
-                              <input
-                                type="number"
-                                value={ex[c.f]}
-                                onChange={(e) =>
-                                  updateEx(ex.id, c.f, e.target.value)
-                                }
+                              <span
                                 style={{
                                   flex: 1,
-                                  background: "none",
-                                  border: "none",
                                   color: th.text,
                                   textAlign: "center",
                                   fontSize: 16,
                                   fontWeight: 700,
-                                  outline: "none",
                                   fontFamily: "'Outfit',sans-serif",
-                                  width: 0,
+                                  userSelect: "none",
+                                  display: "block",
+                                  padding: "7px 0",
                                 }}
-                              />
+                              >
+                                {ex[c.f]}
+                              </span>
                               <button
                                 onClick={() =>
                                   updateEx(
@@ -5340,7 +5488,13 @@ function WorkoutView({
         </span>{" "}
         Add Exercise
       </button>
-      <Btn onClick={() => onFinish(exercises)} style={{ width: "100%" }}>
+      <Btn
+        onClick={() => {
+          if (!window.confirm("Finish this workout and save results?")) return;
+          onFinish(exercises);
+        }}
+        style={{ width: "100%" }}
+      >
         FINISH WORKOUT
       </Btn>
     </div>
@@ -7556,25 +7710,21 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
                               >
                                 −
                               </button>
-                              <input
-                                type="number"
-                                value={ex[c.f]}
-                                onChange={(e) =>
-                                  updateEx(ex.id, c.f, e.target.value)
-                                }
+                              <span
                                 style={{
                                   flex: 1,
-                                  background: "none",
-                                  border: "none",
                                   color: th.text,
                                   textAlign: "center",
                                   fontSize: 16,
                                   fontWeight: 700,
-                                  outline: "none",
                                   fontFamily: "'Outfit',sans-serif",
-                                  width: 0,
+                                  userSelect: "none",
+                                  display: "block",
+                                  padding: "7px 0",
                                 }}
-                              />
+                              >
+                                {ex[c.f]}
+                              </span>
                               <button
                                 onClick={() =>
                                   updateEx(
@@ -8294,7 +8444,13 @@ export default function App() {
                   QUIT
                 </button>
                 <button
-                  onClick={() => handleFinishWorkout(active.exercises)}
+                  onClick={() => {
+                    if (
+                      !window.confirm("Finish this workout and save results?")
+                    )
+                      return;
+                    handleFinishWorkout(active.exercises);
+                  }}
                   style={{
                     background: th.accentBg,
                     border: "none",
