@@ -1618,6 +1618,31 @@ async function fsSaveSettings(uid, settings) {
     console.error("fsSaveSettings:", e.code, e.message);
   }
 }
+async function fsGetAllChangelog() {
+  try {
+    const snap = await getDocs(collection(fbDb, "changelog"));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => b.date - a.date);
+  } catch (e) {
+    console.error("fsGetAllChangelog:", e);
+    return [];
+  }
+}
+async function fsSaveChangelog(text) {
+  try {
+    const id = Date.now().toString(36);
+    await setDoc(doc(fbDb, "changelog", id), {
+      text,
+      date: Date.now(),
+      version: "1.1.1",
+    });
+    return true;
+  } catch (e) {
+    console.error("fsSaveChangelog:", e);
+    return false;
+  }
+}
 async function fsSendFeedback(uid, email, text, stars = 0) {
   try {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -6099,6 +6124,27 @@ function ProfileView({
   const [editOk, setEditOk] = useState("");
   // Feedback
   const [showFeedback, setShowFeedback] = useState(false);
+  // Changelog
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [changelogText, setChangelogText] = useState("");
+  const [changelogSending, setChangelogSending] = useState(false);
+  const [changelogSent, setChangelogSent] = useState(false);
+  const [changelogEntries, setChangelogEntries] = useState([]);
+  const handleLoadChangelog = async () => {
+    const data = await fsGetAllChangelog();
+    setChangelogEntries(data);
+  };
+  const handleSaveChangelog = async () => {
+    if (!changelogText.trim()) return;
+    setChangelogSending(true);
+    const ok = await fsSaveChangelog(changelogText.trim());
+    setChangelogSending(false);
+    if (ok) {
+      setChangelogText("");
+      setChangelogSent(true);
+      handleLoadChangelog();
+    }
+  };
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackStars, setFeedbackStars] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -7456,15 +7502,174 @@ function ProfileView({
         )}
       </div>
 
-      <div
-        style={{
-          textAlign: "center",
-          color: th.dim,
-          fontSize: 11,
-          letterSpacing: "2px",
-        }}
-      >
-        DEVELOPED BY AZAD
+      {/* Changelog card */}
+      <div style={{ ...S.card, marginBottom: 12, overflow: "hidden" }}>
+        <div
+          style={{
+            padding: "14px 18px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: th.text }}>
+              Change Log
+            </div>
+            <div style={{ fontSize: 12, color: th.muted, marginTop: 2 }}>
+              {isAdmin ? "Post updates and fixes" : "Latest updates & fixes"}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setShowChangelog((v) => !v);
+              if (!showChangelog) handleLoadChangelog();
+              setChangelogSent(false);
+            }}
+            style={{
+              background: showChangelog ? th.accentBg : "transparent",
+              border: `1px solid ${showChangelog ? th.accentBg : th.inputB}`,
+              borderRadius: 9,
+              color: showChangelog ? th.accentT : th.muted,
+              padding: "7px 14px",
+              cursor: "pointer",
+              fontSize: 12,
+              fontFamily: "'Outfit',sans-serif",
+              fontWeight: 700,
+            }}
+          >
+            {showChangelog ? "Close" : isAdmin ? "Manage" : "View"}
+          </button>
+        </div>
+
+        {showChangelog && (
+          <div style={{ borderTop: `1px solid ${th.border}` }}>
+            {/* Admin post form */}
+            {isAdmin && (
+              <div
+                style={{
+                  padding: "14px 18px",
+                  borderBottom:
+                    changelogEntries.length > 0
+                      ? `1px solid ${th.border}`
+                      : "none",
+                }}
+              >
+                {changelogSent && (
+                  <div
+                    style={{
+                      color: th.accentFg,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Posted!
+                  </div>
+                )}
+                <textarea
+                  value={changelogText}
+                  onChange={(e) => setChangelogText(e.target.value)}
+                  placeholder="e.g. v1.1.1 – Fixed weight slider alignment, added machine exercises..."
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    background: th.input,
+                    border: `1px solid ${th.inputB}`,
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                    color: th.text,
+                    fontSize: 14,
+                    outline: "none",
+                    fontFamily: "'Outfit',sans-serif",
+                    resize: "none",
+                    marginBottom: 10,
+                    boxSizing: "border-box",
+                  }}
+                />
+                <Btn
+                  onClick={handleSaveChangelog}
+                  disabled={changelogSending || !changelogText.trim()}
+                  style={{ width: "100%", fontSize: 14, padding: "12px" }}
+                >
+                  {changelogSending ? "POSTING..." : "POST UPDATE"}
+                </Btn>
+              </div>
+            )}
+            {/* Entries list */}
+            {changelogEntries.length === 0 ? (
+              <div
+                style={{
+                  padding: "16px 18px",
+                  fontSize: 13,
+                  color: th.muted,
+                  textAlign: "center",
+                }}
+              >
+                No updates posted yet.
+              </div>
+            ) : (
+              changelogEntries.map((entry, i) => (
+                <div
+                  key={entry.id}
+                  style={{
+                    padding: "12px 18px",
+                    borderBottom:
+                      i < changelogEntries.length - 1
+                        ? `1px solid ${th.input}`
+                        : "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {entry.version && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: th.accentFg,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {entry.version}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 11, color: th.dim }}>
+                      {fmtDate(entry.date)}
+                    </span>
+                  </div>
+                  <div
+                    style={{ fontSize: 13, color: th.text, lineHeight: 1.6 }}
+                  >
+                    {entry.text}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Version + footer */}
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div
+          style={{
+            color: th.dim,
+            fontSize: 12,
+            letterSpacing: "1.5px",
+            marginBottom: 4,
+          }}
+        >
+          IRON BODY{" "}
+          <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.1.1</span>
+        </div>
+        <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
+          DEVELOPED BY AZAD
+        </div>
       </div>
     </div>
   );
@@ -8926,7 +9131,7 @@ export default function App() {
                     background: "none",
                     border: "none",
                     cursor: "pointer",
-                    padding: "20px 0 18px",
+                    padding: "8px 0 30px",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -8940,8 +9145,18 @@ export default function App() {
                     position: "relative",
                   }}
                 >
-                  {tab.icon(col, user?.email === "freeazadbhos@gmail.com")}
-                  <span>{tab.label}</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: -1,
+                    }}
+                  >
+                    {tab.icon(col, user?.email === "freeazadbhos@gmail.com")}
+                    <span>{tab.label}</span>
+                  </div>
                   {tab.id === "home" && active && view !== "workout" && (
                     <div
                       style={{
