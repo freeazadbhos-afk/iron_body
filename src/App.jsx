@@ -1733,13 +1733,13 @@ async function fsGetAllChangelog() {
     return [];
   }
 }
-async function fsSaveChangelog(text) {
+async function fsSaveChangelog(text, version) {
   try {
     const id = Date.now().toString(36);
     await setDoc(doc(fbDb, "changelog", id), {
       text,
       date: Date.now(),
-      version: "1.1.1",
+      version: version || "1.1.1",
     });
     return true;
   } catch (e) {
@@ -3275,40 +3275,51 @@ function HomeView({
           <div style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ ...S.label }}>RECENT PERFORMANCE</div>
-              <div style={{ fontSize: 10, color: th.dim }}>{last8.length} sessions</div>
+              <div style={{ fontSize: 10, color: th.dim }}>last 7 days</div>
             </div>
             {(() => {
-              // Deduplicate by date — keep best intensity per date
-              // Group by date, compute weighted average intensity (weighted by sessionVol)
-              const byDate = {};
-              last8.forEach((s) => {
-                const dk = s.startTime ? new Date(s.startTime).toDateString() : "unknown";
-                if (!byDate[dk]) byDate[dk] = { sessions: [], startTime: s.startTime };
-                byDate[dk].sessions.push(s);
+              // Build last-7-days array (always 7 slots, empty days included)
+              const days = Array.from({ length: 7 }, (_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - (6 - i));
+                d.setHours(0, 0, 0, 0);
+                return d;
               });
-              const dedupedSessions = Object.values(byDate).map((g) => {
-                const sessions = g.sessions;
-                // Weighted by volume — higher-volume sessions count more
-                const totalVol = sessions.reduce((a, s) => a + sessionVol(s), 0) || sessions.length;
-                const weightedInt = sessions.reduce((a, s) => {
-                  const w = totalVol > 0 ? sessionVol(s) / totalVol : 1 / sessions.length;
-                  return a + (s.intensity || 0) * w;
-                }, 0);
-                return { ...sessions[0], intensity: Math.round(weightedInt * 10) / 10 };
-              }).sort((a, b) => (a.startTime || 0) - (b.startTime || 0));
+              const byDate = {};
+              sessions.forEach((s) => {
+                if (!s.startTime) return;
+                const dk = new Date(s.startTime).toDateString();
+                if (!byDate[dk]) byDate[dk] = [];
+                byDate[dk].push(s);
+              });
               return (
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                  {dedupedSessions.map((s, i) => {
-                    const n = s.intensity || 0;
-                    const h = Math.max(8, (n / 10) * 80);
-                    const col = intColor(n);
-                    const dateLabel = s.startTime
-                      ? new Date(s.startTime).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-                      : "";
+                  {days.map((d, i) => {
+                    const dk = d.toDateString();
+                    const daySessions = byDate[dk] || [];
+                    const hasData = daySessions.length > 0;
+                    let n = 0;
+                    if (hasData) {
+                      // Weight by volume; cardio sessions (vol=0) get equal weight
+                      const vols = daySessions.map((s) => sessionVol(s));
+                      const totalVol = vols.reduce((a, v) => a + v, 0);
+                      const useEqual = totalVol === 0; // all cardio
+                      n = Math.round(daySessions.reduce((a, s, si) => {
+                        const w = useEqual
+                          ? 1 / daySessions.length
+                          : vols[si] > 0
+                          ? vols[si] / totalVol
+                          : 0.5 / daySessions.length; // cardio mixed with strength gets small weight
+                        return a + (s.intensity || 0) * w;
+                      }, 0) * 10) / 10;
+                    }
+                    const h = hasData ? Math.max(8, (n / 10) * 80) : 8;
+                    const col = hasData ? intColor(n) : th.inputB;
+                    const dateLabel = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                     return (
                       <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: col, marginBottom: 3, lineHeight: 1 }}>{n || "—"}</span>
-                        <div style={{ width: "100%", height: h, background: col, borderRadius: "3px 3px 0 0" }} />
+                        <span style={{ fontSize: 9, fontWeight: 700, color: hasData ? col : "transparent", marginBottom: 3, lineHeight: 1 }}>{hasData ? n : "·"}</span>
+                        <div style={{ width: "100%", height: h, background: col, borderRadius: "3px 3px 0 0", opacity: hasData ? 1 : 0.3 }} />
                         <span style={{ fontSize: 8, color: th.dim, marginTop: 4, lineHeight: 1, textAlign: "center", whiteSpace: "nowrap" }}>{dateLabel}</span>
                       </div>
                     );
@@ -3427,15 +3438,19 @@ function HomeView({
                     if (pts.length < 2) return null;
                     const mn = Math.min(...pts.map((p) => p[f]));
                     const mx = Math.max(...pts.map((p) => p[f]));
-                    const range = mx - mn || 1;
+                    // Use a proportional floor so bars reflect actual values,
+                    // not just the min→max spread (which exaggerates small changes)
+                    const floor = mn * 0.92;
+                    const ceiling = mx * 1.04;
+                    const range = ceiling - floor || 1;
                     return (
                       <div key={f} style={{ marginTop: 14 }}>
-                        <div style={{ fontSize: 10, color: th.dim, letterSpacing: "1.5px", marginBottom: 6 }}>
+                        <div style={{ fontSize: 10, color: th.sub, letterSpacing: "1.5px", fontWeight: 700, marginBottom: 12 }}>
                           {label}
                         </div>
-                        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 60 }}>
                           {pts.map((p, i) => {
-                            const h = Math.max(8, ((p[f] - mn) / range) * 70 + 8);
+                            const h = Math.max(4, ((p[f] - floor) / range) * 54);
                             const isLatest = i === pts.length - 1;
                             return (
                               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
@@ -4009,6 +4024,19 @@ function CreateProgramView({ program, onSave, onBack }) {
   const editing = !!program?.id;
   const [name, setName] = useState(program?.name || "");
   const [exs, setExs] = useState(program?.exs || []);
+  // Auto-save helper: call onBack with current state so parent saves on exit
+  const handleBack = () => {
+    if (name.trim() && exs.length > 0) {
+      onBack({ id: program?.id || uid(), name: name.trim(), exs });
+    } else {
+      onBack(null);
+    }
+  };
+  // Expose to header back button
+  useEffect(() => {
+    window.__programHandleBack = handleBack;
+    return () => { delete window.__programHandleBack; };
+  });
   const [showPicker, setShowPicker] = useState(false);
   const [expandedEx, setExpandedEx] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(!editing);
@@ -4420,18 +4448,6 @@ function CreateProgramView({ program, onSave, onBack }) {
           </span>{" "}
           Add Exercise
         </button>
-      </div>
-      <div style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
-        <Btn
-          onClick={() => {
-            if (!name.trim() || exs.length === 0) return;
-            onSave({ id: program?.id || uid(), name: name.trim(), exs });
-          }}
-          disabled={!name.trim() || exs.length === 0}
-          style={{ width: "100%" }}
-        >
-          SAVE PROGRAM
-        </Btn>
       </div>
     </>
   );
@@ -6033,6 +6049,7 @@ function ProfileView({
   // Changelog
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelogText, setChangelogText] = useState("");
+  const [changelogVersion, setChangelogVersion] = useState("1.1.1");
   const [changelogSending, setChangelogSending] = useState(false);
   const [changelogSent, setChangelogSent] = useState(false);
   const [changelogEntries, setChangelogEntries] = useState([]);
@@ -6045,7 +6062,7 @@ function ProfileView({
   const handleSaveChangelog = async () => {
     if (!changelogText.trim()) return;
     setChangelogSending(true);
-    const ok = await fsSaveChangelog(changelogText.trim());
+    const ok = await fsSaveChangelog(changelogText.trim(), changelogVersion.trim());
     setChangelogSending(false);
     if (ok) {
       setChangelogText("");
@@ -7475,10 +7492,17 @@ function ProfileView({
                     Posted!
                   </div>
                 )}
+                <input
+                  type="text"
+                  value={changelogVersion}
+                  onChange={(e) => setChangelogVersion(e.target.value)}
+                  placeholder="Version (e.g. 1.1.2)"
+                  style={{ width: "100%", background: th.input, border: `1px solid ${th.inputB}`, borderRadius: 10, padding: "9px 14px", color: th.text, fontSize: 13, outline: "none", fontFamily: "'Outfit',sans-serif", marginBottom: 8, boxSizing: "border-box" }}
+                />
                 <textarea
                   value={changelogText}
                   onChange={(e) => setChangelogText(e.target.value)}
-                  placeholder="e.g. v1.1.1 – Fixed weight slider alignment, added machine exercises..."
+                  placeholder="e.g. Fixed weight slider alignment, added machine exercises..."
                   rows={3}
                   style={{
                     width: "100%",
@@ -7527,15 +7551,34 @@ function ProfileView({
                         <span style={{ fontSize: 11, color: th.dim }}>{fmtDate(entry.date)}</span>
                       </div>
                       {isAdmin && (
-                        <button
-                          onClick={() => {
-                            if (isEditingThis) { setEditingChangelogId(null); setEditingChangelogText(""); }
-                            else { setEditingChangelogId(entry.id); setEditingChangelogText(entry.text); }
-                          }}
-                          style={{ background: "none", border: `1px solid ${th.inputB}`, borderRadius: 7, color: isEditingThis ? th.accentFg : th.muted, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
-                        >
-                          {isEditingThis ? "Cancel" : "Edit"}
-                        </button>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {isEditingThis && (
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm("Delete this changelog entry?")) return;
+                                try {
+                                  const { deleteDoc, doc: fsDoc } = await import("firebase/firestore");
+                                  await deleteDoc(fsDoc(fbDb, "changelog", entry.id));
+                                } catch (e) { console.error(e); }
+                                setChangelogEntries(prev => prev.filter(e => e.id !== entry.id));
+                                setEditingChangelogId(null);
+                                setEditingChangelogText("");
+                              }}
+                              style={{ background: "none", border: "1px solid #ff6b6b", borderRadius: 7, color: "#ff6b6b", fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (isEditingThis) { setEditingChangelogId(null); setEditingChangelogText(""); }
+                              else { setEditingChangelogId(entry.id); setEditingChangelogText(entry.text); }
+                            }}
+                            style={{ background: "none", border: `1px solid ${th.inputB}`, borderRadius: 7, color: isEditingThis ? th.accentFg : th.muted, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
+                          >
+                            {isEditingThis ? "Cancel" : "Edit"}
+                          </button>
+                        </div>
                       )}
                     </div>
                     {isEditingThis ? (
@@ -7654,7 +7697,7 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
           const isBeingDragged = dragIdx === exI;
           const showLine = insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
           return (
-            <div key={ex.id}>
+            <div key={ex.id} data-drag-item="">
               {showLine && <DropLine />}
               <div style={{ ...S.card, marginBottom: 7, opacity: isBeingDragged ? 0.35 : 1, transition: "opacity .15s" }}>
               <div
@@ -8713,7 +8756,12 @@ export default function App() {
                   onClick={() => {
                     if (view === "sessionDetail")
                       setView(selSessionOrigin || "history");
-                    else if (view === "editProgram") setView("programs");
+                    else if (view === "editProgram") {
+                      // Trigger auto-save via the CreateProgramView's handleBack
+                      // We do this by firing the programBackRef if available
+                      if (window.__programHandleBack) window.__programHandleBack();
+                      else setView("programs");
+                    }
                     else if (view === "create") setView("home");
                     else if (view === "shortcutDetail") setView("home");
                     else if (view === "complete") {
@@ -8956,7 +9004,16 @@ export default function App() {
                 );
                 setView("programs");
               }}
-              onBack={() => setView("programs")}
+              onBack={(p) => {
+                if (p) {
+                  savePrograms(
+                    editingProg
+                      ? programs.map((x) => (x.id === p.id ? p : x))
+                      : [...programs, p]
+                  );
+                }
+                setView("programs");
+              }}
             />
           )}
           {view === "history" && (
