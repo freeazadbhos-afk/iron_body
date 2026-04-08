@@ -2096,6 +2096,7 @@ function WeightPicker({ value, onChange }) {
             {/* Header */}
             <div
               style={{
+                position: "relative",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
@@ -2112,12 +2113,17 @@ function WeightPicker({ value, onChange }) {
               >
                 SELECT WEIGHT
               </span>
+              {/* Absolutely centered so it aligns with ruler center line */}
               <span
                 style={{
+                  position: "absolute",
+                  left: "50%",
+                  transform: "translateX(-50%)",
                   fontFamily: "'Bebas Neue',sans-serif",
                   fontSize: 22,
                   color: th.accentFg,
                   letterSpacing: 1,
+                  pointerEvents: "none",
                 }}
               >
                 {value} KG
@@ -2475,30 +2481,20 @@ function ExerciseEditCard({
                       >
                         −
                       </button>
-                      <input
-                        type="number"
-                        value={set.reps}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) =>
-                          onUpdateSet(
-                            sIdx,
-                            "reps",
-                            parseFloat(e.target.value) || 1
-                          )
-                        }
+                      <span
                         style={{
                           flex: 1,
-                          background: "none",
-                          border: "none",
                           color: th.text,
                           textAlign: "center",
                           fontSize: 16,
                           fontWeight: 700,
-                          outline: "none",
                           fontFamily: "'Outfit',sans-serif",
-                          width: 0,
+                          userSelect: "none",
+                          padding: "6px 0",
                         }}
-                      />
+                      >
+                        {set.reps}
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -8127,7 +8123,7 @@ function ProfileView({
           }}
         >
           IRON BODY{" "}
-          <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.2.2</span>
+          <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.2.1</span>
         </div>
         <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
           DEVELOPED BY AZAD
