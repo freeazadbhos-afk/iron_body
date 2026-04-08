@@ -3708,7 +3708,7 @@ function HomeView({
                         />
                         <span
                           style={{
-                            fontSize: 8,
+                            fontSize: 9,
                             color: th.dim,
                             marginTop: 4,
                             lineHeight: 1,
@@ -3742,7 +3742,7 @@ function HomeView({
                     "linear-gradient(to right,#ff6b6b,#fd9644,#c8f030)",
                 }}
               />
-              <span style={{ fontSize: 10, color: th.dim }}>
+              <span style={{ fontSize: 11, color: th.dim }}>
                 Intensity (accounts for volume, weights & completion)
               </span>
             </div>
@@ -3823,7 +3823,7 @@ function HomeView({
                         {d && (
                           <div
                             style={{
-                              fontSize: 10,
+                              fontSize: 12,
                               color: d.col,
                               fontWeight: 700,
                               marginTop: 3,
@@ -3925,7 +3925,7 @@ function HomeView({
                                 />
                                 <div
                                   style={{
-                                    fontSize: 8,
+                                    fontSize: 10,
                                     color: th.dim,
                                     textAlign: "center",
                                   }}
