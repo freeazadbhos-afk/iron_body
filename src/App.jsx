@@ -1771,13 +1771,13 @@ async function fsGetAllChangelog() {
     return [];
   }
 }
-async function fsSaveChangelog(text) {
+async function fsSaveChangelog(text, version) {
   try {
     const id = Date.now().toString(36);
     await setDoc(doc(fbDb, "changelog", id), {
       text,
       date: Date.now(),
-      version: "1.1.1",
+      version: version || "1.1.1",
     });
     return true;
   } catch (e) {
@@ -2096,8 +2096,8 @@ function WeightPicker({ value, onChange }) {
             {/* Header */}
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
+                display: "grid",
+                gridTemplateColumns: "1fr auto 1fr",
                 alignItems: "center",
                 padding: "4px 18px 10px",
               }}
@@ -2118,10 +2118,12 @@ function WeightPicker({ value, onChange }) {
                   fontSize: 22,
                   color: th.accentFg,
                   letterSpacing: 1,
+                  textAlign: "center",
                 }}
               >
                 {value} KG
               </span>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={() => setOpen(false)}
                 style={{
@@ -2138,6 +2140,7 @@ function WeightPicker({ value, onChange }) {
               >
                 DONE
               </button>
+              </div>
             </div>
             {/* Ruler */}
             <div style={{ position: "relative", marginBottom: 16 }}>
@@ -6302,6 +6305,7 @@ function ProfileView({
   // Changelog
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelogText, setChangelogText] = useState("");
+  const [changelogVersion, setChangelogVersion] = useState("1.1.1");
   const [changelogSending, setChangelogSending] = useState(false);
   const [changelogSent, setChangelogSent] = useState(false);
   const [changelogEntries, setChangelogEntries] = useState([]);
@@ -6314,7 +6318,7 @@ function ProfileView({
   const handleSaveChangelog = async () => {
     if (!changelogText.trim()) return;
     setChangelogSending(true);
-    const ok = await fsSaveChangelog(changelogText.trim());
+    const ok = await fsSaveChangelog(changelogText.trim(), changelogVersion.trim());
     setChangelogSending(false);
     if (ok) {
       setChangelogText("");
@@ -7691,10 +7695,17 @@ function ProfileView({
                     Posted!
                   </div>
                 )}
+                <input
+                  type="text"
+                  value={changelogVersion}
+                  onChange={(e) => setChangelogVersion(e.target.value)}
+                  placeholder="Version (e.g. 1.1.2)"
+                  style={{ width: "100%", background: th.input, border: `1px solid ${th.inputB}`, borderRadius: 10, padding: "9px 14px", color: th.text, fontSize: 13, outline: "none", fontFamily: "'Outfit',sans-serif", marginBottom: 8, boxSizing: "border-box" }}
+                />
                 <textarea
                   value={changelogText}
                   onChange={(e) => setChangelogText(e.target.value)}
-                  placeholder="e.g. v1.1.1 – Fixed weight slider alignment, added machine exercises..."
+                  placeholder="Describe the update or fixes..."
                   rows={3}
                   style={{
                     width: "100%",
@@ -7777,30 +7788,38 @@ function ProfileView({
                         </span>
                       </div>
                       {isAdmin && (
-                        <button
-                          onClick={() => {
-                            if (isEditingThis) {
-                              setEditingChangelogId(null);
-                              setEditingChangelogText("");
-                            } else {
-                              setEditingChangelogId(entry.id);
-                              setEditingChangelogText(entry.text);
-                            }
-                          }}
-                          style={{
-                            background: "none",
-                            border: `1px solid ${th.inputB}`,
-                            borderRadius: 7,
-                            color: isEditingThis ? th.accentFg : th.muted,
-                            fontSize: 11,
-                            padding: "3px 10px",
-                            cursor: "pointer",
-                            fontFamily: "'Outfit',sans-serif",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {isEditingThis ? "Cancel" : "Edit"}
-                        </button>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {isEditingThis && (
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm("Delete this changelog entry?")) return;
+                                try {
+                                  await deleteDoc(doc(fbDb, "changelog", entry.id));
+                                  setChangelogEntries((prev) => prev.filter((e) => e.id !== entry.id));
+                                  setEditingChangelogId(null);
+                                  setEditingChangelogText("");
+                                } catch (e) { console.error("deleteChangelog:", e); }
+                              }}
+                              style={{ background: "none", border: "1px solid #ff6b6b", borderRadius: 7, color: "#ff6b6b", fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (isEditingThis) {
+                                setEditingChangelogId(null);
+                                setEditingChangelogText("");
+                              } else {
+                                setEditingChangelogId(entry.id);
+                                setEditingChangelogText(entry.text);
+                              }
+                            }}
+                            style={{ background: "none", border: `1px solid ${th.inputB}`, borderRadius: 7, color: isEditingThis ? th.accentFg : th.muted, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
+                          >
+                            {isEditingThis ? "Cancel" : "Edit"}
+                          </button>
+                        </div>
                       )}
                     </div>
                     {isEditingThis ? (
