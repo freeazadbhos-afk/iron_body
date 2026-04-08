@@ -5656,25 +5656,20 @@ function WorkoutView({
                         >
                           −
                         </button>
-                        <input
-                          type="number"
-                          value={set.reps}
-                          onChange={(e) =>
-                            updSetVal(eIdx, sIdx, "reps", e.target.value)
-                          }
+                        <span
                           style={{
                             flex: 1,
-                            background: "none",
-                            border: "none",
                             color: th.text,
                             textAlign: "center",
                             fontSize: 16,
                             fontWeight: 700,
-                            outline: "none",
                             fontFamily: "'Outfit',sans-serif",
-                            width: 0,
+                            userSelect: "none",
+                            padding: "6px 0",
                           }}
-                        />
+                        >
+                          {set.reps}
+                        </span>
                         <button
                           onClick={() =>
                             updSetVal(eIdx, sIdx, "reps", set.reps + 1)
@@ -7088,50 +7083,65 @@ function ProfileView({
       {!editMode && (
         <>
           <div style={{ ...S.card, padding: 16, marginBottom: 12 }}>
-            <div style={{ ...S.label, marginBottom: 12 }}>LIFETIME STATS</div>
-            {[
-              {
-                l: "Total volume lifted",
-                v:
-                  totalVol >= 1000
-                    ? `${(totalVol / 1000).toFixed(1)}t`
-                    : `${totalVol}kg`,
-              },
-              { l: "Sessions completed", v: sessions.length },
-              {
-                l: "Avg session duration",
-                v: sessions.length
-                  ? Math.round(
-                      sessions.reduce((a, s) => a + (s.duration || 0), 0) /
-                        sessions.length
-                    ) + "min"
-                  : "—",
-              },
-              {
-                l: "Avg sets per session",
-                v: sessions.length
-                  ? Math.round(
-                      sessions.reduce((a, s) => a + (s.doneSets || 0), 0) /
-                        sessions.length
-                    )
-                  : "—",
-              },
-            ].map((s, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "10px 0",
-                  borderBottom: i < 3 ? `1px solid ${th.border}` : "none",
-                }}
-              >
-                <span style={{ color: th.sub, fontSize: 14 }}>{s.l}</span>
-                <span style={{ fontWeight: 700, color: th.text, fontSize: 14 }}>
-                  {s.v}
-                </span>
-              </div>
-            ))}
+            <div style={{ ...S.label, marginBottom: 12 }}>
+              {new Date().getFullYear()} STATS
+            </div>
+            {(() => {
+              const yearStart = new Date(
+                new Date().getFullYear(),
+                0,
+                1
+              ).getTime();
+              const yrSess = sessions.filter(
+                (s) => (s.startTime || 0) >= yearStart
+              );
+              const yrVol = yrSess.reduce((a, s) => a + sessionVol(s), 0);
+              return [
+                {
+                  l: "Total volume lifted",
+                  v:
+                    yrVol >= 1000
+                      ? `${(yrVol / 1000).toFixed(1)}t`
+                      : `${yrVol}kg`,
+                },
+                { l: "Sessions completed", v: yrSess.length },
+                {
+                  l: "Avg session duration",
+                  v: yrSess.length
+                    ? Math.round(
+                        yrSess.reduce((a, s) => a + (s.duration || 0), 0) /
+                          yrSess.length
+                      ) + "min"
+                    : "—",
+                },
+                {
+                  l: "Avg sets per session",
+                  v: yrSess.length
+                    ? Math.round(
+                        yrSess.reduce((a, s) => a + (s.doneSets || 0), 0) /
+                          yrSess.length
+                      )
+                    : "—",
+                },
+              ].map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    padding: "10px 0",
+                    borderBottom: i < 3 ? `1px solid ${th.border}` : "none",
+                  }}
+                >
+                  <span style={{ color: th.sub, fontSize: 14 }}>{s.l}</span>
+                  <span
+                    style={{ fontWeight: 700, color: th.text, fontSize: 14 }}
+                  >
+                    {s.v}
+                  </span>
+                </div>
+              ));
+            })()}
           </div>
         </>
       )}
