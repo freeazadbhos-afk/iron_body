@@ -2096,8 +2096,8 @@ function WeightPicker({ value, onChange }) {
             {/* Header */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto 1fr",
+                display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
                 padding: "4px 18px 10px",
               }}
@@ -2118,12 +2118,10 @@ function WeightPicker({ value, onChange }) {
                   fontSize: 22,
                   color: th.accentFg,
                   letterSpacing: 1,
-                  textAlign: "center",
                 }}
               >
                 {value} KG
               </span>
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={() => setOpen(false)}
                 style={{
@@ -2140,7 +2138,6 @@ function WeightPicker({ value, onChange }) {
               >
                 DONE
               </button>
-              </div>
             </div>
             {/* Ruler */}
             <div style={{ position: "relative", marginBottom: 16 }}>
@@ -2294,6 +2291,286 @@ function WeightPicker({ value, onChange }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+/* ─── ExerciseEditCard — shared by Programs editor and Shortcuts detail ──────── */
+function ExerciseEditCard({
+  ex,
+  exI,
+  isOpen,
+  isOver,
+  isDragging,
+  onToggleOpen,
+  onRemoveEx,
+  onUpdateNumSets,
+  onUpdateSet,
+  onAddSet,
+  onRemoveSet,
+  onDragStart,
+  listRef,
+}) {
+  const th = useTheme();
+  const S = useS();
+  const db = DB.find((d) => d.id === ex.id);
+  const isCardio = db?.type === "cardio";
+  const sets = ex.sets || [];
+
+  return (
+    <div
+      data-drag-item=""
+      style={{ opacity: isDragging ? 0.35 : 1, transition: "opacity .15s" }}
+    >
+      {isOver && <DropLine />}
+      <div style={{ ...S.card, marginBottom: 7 }}>
+        {/* Header: grip + name + muscle tag + chevron + REMOVE */}
+        <div
+          style={{
+            padding: "13px 14px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+          }}
+          onClick={onToggleOpen}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <div
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onDragStart && onDragStart(e, exI, listRef);
+              }}
+              style={{ marginRight: 8, flexShrink: 0 }}
+            >
+              <GripIcon />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: th.text }}>
+                {db?.name || ex.id}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 3,
+                }}
+              >
+                {db && (
+                  <span style={S.tag(db.group)}>
+                    {(db.muscle || "").toUpperCase()}
+                  </span>
+                )}
+                <span style={{ fontSize: 11, color: th.muted }}>
+                  {isCardio
+                    ? "Cardio"
+                    : `${sets.length} sets · ${sets[0]?.reps ?? "?"}reps · ${
+                        sets[0]?.weight ?? "?"
+                      }kg`}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveEx();
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: th.dim,
+              cursor: "pointer",
+              fontSize: 15,
+              padding: "2px 6px",
+              flexShrink: 0,
+              marginLeft: 8,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Set rows — only shown when expanded */}
+        {isOpen && (
+          <div style={{ borderTop: `1px solid ${th.border}` }}>
+            {isCardio ? (
+              <div style={{ padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, color: th.muted, lineHeight: 1.6 }}>
+                  During the workout you'll log{" "}
+                  <span style={{ color: th.accentFg, fontWeight: 700 }}>
+                    duration, active calories
+                  </span>{" "}
+                  and{" "}
+                  <span style={{ color: th.accentFg, fontWeight: 700 }}>
+                    intensity
+                  </span>{" "}
+                  from your fitness band or Apple Watch.
+                </div>
+              </div>
+            ) : (
+              <>
+                {sets.map((set, sIdx) => (
+                  <div
+                    key={sIdx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "9px 14px",
+                      borderBottom: `1px solid ${th.input}`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: "50%",
+                        border: `2px solid ${th.inputB}`,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: th.dim,
+                        width: 28,
+                        flexShrink: 0,
+                        textAlign: "center",
+                      }}
+                    >
+                      S{sIdx + 1}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        background: th.row,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        flex: 1,
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateSet(sIdx, "reps", Math.max(1, set.reps - 1));
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: th.muted,
+                          padding: "6px 9px",
+                          cursor: "pointer",
+                          fontSize: 15,
+                          lineHeight: 1,
+                        }}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        value={set.reps}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) =>
+                          onUpdateSet(
+                            sIdx,
+                            "reps",
+                            parseFloat(e.target.value) || 1
+                          )
+                        }
+                        style={{
+                          flex: 1,
+                          background: "none",
+                          border: "none",
+                          color: th.text,
+                          textAlign: "center",
+                          fontSize: 16,
+                          fontWeight: 700,
+                          outline: "none",
+                          fontFamily: "'Outfit',sans-serif",
+                          width: 0,
+                        }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateSet(sIdx, "reps", set.reps + 1);
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: th.muted,
+                          padding: "6px 9px",
+                          cursor: "pointer",
+                          fontSize: 15,
+                          lineHeight: 1,
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <span
+                      style={{ fontSize: 11, color: th.muted, flexShrink: 0 }}
+                    >
+                      rep
+                    </span>
+                    <WeightPicker
+                      value={set.weight}
+                      onChange={(v) => onUpdateSet(sIdx, "weight", v)}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveSet(sIdx);
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: th.dim,
+                        cursor: "pointer",
+                        fontSize: 16,
+                        lineHeight: 1,
+                        padding: "4px",
+                        flexShrink: 0,
+                        opacity: 0.6,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddSet();
+                  }}
+                  style={{
+                    padding: "9px 14px",
+                    color: th.accentFg,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    textAlign: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span style={{ fontWeight: 700 }}>+</span> Add set
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -4216,7 +4493,20 @@ function CreateProgramView({ program, onSave, onBack }) {
   const S = useS();
   const editing = !!program?.id;
   const [name, setName] = useState(program?.name || "");
-  const [exs, setExs] = useState(program?.exs || []);
+  const [exs, setExs] = useState(() =>
+    (program?.exs || []).map((e) => {
+      // Migrate legacy {s, r, w} format to {sets: [{reps, weight}]}
+      if (e.sets) return e; // already new format
+      if (e.type === "cardio") return e;
+      return {
+        ...e,
+        sets: Array.from({ length: e.s || 4 }, () => ({
+          reps: e.r || 10,
+          weight: e.w || 20,
+        })),
+      };
+    })
+  );
   const [showPicker, setShowPicker] = useState(false);
   const [expandedEx, setExpandedEx] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(!editing);
@@ -4225,7 +4515,18 @@ function CreateProgramView({ program, onSave, onBack }) {
 
   const loadSuggestion = (s) => {
     setName(s.name);
-    setExs(s.exs);
+    setExs(
+      (s.exs || []).map((e) => {
+        if (e.sets || e.type === "cardio") return e;
+        return {
+          ...e,
+          sets: Array.from({ length: e.s || 4 }, () => ({
+            reps: e.r || 10,
+            weight: e.w || 20,
+          })),
+        };
+      })
+    );
     setShowSuggestions(false);
   };
   const addEx = (dbId) => {
@@ -4235,16 +4536,55 @@ function CreateProgramView({ program, onSave, onBack }) {
       ...prev,
       isCardio
         ? { id: dbId, type: "cardio", duration: 0, calories: 0, intensity: 0 }
-        : { id: dbId, s: 4, r: 10, w: 20 },
+        : {
+            id: dbId,
+            sets: Array.from({ length: 4 }, () => ({ reps: 10, weight: 20 })),
+          },
     ]);
-    // No setShowPicker(false) here — ExercisePicker handles multi-select and closes via onClose
   };
   const removeEx = (id) => setExs((prev) => prev.filter((e) => e.id !== id));
+  // Update a single set's field
+  const updateSet = (id, sIdx, f, val) =>
+    setExs((prev) =>
+      prev.map((e) =>
+        e.id !== id
+          ? e
+          : {
+              ...e,
+              sets: e.sets.map((s, i) =>
+                i !== sIdx
+                  ? s
+                  : { ...s, [f]: Math.max(0, parseFloat(val) || 0) }
+              ),
+            }
+      )
+    );
+  // Update cardio fields
   const updateEx = (id, f, val) =>
     setExs((prev) =>
       prev.map((e) =>
         e.id === id ? { ...e, [f]: Math.max(0, parseFloat(val) || 0) } : e
       )
+    );
+  // Add/remove sets
+  const updateNumSets = (id, delta) =>
+    setExs((prev) =>
+      prev.map((e) => {
+        if (e.id !== id || !e.sets) return e;
+        const n = Math.max(1, Math.min(10, e.sets.length + delta));
+        const last = e.sets[e.sets.length - 1] || { reps: 10, weight: 20 };
+        const sets =
+          n > e.sets.length
+            ? [
+                ...e.sets,
+                ...Array.from({ length: n - e.sets.length }, () => ({
+                  reps: last.reps,
+                  weight: last.weight,
+                })),
+              ]
+            : e.sets.slice(0, n);
+        return { ...e, sets };
+      })
     );
 
   return (
@@ -4377,267 +4717,36 @@ function CreateProgramView({ program, onSave, onBack }) {
         </div>
         <div ref={listRef} style={{ position: "relative" }}>
           {exs.map((ex, exI) => {
-            const db = DB.find((d) => d.id === ex.id);
-            const isOpen = expandedEx === ex.id;
-            const isCardio = db?.type === "cardio";
             const isBeingDragged = dragIdx === exI;
-            const showLine =
+            const isOver =
               insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
             return (
-              <div key={ex.id} data-drag-item="">
-                {showLine && <DropLine />}
-                <div
-                  style={{
-                    ...S.card,
-                    marginBottom: 7,
-                    opacity: isBeingDragged ? 0.35 : 1,
-                    transition: "opacity .15s",
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "13px 14px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => setExpandedEx(isOpen ? null : ex.id)}
-                  >
-                    <div
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        dragStart(e, exI, listRef);
-                      }}
-                    >
-                      <GripIcon />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          fontSize: 14,
-                          color: th.text,
-                        }}
-                      >
-                        {db?.name}
-                      </div>
-                      <div
-                        style={{ fontSize: 12, color: th.muted, marginTop: 3 }}
-                      >
-                        {isCardio
-                          ? `${ex.duration || 0}min · ${
-                              ex.calories || 0
-                            }kcal · intensity ${ex.intensity || 0}/10`
-                          : `${ex.s} sets · ${ex.r} reps · ${ex.w}kg`}
-                      </div>
-                    </div>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 9 }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeEx(ex.id);
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: th.dim,
-                          cursor: "pointer",
-                          fontSize: 15,
-                          padding: "2px 6px",
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                  {isOpen && (
-                    <div
-                      style={{
-                        borderTop: `1px solid ${th.border}`,
-                        padding: "13px 14px",
-                      }}
-                    >
-                      {isCardio ? (
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr 1fr",
-                            gap: 8,
-                          }}
-                        >
-                          {[
-                            { l: "DURATION", f: "duration", unit: "min" },
-                            { l: "CALORIES", f: "calories", unit: "kcal" },
-                            { l: "INTENSITY", f: "intensity", unit: "/10" },
-                          ].map((c) => (
-                            <div key={c.f}>
-                              <div
-                                style={{
-                                  ...S.label,
-                                  fontSize: 10,
-                                  marginBottom: 6,
-                                }}
-                              >
-                                {c.l}
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  background: th.row,
-                                  borderRadius: 9,
-                                  overflow: "hidden",
-                                }}
-                              >
-                                <input
-                                  type="number"
-                                  value={ex[c.f] || ""}
-                                  placeholder="0"
-                                  onChange={(e) =>
-                                    updateEx(ex.id, c.f, e.target.value)
-                                  }
-                                  style={{
-                                    flex: 1,
-                                    background: "none",
-                                    border: "none",
-                                    color: th.text,
-                                    textAlign: "center",
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    outline: "none",
-                                    fontFamily: "'Outfit',sans-serif",
-                                    padding: "10px 6px",
-                                    width: 0,
-                                  }}
-                                />
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color: th.dim,
-                                    padding: "0 8px",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {c.unit}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div>
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "1fr 1fr",
-                              gap: 8,
-                              marginBottom: 12,
-                            }}
-                          >
-                            {[
-                              { l: "SETS", f: "s", mn: 1, mx: 10 },
-                              { l: "REPS", f: "r", mn: 1, mx: 50 },
-                            ].map((c) => (
-                              <div key={c.f}>
-                                <div
-                                  style={{
-                                    ...S.label,
-                                    fontSize: 10,
-                                    marginBottom: 6,
-                                  }}
-                                >
-                                  {c.l}
-                                </div>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    background: th.row,
-                                    borderRadius: 9,
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  <button
-                                    onClick={() =>
-                                      updateEx(
-                                        ex.id,
-                                        c.f,
-                                        Math.max(c.mn, ex[c.f] - 1)
-                                      )
-                                    }
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: th.muted,
-                                      padding: "7px 11px",
-                                      cursor: "pointer",
-                                      fontSize: 17,
-                                      lineHeight: 1,
-                                    }}
-                                  >
-                                    −
-                                  </button>
-                                  <span
-                                    style={{
-                                      flex: 1,
-                                      color: th.text,
-                                      textAlign: "center",
-                                      fontSize: 16,
-                                      fontWeight: 700,
-                                      fontFamily: "'Outfit',sans-serif",
-                                      userSelect: "none",
-                                      display: "block",
-                                      padding: "7px 0",
-                                    }}
-                                  >
-                                    {ex[c.f]}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      updateEx(
-                                        ex.id,
-                                        c.f,
-                                        Math.min(c.mx, ex[c.f] + 1)
-                                      )
-                                    }
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: th.muted,
-                                      padding: "7px 11px",
-                                      cursor: "pointer",
-                                      fontSize: 17,
-                                      lineHeight: 1,
-                                    }}
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div
-                            style={{
-                              ...S.label,
-                              fontSize: 10,
-                              marginBottom: 8,
-                            }}
-                          >
-                            WEIGHT
-                          </div>
-                          <WeightPicker
-                            value={ex.w || 0}
-                            onChange={(v) => updateEx(ex.id, "w", v)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <ExerciseEditCard
+                key={ex.id}
+                ex={ex}
+                exI={exI}
+                isOpen={expandedEx === ex.id}
+                isOver={isOver}
+                isDragging={isBeingDragged}
+                onToggleOpen={() =>
+                  setExpandedEx(expandedEx === ex.id ? null : ex.id)
+                }
+                onRemoveEx={() => removeEx(ex.id)}
+                onUpdateNumSets={(delta) => updateNumSets(ex.id, delta)}
+                onUpdateSet={(sIdx, f, v) => updateSet(ex.id, sIdx, f, v)}
+                onAddSet={() => updateNumSets(ex.id, 1)}
+                onRemoveSet={(sIdx) =>
+                  setExs((prev) =>
+                    prev.map((e) =>
+                      e.id !== ex.id
+                        ? e
+                        : { ...e, sets: e.sets.filter((_, i) => i !== sIdx) }
+                    )
+                  )
+                }
+                onDragStart={dragStart}
+                listRef={listRef}
+              />
             );
           })}
           {insertIdx === exs.length && dragIdx !== null && <DropLine />}
@@ -6305,10 +6414,10 @@ function ProfileView({
   // Changelog
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelogText, setChangelogText] = useState("");
-  const [changelogVersion, setChangelogVersion] = useState("1.1.1");
   const [changelogSending, setChangelogSending] = useState(false);
   const [changelogSent, setChangelogSent] = useState(false);
   const [changelogEntries, setChangelogEntries] = useState([]);
+  const [changelogVersion, setChangelogVersion] = useState("1.1.1");
   const [editingChangelogId, setEditingChangelogId] = useState(null);
   const [editingChangelogText, setEditingChangelogText] = useState("");
   const handleLoadChangelog = async () => {
@@ -6318,7 +6427,10 @@ function ProfileView({
   const handleSaveChangelog = async () => {
     if (!changelogText.trim()) return;
     setChangelogSending(true);
-    const ok = await fsSaveChangelog(changelogText.trim(), changelogVersion.trim());
+    const ok = await fsSaveChangelog(
+      changelogText.trim(),
+      changelogVersion.trim()
+    );
     setChangelogSending(false);
     if (ok) {
       setChangelogText("");
@@ -7700,7 +7812,19 @@ function ProfileView({
                   value={changelogVersion}
                   onChange={(e) => setChangelogVersion(e.target.value)}
                   placeholder="Version (e.g. 1.1.2)"
-                  style={{ width: "100%", background: th.input, border: `1px solid ${th.inputB}`, borderRadius: 10, padding: "9px 14px", color: th.text, fontSize: 13, outline: "none", fontFamily: "'Outfit',sans-serif", marginBottom: 8, boxSizing: "border-box" }}
+                  style={{
+                    width: "100%",
+                    background: th.input,
+                    border: `1px solid ${th.inputB}`,
+                    borderRadius: 10,
+                    padding: "9px 14px",
+                    color: th.text,
+                    fontSize: 13,
+                    outline: "none",
+                    fontFamily: "'Outfit',sans-serif",
+                    marginBottom: 8,
+                    boxSizing: "border-box",
+                  }}
                 />
                 <textarea
                   value={changelogText}
@@ -7792,15 +7916,36 @@ function ProfileView({
                           {isEditingThis && (
                             <button
                               onClick={async () => {
-                                if (!window.confirm("Delete this changelog entry?")) return;
+                                if (
+                                  !window.confirm(
+                                    "Delete this changelog entry?"
+                                  )
+                                )
+                                  return;
                                 try {
-                                  await deleteDoc(doc(fbDb, "changelog", entry.id));
-                                  setChangelogEntries((prev) => prev.filter((e) => e.id !== entry.id));
+                                  await deleteDoc(
+                                    doc(fbDb, "changelog", entry.id)
+                                  );
+                                  setChangelogEntries((prev) =>
+                                    prev.filter((e) => e.id !== entry.id)
+                                  );
                                   setEditingChangelogId(null);
                                   setEditingChangelogText("");
-                                } catch (e) { console.error("deleteChangelog:", e); }
+                                } catch (e) {
+                                  console.error("deleteChangelog:", e);
+                                }
                               }}
-                              style={{ background: "none", border: "1px solid #ff6b6b", borderRadius: 7, color: "#ff6b6b", fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
+                              style={{
+                                background: "none",
+                                border: "1px solid #ff6b6b",
+                                borderRadius: 7,
+                                color: "#ff6b6b",
+                                fontSize: 11,
+                                padding: "3px 10px",
+                                cursor: "pointer",
+                                fontFamily: "'Outfit',sans-serif",
+                                fontWeight: 600,
+                              }}
                             >
                               Delete
                             </button>
@@ -7815,7 +7960,17 @@ function ProfileView({
                                 setEditingChangelogText(entry.text);
                               }
                             }}
-                            style={{ background: "none", border: `1px solid ${th.inputB}`, borderRadius: 7, color: isEditingThis ? th.accentFg : th.muted, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600 }}
+                            style={{
+                              background: "none",
+                              border: `1px solid ${th.inputB}`,
+                              borderRadius: 7,
+                              color: isEditingThis ? th.accentFg : th.muted,
+                              fontSize: 11,
+                              padding: "3px 10px",
+                              cursor: "pointer",
+                              fontFamily: "'Outfit',sans-serif",
+                              fontWeight: 600,
+                            }}
                           >
                             {isEditingThis ? "Cancel" : "Edit"}
                           </button>
@@ -7989,7 +8144,18 @@ function ProfileView({
 function ShortcutDetailView({ program, onSave, onStart, onBack }) {
   const th = useTheme();
   const S = useS();
-  const [exs, setExs] = useState(program?.exs || []);
+  const [exs, setExs] = useState(() =>
+    (program?.exs || []).map((e) => {
+      if (e.sets || e.type === "cardio") return e;
+      return {
+        ...e,
+        sets: Array.from({ length: e.s || 4 }, () => ({
+          reps: e.r || 10,
+          weight: e.w || 20,
+        })),
+      };
+    })
+  );
   const [showPicker, setShowPicker] = useState(false);
   const [expandedEx, setExpandedEx] = useState(null);
   const listRef = useRef(null);
@@ -8009,7 +8175,10 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
       ...exs,
       isCardio
         ? { id: dbId, type: "cardio", duration: 0, calories: 0, intensity: 0 }
-        : { id: dbId, s: 4, r: 10, w: 20 },
+        : {
+            id: dbId,
+            sets: Array.from({ length: 4 }, () => ({ reps: 10, weight: 20 })),
+          },
     ]);
   };
   const removeEx = (id) => updateExs(exs.filter((e) => e.id !== id));
@@ -8053,268 +8222,92 @@ function ShortcutDetailView({ program, onSave, onStart, onBack }) {
 
         <div ref={listRef}>
           {exs.map((ex, exI) => {
-            const db = DB.find((d) => d.id === ex.id);
-            const isOpen = expandedEx === ex.id;
-            const isCardio = db?.type === "cardio";
             const isBeingDragged = dragIdx === exI;
-            const showLine =
+            const isOver =
               insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
             return (
-              <div key={ex.id}>
-                {showLine && <DropLine />}
-                <div
-                  style={{
-                    ...S.card,
-                    marginBottom: 7,
-                    opacity: isBeingDragged ? 0.35 : 1,
-                    transition: "opacity .15s",
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "13px 14px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => setExpandedEx(isOpen ? null : ex.id)}
-                  >
-                    <div
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        dragStart(e, exI, listRef);
-                      }}
-                    >
-                      <GripIcon />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          fontSize: 14,
-                          color: th.text,
-                        }}
-                      >
-                        {db?.name || ex.id}
-                      </div>
-                      <div
-                        style={{ fontSize: 12, color: th.muted, marginTop: 3 }}
-                      >
-                        {isCardio
-                          ? `${ex.duration || 0}min · ${
-                              ex.calories || 0
-                            }kcal · intensity ${ex.intensity || 0}/10`
-                          : `${ex.s} sets · ${ex.r} reps · ${ex.w}kg`}
-                      </div>
-                    </div>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 9 }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeEx(ex.id);
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: th.dim,
-                          cursor: "pointer",
-                          fontSize: 15,
-                          padding: "2px 6px",
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-
-                  {isOpen && (
-                    <div
-                      style={{
-                        borderTop: `1px solid ${th.border}`,
-                        padding: "13px 14px",
-                      }}
-                    >
-                      {isCardio ? (
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr 1fr",
-                            gap: 8,
-                          }}
-                        >
-                          {[
-                            { l: "DURATION", f: "duration", unit: "min" },
-                            { l: "CALORIES", f: "calories", unit: "kcal" },
-                            { l: "INTENSITY", f: "intensity", unit: "/10" },
-                          ].map((c) => (
-                            <div key={c.f}>
-                              <div
-                                style={{
-                                  ...S.label,
-                                  fontSize: 10,
-                                  marginBottom: 6,
-                                }}
-                              >
-                                {c.l}
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  background: th.row,
-                                  borderRadius: 9,
-                                  overflow: "hidden",
-                                }}
-                              >
-                                <input
-                                  type="number"
-                                  value={ex[c.f] || ""}
-                                  placeholder="0"
-                                  onChange={(e) =>
-                                    updateEx(ex.id, c.f, e.target.value)
-                                  }
-                                  style={{
-                                    flex: 1,
-                                    background: "none",
-                                    border: "none",
-                                    color: th.text,
-                                    textAlign: "center",
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    outline: "none",
-                                    fontFamily: "'Outfit',sans-serif",
-                                    padding: "10px 6px",
-                                    width: 0,
-                                  }}
-                                />
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color: th.dim,
-                                    padding: "0 8px",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {c.unit}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div>
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "1fr 1fr",
-                              gap: 8,
-                              marginBottom: 12,
-                            }}
-                          >
-                            {[
-                              { l: "SETS", f: "s", mn: 1, mx: 10 },
-                              { l: "REPS", f: "r", mn: 1, mx: 50 },
-                            ].map((c) => (
-                              <div key={c.f}>
-                                <div
-                                  style={{
-                                    ...S.label,
-                                    fontSize: 10,
-                                    marginBottom: 6,
-                                  }}
-                                >
-                                  {c.l}
-                                </div>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    background: th.row,
-                                    borderRadius: 9,
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  <button
-                                    onClick={() =>
-                                      updateEx(
-                                        ex.id,
-                                        c.f,
-                                        Math.max(c.mn, ex[c.f] - 1)
-                                      )
-                                    }
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: th.muted,
-                                      padding: "7px 11px",
-                                      cursor: "pointer",
-                                      fontSize: 17,
-                                      lineHeight: 1,
-                                    }}
-                                  >
-                                    −
-                                  </button>
-                                  <span
-                                    style={{
-                                      flex: 1,
-                                      color: th.text,
-                                      textAlign: "center",
-                                      fontSize: 16,
-                                      fontWeight: 700,
-                                      fontFamily: "'Outfit',sans-serif",
-                                      userSelect: "none",
-                                      display: "block",
-                                      padding: "7px 0",
-                                    }}
-                                  >
-                                    {ex[c.f]}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      updateEx(
-                                        ex.id,
-                                        c.f,
-                                        Math.min(c.mx, ex[c.f] + 1)
-                                      )
-                                    }
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: th.muted,
-                                      padding: "7px 11px",
-                                      cursor: "pointer",
-                                      fontSize: 17,
-                                      lineHeight: 1,
-                                    }}
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div
-                            style={{
-                              ...S.label,
-                              fontSize: 10,
-                              marginBottom: 8,
-                            }}
-                          >
-                            WEIGHT
-                          </div>
-                          <WeightPicker
-                            value={ex.w || 0}
-                            onChange={(v) => updateEx(ex.id, "w", v)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <ExerciseEditCard
+                key={ex.id}
+                ex={ex}
+                exI={exI}
+                isOver={isOver}
+                isOpen={expandedEx === ex.id}
+                isDragging={isBeingDragged}
+                onToggleOpen={() =>
+                  setExpandedEx(expandedEx === ex.id ? null : ex.id)
+                }
+                onRemoveEx={() => removeEx(ex.id)}
+                onUpdateNumSets={(delta) => {
+                  const n = Math.max(
+                    1,
+                    Math.min(10, (ex.sets || []).length + delta)
+                  );
+                  const last = (ex.sets || [{}])[
+                    (ex.sets || []).length - 1
+                  ] || { reps: 10, weight: 20 };
+                  const sets =
+                    n > (ex.sets || []).length
+                      ? [
+                          ...(ex.sets || []),
+                          ...Array.from(
+                            { length: n - (ex.sets || []).length },
+                            () => ({ reps: last.reps, weight: last.weight })
+                          ),
+                        ]
+                      : (ex.sets || []).slice(0, n);
+                  updateExs(
+                    exs.map((e) => (e.id !== ex.id ? e : { ...e, sets }))
+                  );
+                }}
+                onUpdateSet={(sIdx, f, v) =>
+                  updateExs(
+                    exs.map((e) =>
+                      e.id !== ex.id
+                        ? e
+                        : {
+                            ...e,
+                            sets: (e.sets || []).map((s, i) =>
+                              i !== sIdx
+                                ? s
+                                : { ...s, [f]: Math.max(0, parseFloat(v) || 0) }
+                            ),
+                          }
+                    )
+                  )
+                }
+                onAddSet={() => {
+                  const last = (ex.sets || [{}])[
+                    (ex.sets || []).length - 1
+                  ] || { reps: 10, weight: 20 };
+                  updateExs(
+                    exs.map((e) =>
+                      e.id !== ex.id
+                        ? e
+                        : {
+                            ...e,
+                            sets: [
+                              ...(e.sets || []),
+                              { reps: last.reps, weight: last.weight },
+                            ],
+                          }
+                    )
+                  );
+                }}
+                onRemoveSet={(sIdx) =>
+                  updateExs(
+                    exs.map((e) =>
+                      e.id !== ex.id
+                        ? e
+                        : {
+                            ...e,
+                            sets: (e.sets || []).filter((_, i) => i !== sIdx),
+                          }
+                    )
+                  )
+                }
+                onDragStart={dragStart}
+                listRef={listRef}
+              />
             );
           })}
           {insertIdx === exs.length && dragIdx !== null && <DropLine />}
@@ -8659,12 +8652,55 @@ export default function App() {
       </ThemeCtx.Provider>
     );
   const handleTemplate = (prog) => {
-    setDraft({
-      name: prog.name,
-      exercises: prog.exs.map((te) => ({ uid: uid(), ...mkEx(te) })),
-      progId: prog.id || null,
-    });
-    setView("create");
+    // Convert program exs (new per-set format) to workout exercises and start directly
+    const exercises = prog.exs
+      .map((te) => {
+        const db = DB.find((e) => e.id === te.id);
+        if (!db) return null;
+        if (db.type === "cardio") {
+          return {
+            uid: uid(),
+            exId: db.id,
+            name: db.name,
+            muscle: db.muscle,
+            group: db.group,
+            type: "cardio",
+            sets: [
+              {
+                i: 0,
+                done: false,
+                duration: 0,
+                distance: 0,
+                calories: 0,
+                intensity: 0,
+              },
+            ],
+          };
+        }
+        // te.sets is [{reps, weight}] — expand to full workout set objects
+        const rawSets =
+          te.sets ||
+          Array.from({ length: te.s || 4 }, () => ({
+            reps: te.r || 10,
+            weight: te.w || 20,
+          }));
+        return {
+          uid: uid(),
+          exId: db.id,
+          name: db.name,
+          muscle: db.muscle,
+          group: db.group,
+          type: "strength",
+          sets: rawSets.map((s, i) => ({
+            i,
+            reps: s.reps,
+            weight: s.weight,
+            done: false,
+          })),
+        };
+      })
+      .filter(Boolean);
+    handleBeginWorkout({ name: prog.name, exercises, progId: prog.id || null });
   };
   const handleBeginWorkout = (data) => {
     const now = Date.now();
