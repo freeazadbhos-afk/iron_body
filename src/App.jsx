@@ -3433,7 +3433,7 @@ function HomeView({
 
       {/* This Week — removed Volume, expanded muscles */}
       <div style={{ ...S.card, padding: 16, marginBottom: 10 }}>
-        <div style={{ ...S.label, marginBottom: 14 }}>THIS WEEK</div>
+        <div style={{ ...S.label, marginBottom: 14 }}>YOUR HIGHLIGHTS</div>
         <div style={{ display: "flex", gap: 7, marginBottom: 14 }}>
           {[
             { v: ws.length, l: "SESSIONS" },
@@ -8126,7 +8126,7 @@ function ProfileView({
           }}
         >
           IRON BODY{" "}
-          <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.2.1</span>
+          <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.2.2</span>
         </div>
         <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
           DEVELOPED BY AZAD
