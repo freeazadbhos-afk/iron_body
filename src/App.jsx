@@ -3578,7 +3578,7 @@ function HomeView({
                   l: "TIME TRAINED",
                 },
                 { v: cals.toLocaleString() + " kcal", l: "CALS BURNED" },
-                { v: avgInt, l: "AVG INTENSITY" },
+                { v: avgInt, l: "AVERAGE INTENSITY" },
               ];
               return statItems.map((s) => (
                 <div
@@ -7382,7 +7382,7 @@ function ProfileView({
               >
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: th.muted,
                     flexShrink: 0,
                     width: 52,
@@ -7419,7 +7419,7 @@ function ProfileView({
                     borderRadius: 6,
                     color: th.muted,
                     cursor: "pointer",
-                    fontSize: 10,
+                    fontSize: 12,
                     padding: "3px 8px",
                     fontFamily: "'Outfit',sans-serif",
                     fontWeight: 600,
