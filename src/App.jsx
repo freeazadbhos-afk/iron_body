@@ -3383,13 +3383,16 @@ function HomeView({
     ? programs.filter((p) => pinnedIds.includes(p.id))
     : programs;
 
-  // Collect all muscles trained this week (granular)
+  // Collect all muscles trained in the last 7 days (granular)
+  const last7Cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const weekMuscleSet = new Set();
-  ws.forEach((s) =>
-    s.exercises.forEach((ex) => {
-      if (ex.muscle) weekMuscleSet.add(ex.muscle);
-    })
-  );
+  sessions
+    .filter((s) => (s.startTime || 0) >= last7Cutoff)
+    .forEach((s) =>
+      s.exercises.forEach((ex) => {
+        if (ex.muscle) weekMuscleSet.add(ex.muscle);
+      })
+    );
 
   const removeFromHome = (pid) => {
     const c = pinnedIds || programs.map((p) => p.id);
@@ -3514,7 +3517,7 @@ function HomeView({
               marginBottom: 7,
             }}
           >
-            MUSCLES TRAINED THIS WEEK
+            MUSCLES TRAINED — LAST 7 DAYS
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {ALL_MUSCLES.map((m) => {
