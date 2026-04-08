@@ -3433,7 +3433,9 @@ function HomeView({
 
       {/* This Week — removed Volume, expanded muscles */}
       <div style={{ ...S.card, padding: 16, marginBottom: 10 }}>
-        <div style={{ ...S.label, marginBottom: 14 }}>YOUR HIGHLIGHTS</div>
+        <div style={{ ...S.label, marginBottom: 14 }}>
+          YOUR 7-DAY HIGHLIGHTS
+        </div>
         <div style={{ display: "flex", gap: 7, marginBottom: 14 }}>
           {[
             { v: ws.length, l: "SESSIONS" },
