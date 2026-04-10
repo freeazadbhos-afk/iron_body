@@ -9714,7 +9714,7 @@
                       ].map(({ col, label }) => (
                         <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                           <div style={{ width: 8, height: 8, borderRadius: "50%", background: col }} />
-                          <span style={{ fontSize: 9, color: th.muted }}>{label}</span>
+                          <span style={{ fontSize: 11, color: th.muted }}>{label}</span>
                         </div>
                       ))}
                     </div>
