@@ -1949,8 +1949,13 @@ import "./styles.css";
   function WeightPicker({ value, onChange }) {
     const th = useTheme();
     const [open, setOpen] = useState(false);
+    const [wpClosing, setWpClosing] = useState(false);
     const scrollRef = useRef(null);
     const timerRef = useRef(null);
+    const closeWp = () => {
+      setWpClosing(true);
+      setTimeout(() => { setOpen(false); setWpClosing(false); }, 280);
+    };
     const ITEM_W = 72;
 
     // Scroll ruler to selected value when sheet opens
@@ -1998,7 +2003,7 @@ import "./styles.css";
     return (
       <div style={{ position: "relative" }}>
         <div
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => { if (open) closeWp(); else setOpen(true); }}
           style={{
             background: th.row,
             border: `1px solid ${open ? th.accentBg : th.inputB}`,
@@ -2020,7 +2025,7 @@ import "./styles.css";
         {open && (
           <>
             <div
-              onClick={() => setOpen(false)}
+              onClick={() => closeWp()}
               style={{
                 position: "fixed",
                 inset: 0,
@@ -2042,8 +2047,21 @@ import "./styles.css";
                 border: `1px solid ${th.border}`,
                 borderBottom: "none",
                 boxShadow: "0 -8px 40px rgba(0,0,0,.4)",
+                animation: wpClosing
+                  ? "wpSlideDown 0.28s cubic-bezier(0.4,0,1,1) forwards"
+                  : "wpSlideUp 0.32s cubic-bezier(0,0,0.2,1) forwards",
               }}
             >
+              <style>{`
+                @keyframes wpSlideUp {
+                  from { transform: translateX(-50%) translateY(100%); opacity: 0.6; }
+                  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+                }
+                @keyframes wpSlideDown {
+                  from { transform: translateX(-50%) translateY(0);    opacity: 1; }
+                  to   { transform: translateX(-50%) translateY(100%); opacity: 0; }
+                }
+              `}</style>
               {/* Handle */}
               <div
                 style={{
@@ -2097,7 +2115,7 @@ import "./styles.css";
                   {value} KG
                 </span>
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={() => closeWp()}
                   style={{
                     background: th.accentBg,
                     border: "none",
@@ -2372,8 +2390,15 @@ import "./styles.css";
             </button>
           </div>
 
-          {/* Set rows — only shown when expanded */}
-          {isOpen && (
+          {/* Set rows — smooth expand/collapse via max-height transition */}
+          <div style={{
+            maxHeight: isOpen ? "800px" : "0px",
+            overflow: "hidden",
+            transition: isOpen
+              ? "max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease"
+              : "max-height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease",
+            opacity: isOpen ? 1 : 0,
+          }}>
             <div style={{ borderTop: `1px solid ${th.border}` }}>
               {isCardio ? (
                 <div style={{ padding: "12px 14px" }}>
@@ -2533,7 +2558,7 @@ import "./styles.css";
                 </>
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     );
