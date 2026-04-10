@@ -1330,10 +1330,12 @@ function intColor(n) {
 function sessionVol(s) {
   return s.exercises.reduce(
     (a, ex) =>
-      a +
-      ex.sets
-        .filter((st) => st.done)
-        .reduce((b, st) => b + st.weight * st.reps, 0),
+      ex.type === "cardio"
+        ? a
+        : a +
+          ex.sets
+            .filter((st) => st.done)
+            .reduce((b, st) => b + (st.weight || 0) * (st.reps || 0), 0),
     0
   );
 }
@@ -5056,7 +5058,7 @@ function CreateView({ draft, onStart, onBack }) {
                           >
                             <div
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: th.muted,
                                 width: 36,
                                 flexShrink: 0,
@@ -5842,7 +5844,7 @@ function CompleteView({ finished, elapsed, onSave }) {
           },
           { v: finished.exercises.length, l: "EXERCISES", u: "completed" },
           { v: fmtTime(elapsed), l: "DURATION", u: "recorded" },
-          { v: `${vol}kg`, l: "VOLUME", u: "lifted" },
+          { v: Math.round(vol).toLocaleString() + "kg", l: "VOLUME", u: "lifted" },
         ].map((s) => (
           <div
             key={s.l}
@@ -6274,7 +6276,7 @@ function SessionDetailView({ session, onBack }) {
         >
           {[
             { v: `${session.duration || "?"}min`, l: "DURATION" },
-            { v: `${vol}kg`, l: "VOLUME" },
+            { v: Math.round(vol).toLocaleString() + "kg", l: "VOLUME" },
             {
               v: session.calories ? `${session.calories}kcal` : "—",
               l: "CALORIES",
@@ -8468,6 +8470,7 @@ export default function App() {
   const [selSession, setSelSession] = useState(null);
   const [selSessionOrigin, setSelSessionOrigin] = useState("history");
   const [selShortcut, setSelShortcut] = useState(null); // program opened from shortcuts
+  const [showCal, setShowCal] = useState(false);
   const [measurements, setMeasurements] = useState([]);
   const [paused, setPaused] = useState(false);
   const elRef = useRef(0);
@@ -8762,28 +8765,21 @@ export default function App() {
     };
     const next = [s, ...sessions];
     saveSessions(next);
-    // Sync workout changes back to the source program
+    // Sync last-session weights/reps/sets back to the source program
     if (active?.progId) {
       const updatedPrograms = programs.map((p) => {
         if (p.id !== active.progId) return p;
         const updatedExs = p.exs.map((pe) => {
           const workoutEx = finished.exercises.find((we) => we.exId === pe.id);
-          if (!workoutEx) return pe;
+          if (!workoutEx || workoutEx.type === "cardio") return pe;
           const doneSets = workoutEx.sets.filter((st) => st.done);
           if (!doneSets.length) return pe;
-          const avgReps = Math.round(
-            doneSets.reduce((a, st) => a + (st.reps || 0), 0) / doneSets.length
-          );
-          const avgWeight = Math.round(
-            doneSets.reduce((a, st) => a + (st.weight || 0), 0) /
-              doneSets.length
-          );
-          return {
-            ...pe,
-            s: doneSets.length,
-            r: avgReps || pe.r,
-            w: avgWeight || pe.w,
-          };
+          // Write individual set data (new format)
+          const newSets = doneSets.map((st) => ({
+            reps: st.reps || 0,
+            weight: st.weight || 0,
+          }));
+          return { ...pe, sets: newSets };
         });
         return { ...p, exs: updatedExs };
       });
@@ -9214,7 +9210,6 @@ export default function App() {
                 "create",
                 "editProgram",
                 "sessionDetail",
-                "complete",
                 "shortcutDetail",
               ].includes(view) && (
                 <button
@@ -9280,7 +9275,8 @@ export default function App() {
               {/* Date — only shown on Home tab, top-right of header */}
               {view === "home" && (
                 <div
-                  style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}
+                  onClick={() => setShowCal(true)}
+                  style={{ textAlign: "right", flexShrink: 0, marginLeft: 10, cursor: "pointer" }}
                 >
                   <div
                     style={{
@@ -9606,6 +9602,129 @@ export default function App() {
           </div>
         )}
       </div>
+      {/* ── Calendar overlay ── */}
+      {showCal && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowCal(false)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 200,
+              background: "rgba(0,0,0,0.45)",
+              backdropFilter: "blur(2px)",
+            }}
+          />
+          {/* Popup — floats near the date (top-right), scales up from there */}
+          <div
+            style={{
+              position: "fixed",
+              top: 52,
+              right: 12,
+              width: 300,
+              background: th.card,
+              borderRadius: 16,
+              zIndex: 201,
+              padding: "16px 16px 18px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+              transformOrigin: "top right",
+              animation: "calPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
+            }}
+          >
+            <style>{`
+              @keyframes calPop {
+                from { opacity: 0; transform: scale(0.5); }
+                to   { opacity: 1; transform: scale(1); }
+              }
+            `}</style>
+            {(() => {
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = now.getMonth();
+              const monthName = now.toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
+
+              // Build maps: day → session types
+              const dayTypes = {};
+              sessions.forEach((s) => {
+                const d = new Date(s.startTime || 0);
+                if (d.getFullYear() !== year || d.getMonth() !== month) return;
+                const day = d.getDate();
+                const hasCardio = (s.exercises || []).some((e) => e.type === "cardio");
+                const hasStrength = (s.exercises || []).some((e) => e.type !== "cardio");
+                if (!dayTypes[day]) dayTypes[day] = { cardio: false, strength: false };
+                if (hasCardio) dayTypes[day].cardio = true;
+                if (hasStrength) dayTypes[day].strength = true;
+              });
+
+              const firstDow = new Date(year, month, 1).getDay();
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const todayDate = now.getDate();
+              const cells = [];
+              for (let i = 0; i < firstDow; i++) cells.push(null);
+              for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+              const STRENGTH_COL = "#c8f030";
+              const CARDIO_COL = "#4ecdc4";
+              const BOTH_COL = "#fd9644";
+
+              return (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", color: th.sub, textAlign: "center", marginBottom: 12 }}>{monthName}</div>
+                  {/* Day-of-week headers */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+                    {["S","M","T","W","T","F","S"].map((d, i) => (
+                      <div key={i} style={{ textAlign: "center", fontSize: 10, color: th.dim, fontWeight: 700 }}>{d}</div>
+                    ))}
+                  </div>
+                  {/* Day cells */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+                    {cells.map((day, i) => {
+                      if (!day) return <div key={i} />;
+                      const isToday = day === todayDate;
+                      const t = dayTypes[day];
+                      const hasBoth = t?.strength && t?.cardio;
+                      const bg = hasBoth ? BOTH_COL : t?.strength ? STRENGTH_COL : t?.cardio ? CARDIO_COL : "transparent";
+                      const isActive = !!t;
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            aspectRatio: "1",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "50%",
+                            background: bg,
+                            border: isToday && !isActive ? `1.5px solid ${th.inputB}` : "none",
+                            fontSize: 11,
+                            fontWeight: isActive || isToday ? 700 : 400,
+                            color: isActive ? "#080809" : isToday ? th.text : th.muted,
+                          }}
+                        >
+                          {day}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Legend */}
+                  <div style={{ display: "flex", gap: 10, marginTop: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                    {[
+                      { col: STRENGTH_COL, label: "Weights" },
+                      { col: CARDIO_COL,   label: "Cardio" },
+                      { col: BOTH_COL,     label: "Both" },
+                    ].map(({ col, label }) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: col }} />
+                        <span style={{ fontSize: 9, color: th.muted }}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </>
+      )}
+
     </ThemeCtx.Provider>
   );
 }
