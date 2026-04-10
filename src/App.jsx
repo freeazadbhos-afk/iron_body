@@ -7175,6 +7175,55 @@ import "./styles.css";
               >
                 SAVE CHANGES
               </Btn>
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${th.border}` }}>
+                <div style={{ fontSize: 10, color: th.dim, letterSpacing: "1.5px", marginBottom: 10 }}> </div>
+                <button
+                  onClick={async () => {
+                    if (
+                      !window.confirm(
+                        "Permanently delete your account and all data? This cannot be undone."
+                      )
+                    )
+                      return;
+                    try {
+                      const fbUser = fbAuth.currentUser;
+                      if (!fbUser) {
+                        return;
+                      }
+                      // Delete Firestore data
+                      try {
+                        await fsSavePrograms(fbUser.uid, []);
+                      } catch {}
+                      try {
+                        await fsSaveMeasurements(fbUser.uid, []);
+                      } catch {}
+                      // Delete Firebase Auth account
+                      await deleteUser(fbUser);
+                      onLogout();
+                    } catch (e) {
+                      if (e.code === "auth/requires-recent-login") {
+                        alert("Please log out and log back in, then try again.");
+                      } else {
+                        alert("Could not delete account: " + e.message);
+                      }
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: `1px solid ${th.delText}`,
+                    borderRadius: 10,
+                    padding: "10px",
+                    cursor: "pointer",
+                    color: th.delText,
+                    fontWeight: 600,
+                    fontSize: 12,
+                    fontFamily: "'Outfit',sans-serif",
+                  }}
+                >
+                  DELETE MY ACCOUNT
+                </button>
+              </div>
             </div>
           )}
           {!editMode && (
@@ -8220,53 +8269,6 @@ import "./styles.css";
           }}
         >
           LOG OUT
-        </button>
-        <button
-          onClick={async () => {
-            if (
-              !window.confirm(
-                "Permanently delete your account and all data? This cannot be undone."
-              )
-            )
-              return;
-            try {
-              const fbUser = fbAuth.currentUser;
-              if (!fbUser) {
-                return;
-              }
-              // Delete Firestore data
-              try {
-                await fsSavePrograms(fbUser.uid, []);
-              } catch {}
-              try {
-                await fsSaveMeasurements(fbUser.uid, []);
-              } catch {}
-              // Delete Firebase Auth account
-              await deleteUser(fbUser);
-              onLogout();
-            } catch (e) {
-              if (e.code === "auth/requires-recent-login") {
-                alert("Please log out and log back in, then try again.");
-              } else {
-                alert("Could not delete account: " + e.message);
-              }
-            }
-          }}
-          style={{
-            width: "100%",
-            background: "transparent",
-            border: `1px solid ${th.delText}`,
-            borderRadius: 13,
-            padding: 12,
-            cursor: "pointer",
-            color: th.delText,
-            fontWeight: 600,
-            fontSize: 13,
-            fontFamily: "'Outfit',sans-serif",
-            marginBottom: 24,
-          }}
-        >
-          DELETE ACCOUNT
         </button>
         {/* Version + footer */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
