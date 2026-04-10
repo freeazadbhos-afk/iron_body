@@ -1,4 +1,4 @@
-  import "./styles.css";
+import "./styles.css";
   import {
     useState,
     useEffect,
@@ -5810,7 +5810,143 @@
     );
     return (
       <div className="slide-up" style={{ paddingBottom: 32 }}>
-        <div style={{ textAlign: "center", marginBottom: 24, paddingTop: 8 }}>
+        {/* ── Celebration banner ── */}
+        {(() => {
+          const pct = finished.totalSets > 0 ? finished.doneSets / finished.totalSets : 0;
+          const volT = vol >= 1000 ? `${(vol / 1000).toFixed(1)}t` : `${Math.round(vol)}kg`;
+          const durMin = Math.round(elapsed / 60);
+          const intensity = autoIntensity; // 1-10
+
+          // Composite score 0-100: sets completion 40%, intensity 35%, duration 25%
+          const setScore = pct * 40;
+          const intScore = (intensity / 10) * 35;
+          const durScore = Math.min(durMin / 60, 1) * 25; // 60 min = max duration score
+          const score = setScore + intScore + durScore;
+
+          // Tier thresholds
+          const tier =
+            score >= 85 ? "legend" :
+            score >= 70 ? "great" :
+            score >= 55 ? "solid" :
+            score >= 40 ? "meh" :
+            score >= 25 ? "rough" : "ghost";
+
+          const tiers = {
+            legend: {
+              emoji: "🏆",
+              color: "#c8f030",
+              bg: "rgba(200,240,48,0.13)",
+              border: "rgba(200,240,48,0.3)",
+              msgs: [
+                "Absolutely elite. That session will be remembered.",
+                "Perfect execution. The iron gods are pleased.",
+                "That wasn't a workout. That was a statement.",
+                "You didn't just train today — you dominated.",
+                "Beast mode on. Everything else off. Perfection.",
+              ],
+            },
+            great: {
+              emoji: "🔥",
+              color: "#c8f030",
+              bg: "rgba(200,240,48,0.09)",
+              border: "rgba(200,240,48,0.22)",
+              msgs: [
+                "Strong session. You left very little on the table.",
+                "That's how it's done. Consistent, powerful, focused.",
+                "The numbers don't lie — that was a great workout.",
+                "You showed up and you delivered. Respect.",
+                "Hard work compounding in real time. Well done.",
+              ],
+            },
+            solid: {
+              emoji: "💪",
+              color: "#fd9644",
+              bg: "rgba(253,150,68,0.09)",
+              border: "rgba(253,150,68,0.22)",
+              msgs: [
+                "Decent work. The bar is there — now raise it.",
+                "Solid session. A bit more gas next time and it's perfect.",
+                "You did the work. Could've pushed harder, but it counts.",
+                "Good foundation. Build on it next session.",
+                "Middle of the road today. Which road are you taking tomorrow?",
+              ],
+            },
+            meh: {
+              emoji: "😐",
+              color: "#fd9644",
+              bg: "rgba(253,150,68,0.07)",
+              border: "rgba(253,150,68,0.18)",
+              msgs: [
+                "That was... a workout. Technically.",
+                "The bar was there. You were also there. Occasionally.",
+                "Mediocre is just excellence in disguise. Wait, no it isn't.",
+                "Your muscles are confused. Your future self is disappointed.",
+                "You showed up. That's the most generous thing I can say.",
+              ],
+            },
+            rough: {
+              emoji: "🫠",
+              color: "#ff6b6b",
+              bg: "rgba(255,107,107,0.07)",
+              border: "rgba(255,107,107,0.18)",
+              msgs: [
+                "The gym saw you today. It was not impressed.",
+                "Half-effort noted. Logged. Judged.",
+                "You came, you barely conquered, you left early.",
+                "Somewhere, your future gains are weeping quietly.",
+                "On a scale of 1 to 10, this was a 3. And that's generous.",
+              ],
+            },
+            ghost: {
+              emoji: "💀",
+              color: "#ff6b6b",
+              bg: "rgba(255,107,107,0.07)",
+              border: "rgba(255,107,107,0.2)",
+              msgs: [
+                "Were you even here? The weights didn't notice.",
+                "You hit the gym so lightly it bounced you back.",
+                "This session happened. I can't say much else.",
+                "Your body asked for a workout. You sent a strongly worded letter instead.",
+                "The bar barely moved. Just like this session.",
+              ],
+            },
+          };
+
+          const t = tiers[tier];
+          const msg = t.msgs[Math.floor((finished.doneSets + elapsed + intensity) % t.msgs.length)];
+
+          return (
+            <div style={{
+              textAlign: "center",
+              padding: "14px 20px 16px",
+              marginBottom: 20,
+              background: `linear-gradient(135deg, ${t.bg} 0%, transparent 100%)`,
+              border: `1px solid ${t.border}`,
+              borderRadius: 16,
+              animation: "celebIn 0.6s cubic-bezier(0.34,1.4,0.64,1) both",
+              animationDelay: "0.15s",
+            }}>
+              <style>{`
+                @keyframes celebIn {
+                  from { opacity: 0; transform: translateY(18px) scale(0.95); }
+                  to   { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                @keyframes celebPulse {
+                  0%, 100% { transform: scale(1); }
+                  50%       { transform: scale(1.18); }
+                }
+              `}</style>
+              <div style={{ fontSize: 28, animation: "celebPulse 1.4s ease-in-out 0.4s 2", display: "inline-block" }}>{t.emoji}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.color, marginTop: 6, letterSpacing: "0.3px" }}>{msg}</div>
+              <div style={{ fontSize: 11, color: th.muted, marginTop: 5 }}>
+                {pct >= 1
+                  ? `${finished.doneSets} sets · ${volT} · intensity ${intensity}/10 · ${durMin}min — nothing left`
+                  : `${finished.doneSets}/${finished.totalSets} sets · ${volT} · intensity ${intensity}/10 · ${durMin}min`}
+              </div>
+            </div>
+          );
+        })()}
+        <div style={{ textAlign: "center", marginBottom: 20, paddingTop: 4 }}>
           <div
             className="bebas"
             style={{
@@ -8471,6 +8607,10 @@
     const [selSessionOrigin, setSelSessionOrigin] = useState("history");
     const [selShortcut, setSelShortcut] = useState(null); // program opened from shortcuts
     const [showCal, setShowCal] = useState(false);
+    const [countdown, setCountdown] = useState(null); // null | 3 | 2 | 1 | 0
+    const countdownDataRef = useRef(null); // stores workout data during countdown
+    const [calClosing, setCalClosing] = useState(false);
+    const closeCal = () => { setCalClosing(true); setTimeout(() => { setShowCal(false); setCalClosing(false); }, 200); };
     const [measurements, setMeasurements] = useState([]);
     const [paused, setPaused] = useState(false);
     const elRef = useRef(0);
@@ -8719,7 +8859,7 @@
         .filter(Boolean);
       handleBeginWorkout({ name: prog.name, exercises, progId: prog.id || null });
     };
-    const handleBeginWorkout = (data) => {
+    const startWorkoutAfterCountdown = (data) => {
       const now = Date.now();
       const session = {
         id: now,
@@ -8737,6 +8877,21 @@
       setActive(session);
       saveActive(session);
       setView("workout");
+    };
+    const handleBeginWorkout = (data) => {
+      countdownDataRef.current = data;
+      setCountdown(3);
+      let n = 3;
+      const tick = setInterval(() => {
+        n -= 1;
+        if (n <= 0) {
+          clearInterval(tick);
+          setCountdown(null);
+          startWorkoutAfterCountdown(countdownDataRef.current);
+        } else {
+          setCountdown(n);
+        }
+      }, 1000);
     };
     const handleFinishWorkout = (exercises) => {
       const total = exercises.reduce((a, ex) => a + ex.sets.length, 0);
@@ -9275,7 +9430,7 @@
                 {/* Date — only shown on Home tab, top-right of header */}
                 {view === "home" && (
                   <div
-                    onClick={() => setShowCal(true)}
+                    onClick={() => { setShowCal(true); setCalClosing(false); }}
                     style={{ textAlign: "right", flexShrink: 0, marginLeft: 10, cursor: "pointer" }}
                   >
                     <div
@@ -9607,7 +9762,7 @@
           <>
             {/* Backdrop */}
             <div
-              onClick={() => setShowCal(false)}
+              onClick={() => closeCal()}
               style={{
                 position: "fixed", inset: 0, zIndex: 200,
                 background: "rgba(0,0,0,0.45)",
@@ -9627,13 +9782,17 @@
                 padding: "16px 16px 18px",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
                 transformOrigin: "top right",
-                animation: "calPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                animation: calClosing ? "calClose 0.18s ease-in forwards" : "calPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
               }}
             >
               <style>{`
                 @keyframes calPop {
                   from { opacity: 0; transform: scale(0.5); }
                   to   { opacity: 1; transform: scale(1); }
+                }
+                @keyframes calClose {
+                  from { opacity: 1; transform: scale(1); }
+                  to   { opacity: 0; transform: scale(0.5); }
                 }
               `}</style>
               {(() => {
@@ -9725,6 +9884,78 @@
           </>
         )}
 
+      {/* ── Countdown overlay ── */}
+      {countdown !== null && (() => {
+        const quoteIdx = Math.floor(Date.now() / 10000) % GREETINGS.length;
+        const quote = GREETINGS[quoteIdx];
+        const bgUrl = "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80";
+        return (
+          <div
+            style={{
+              position: "fixed", inset: 0, zIndex: 500,
+              backgroundImage: `url(${bgUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              animation: "countdownFade 0.3s ease-out",
+            }}
+          >
+            <style>{`
+              @keyframes countdownFade {
+                from { opacity: 0; }
+                to   { opacity: 1; }
+              }
+              @keyframes countdownPop {
+                0%   { transform: scale(0.4); opacity: 0; }
+                60%  { transform: scale(1.15); opacity: 1; }
+                100% { transform: scale(1); opacity: 1; }
+              }
+              @keyframes countdownExit {
+                0%   { transform: scale(1); opacity: 1; }
+                100% { transform: scale(2.5); opacity: 0; }
+              }
+            `}</style>
+            {/* Dark overlay for readability */}
+            <div style={{ position: "absolute", inset: 0, background: "rgba(8,8,9,0.72)" }} />
+            {/* Content */}
+            <div style={{ position: "relative", textAlign: "center", padding: "0 32px" }}>
+              {/* IRON BODY logo */}
+              <div className="bebas" style={{ fontSize: 18, letterSpacing: 6, color: "#c8f030", marginBottom: 40, opacity: 0.8 }}>
+                IRON BODY
+              </div>
+              {/* Countdown number */}
+              <div
+                key={countdown}
+                className="bebas"
+                style={{
+                  fontSize: 160,
+                  lineHeight: 1,
+                  color: countdown === 1 ? "#c8f030" : "#fff",
+                  animation: "countdownPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                  textShadow: countdown === 1 ? "0 0 60px rgba(200,240,48,0.6)" : "0 0 40px rgba(255,255,255,0.2)",
+                }}
+              >
+                {countdown}
+              </div>
+              {/* Quote */}
+              <div style={{
+                fontSize: 15,
+                color: "rgba(255,255,255,0.7)",
+                fontStyle: "italic",
+                marginTop: 40,
+                lineHeight: 1.5,
+                maxWidth: 280,
+                margin: "40px auto 0",
+              }}>
+                "{quote}"
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       </ThemeCtx.Provider>
     );
   }
