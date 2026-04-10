@@ -575,7 +575,6 @@ const DB = [
     muscle: "Glutes",
     group: "Legs",
   },
-  { id: "x8", name: "Cable Pull-Through", muscle: "Glutes", group: "Legs" },
   { id: "x9", name: "Reverse Hyperextension", muscle: "Glutes", group: "Legs" },
   { id: "x10", name: "Sissy Squat", muscle: "Quads", group: "Legs" },
   {
@@ -777,18 +776,6 @@ const DB = [
     muscle: "Hamstrings",
     group: "Legs",
   },
-  {
-    id: "m20",
-    name: "Leg Adductor Machine",
-    muscle: "Inner Thigh",
-    group: "Legs",
-  },
-  {
-    id: "m21",
-    name: "Leg Abductor Machine",
-    muscle: "Outer Thigh",
-    group: "Legs",
-  },
   { id: "m22", name: "Hip Thrust Machine", muscle: "Glutes", group: "Legs" },
   {
     id: "m23",
@@ -903,14 +890,11 @@ const DB = [
     type: "cardio",
   },
 
-  /* ── GLUTES (missing exercises) ── */
-
-  { id: "g6", name: "Reverse Hyperextension", muscle: "Glutes", group: "Legs" },
+  /* ── GLUTES (missing exercises) ── */,
   { id: "g7", name: "Kneeling Squat", muscle: "Glutes", group: "Legs" },
 
   /* ── CHEST (additional) ── */
   { id: "ch1", name: "Chest Dip", muscle: "Lower Chest", group: "Chest" },
-  { id: "ch2", name: "Svend Press", muscle: "Chest", group: "Chest" },
   {
     id: "ch3",
     name: "Dumbbell Squeeze Press",
@@ -918,8 +902,7 @@ const DB = [
     group: "Chest",
   },
 
-  /* ── BACK (additional) ── */
-  { id: "bk1", name: "Single-Arm Cable Row", muscle: "Lats", group: "Back" },
+  /* ── BACK (additional) ── */,
   { id: "bk2", name: "Seal Row", muscle: "Mid Back", group: "Back" },
   {
     id: "bk3",
@@ -929,11 +912,7 @@ const DB = [
   },
   { id: "bk4", name: "Jefferson Curl", muscle: "Lower Back", group: "Back" },
 
-  /* ── ARMS (additional) ── */
-  { id: "ar1", name: "Cable Overhead Curl", muscle: "Biceps", group: "Arms" },
-  { id: "ar2", name: "Bayesian Curl", muscle: "Biceps", group: "Arms" },
-  { id: "ar3", name: "Tate Press", muscle: "Triceps", group: "Arms" },
-  { id: "ar4", name: "JM Press", muscle: "Triceps", group: "Arms" },
+  /* ── ARMS (additional) ── */,
   { id: "ar5", name: "Cable Wrist Curl", muscle: "Forearms", group: "Arms" },
   {
     id: "ar6",
@@ -956,12 +935,6 @@ const DB = [
     group: "Shoulders",
   },
   {
-    id: "sh3",
-    name: "Plate Front Raise",
-    muscle: "Front Delts",
-    group: "Shoulders",
-  },
-  {
     id: "sh4",
     name: "Dumbbell Scarecrow",
     muscle: "Rear Delts",
@@ -971,13 +944,6 @@ const DB = [
   /* ── LEGS (additional) ── */
   { id: "lg1", name: "Barbell Front Squat", muscle: "Quads", group: "Legs" },
   { id: "lg2", name: "Hack Squat (Barbell)", muscle: "Quads", group: "Legs" },
-  { id: "lg3", name: "Sissy Squat", muscle: "Quads", group: "Legs" },
-  {
-    id: "lg4",
-    name: "Leg Press (Wide Stance)",
-    muscle: "Glutes",
-    group: "Legs",
-  },
   {
     id: "lg5",
     name: "Leg Press (Narrow Stance)",
@@ -5808,7 +5774,30 @@ function CompleteView({ finished, elapsed, onSave }) {
     (finished.exercises || []).length > 0 &&
     (finished.exercises || []).every((e) => e.type === "cardio");
 
-  const [intensity, setIntensity] = useState(7);
+  const calcAutoIntensity = () => {
+    const exs = (finished.exercises || []).filter((e) => e.type !== "cardio");
+    if (exs.length === 0) return 7;
+    const W_REF = 60;
+    let totalScore = 0, doneCt = 0, totalCt = 0;
+    exs.forEach((ex) => {
+      (ex.sets || []).forEach((s) => {
+        totalCt++;
+        if (s.done) {
+          const relLoad = (s.weight || 0) > 0 ? s.weight / W_REF : 0.1;
+          const repFactor = Math.min(s.reps || 0, 20) / 20;
+          totalScore += relLoad * repFactor;
+          doneCt++;
+        }
+      });
+    });
+    if (doneCt === 0) return 1;
+    const avgScore = totalScore / doneCt;
+    const completion = totalCt > 0 ? doneCt / totalCt : 0;
+    const raw = Math.min(avgScore / 1.5, 1) * 8 * 0.65 + completion * 2;
+    return Math.min(10, Math.max(1, Math.round(raw * 10) / 10));
+  };
+  const autoIntensity = allCardio ? 7 : calcAutoIntensity();
+  const [intensity, setIntensity] = useState(autoIntensity);
   const [calories, setCalories] = useState(
     cardioTotals ? String(cardioTotals.cals || "") : ""
   );
@@ -5877,7 +5866,21 @@ function CompleteView({ finished, elapsed, onSave }) {
         ))}
       </div>
       <div style={{ marginBottom: 20 }}>
-        <div style={{ ...S.label, marginBottom: 10 }}>RATE INTENSITY</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ ...S.label }}>{allCardio ? "SET INTENSITY" : "WORKOUT INTENSITY"}</div>
+          {!allCardio && intensity === autoIntensity && (
+            <span style={{ fontSize: 10, color: th.accentFg, fontWeight: 700, letterSpacing: "1px" }}>AUTO-ESTIMATED</span>
+          )}
+          {!allCardio && intensity !== autoIntensity && (
+            <button onClick={() => setIntensity(autoIntensity)}
+              style={{ background: "none", border: "none", color: th.muted, fontSize: 10, cursor: "pointer", fontFamily: "'Outfit',sans-serif", textDecoration: "underline" }}>
+              Reset to estimate ({autoIntensity})
+            </button>
+          )}
+        </div>
+        {allCardio && (
+          <div style={{ fontSize: 12, color: th.muted, marginBottom: 10 }}>How hard was your cardio session overall?</div>
+        )}
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
             const col = n <= 3 ? "#ff6b6b" : n <= 6 ? "#fd9644" : "#c8f030";
@@ -9362,6 +9365,7 @@ export default function App() {
 
         {/* ── Scrollable content ── */}
         <div
+          key={view}
           style={{
             flex: 1,
             overflowY: "auto",
