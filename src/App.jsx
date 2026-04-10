@@ -2571,6 +2571,11 @@ import "./styles.css";
     const [q, setQ] = useState("");
     const [flt, setFlt] = useState("All");
     const [pending, setPending] = useState([]); // ids selected this session
+    const [closing, setClosing] = useState(false);
+    const closeMe = (cb) => {
+      setClosing(true);
+      setTimeout(() => { setClosing(false); (cb || onClose)(); }, 300);
+    };
     const filterFn =
       MUSCLE_FILTERS.find((f) => f.label === flt)?.fn || (() => true);
     const filtered = DB.filter(
@@ -2589,7 +2594,7 @@ import "./styles.css";
     };
     const confirmAdd = () => {
       pending.forEach((id) => onAdd(id));
-      onClose();
+      closeMe();
     };
 
     return (
@@ -2603,8 +2608,23 @@ import "./styles.css";
           flexDirection: "column",
           maxWidth: 480,
           margin: "0 auto",
+          animation: closing
+            ? "epFadeOut 0.3s ease-in forwards"
+            : "epFadeIn 0.25s ease-out forwards",
         }}
       >
+        <style>{`
+          @keyframes epFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes epFadeOut { from { opacity: 1; } to { opacity: 0; } }
+          @keyframes epSlideUp {
+            from { transform: translateY(100%); opacity: 0.5; }
+            to   { transform: translateY(0);    opacity: 1; }
+          }
+          @keyframes epSlideDown {
+            from { transform: translateY(0);    opacity: 1; }
+            to   { transform: translateY(100%); opacity: 0; }
+          }
+        `}</style>
         <div
           style={{
             background: th.card,
@@ -2615,6 +2635,9 @@ import "./styles.css";
             flexDirection: "column",
             flex: 1,
             overflow: "hidden",
+            animation: closing
+              ? "epSlideDown 0.3s cubic-bezier(0.4,0,1,1) forwards"
+              : "epSlideUp 0.35s cubic-bezier(0,0,0.2,1) forwards",
           }}
         >
           <div style={{ padding: "18px 18px 0" }}>
@@ -2652,7 +2675,7 @@ import "./styles.css";
                   </button>
                 )}
                 <button
-                  onClick={onClose}
+                  onClick={() => closeMe()}
                   style={{
                     background: "none",
                     border: "none",
