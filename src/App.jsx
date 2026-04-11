@@ -9903,9 +9903,9 @@ import "./styles.css";
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <button
                         onClick={() => canGoBack && setCalOffset(o => o - 1)}
-                        style={{ background: "none", border: "none", color: canGoBack ? th.text : th.inputB, fontSize: 16, cursor: canGoBack ? "pointer" : "default", padding: "0 4px" }}
+                        style={{ background: "none", border: "none", color: canGoBack ? th.text : th.inputB, fontSize: 26, cursor: canGoBack ? "pointer" : "default", padding: "0 4px" }}
                       >‹</button>
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", color: th.sub }}>{monthName}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", color: th.sub }}>{monthName}</div>
                       <button
                         onClick={() => canGoFwd && setCalOffset(o => o + 1)}
                         style={{ background: "none", border: "none", color: canGoFwd ? th.text : th.inputB, fontSize: 16, cursor: canGoFwd ? "pointer" : "default", padding: "0 4px" }}
@@ -9914,7 +9914,7 @@ import "./styles.css";
                     {/* Day-of-week headers Mon–Sun */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
                       {["M","T","W","T","F","S","S"].map((d, i) => (
-                        <div key={i} style={{ textAlign: "center", fontSize: 10, color: th.dim, fontWeight: 700 }}>{d}</div>
+                        <div key={i} style={{ textAlign: "center", fontSize: 13, color: th.dim, fontWeight: 700 }}>{d}</div>
                       ))}
                     </div>
                     {/* Day cells */}
@@ -9931,7 +9931,7 @@ import "./styles.css";
                             aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center",
                             borderRadius: "50%", background: bg,
                             border: isToday && !isActive ? `1.5px solid ${th.inputB}` : "none",
-                            fontSize: 11, fontWeight: isActive || isToday ? 700 : 400,
+                            fontSize: 13, fontWeight: isActive || isToday ? 700 : 400,
                             color: isActive ? "#080809" : isToday ? th.text : th.muted,
                           }}>
                             {day}
