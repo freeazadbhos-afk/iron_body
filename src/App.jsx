@@ -3562,7 +3562,7 @@ import "./styles.css";
                     <div
                       className="bebas"
                       style={{
-                        fontSize: 19,
+                        fontSize: 22,
                         color: th.accentFg,
                         lineHeight: 1,
                         letterSpacing: 0.5,
@@ -3782,7 +3782,7 @@ import "./styles.css";
                           </div>
                           <div
                             style={{
-                              fontSize: 9,
+                              fontSize: 11,
                               color: th.dim,
                               letterSpacing: "1.5px",
                               marginTop: 2,
@@ -3848,7 +3848,7 @@ import "./styles.css";
                         <div key={f} style={{ marginTop: 18 }}>
                           <div
                             style={{
-                              fontSize: 11,
+                              fontSize: 13,
                               color: th.sub,
                               letterSpacing: "1.5px",
                               fontWeight: 700,
@@ -3895,7 +3895,7 @@ import "./styles.css";
                                   />
                                   <div
                                     style={{
-                                      fontSize: 13,
+                                      fontSize: 12,
                                       color: th.dim,
                                       textAlign: "center",
                                     }}
