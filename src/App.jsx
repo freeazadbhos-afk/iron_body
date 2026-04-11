@@ -7,6 +7,7 @@ import "./styles.css";
     createContext,
     useContext,
   } from "react";
+  import { SpeedInsights } from "@vercel/speed-insights/react";
 
   /* ─── Firebase ───────────────────────────────────────────────────────────────── */
   import { initializeApp } from "firebase/app";
@@ -10006,6 +10007,7 @@ import "./styles.css";
           </div>
         );
       })()}
+      <SpeedInsights />
       </ThemeCtx.Provider>
     );
   }
