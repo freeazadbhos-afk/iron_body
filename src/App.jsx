@@ -3597,7 +3597,7 @@ import "./styles.css";
                 }}
               >
                 <div style={{ ...S.label }}>RECENT PERFORMANCE</div>
-                <div style={{ fontSize: 10, color: th.dim }}>last 7 days</div>
+                <div style={{ fontSize: 12, color: th.dim }}>last 7 days</div>
               </div>
               {(() => {
                 // Build last-7-days slots (always 7, empty days shown dimmed)
@@ -3658,7 +3658,7 @@ import "./styles.css";
                         >
                           <span
                             style={{
-                              fontSize: 9,
+                              fontSize: 13,
                               fontWeight: 700,
                               color: hasData ? col : "transparent",
                               marginBottom: 3,
@@ -3678,7 +3678,7 @@ import "./styles.css";
                           />
                           <span
                             style={{
-                              fontSize: 9,
+                              fontSize: 11,
                               color: th.dim,
                               marginTop: 4,
                               lineHeight: 1,
@@ -3848,7 +3848,7 @@ import "./styles.css";
                         <div key={f} style={{ marginTop: 18 }}>
                           <div
                             style={{
-                              fontSize: 10,
+                              fontSize: 11,
                               color: th.sub,
                               letterSpacing: "1.5px",
                               fontWeight: 700,
@@ -3895,7 +3895,7 @@ import "./styles.css";
                                   />
                                   <div
                                     style={{
-                                      fontSize: 10,
+                                      fontSize: 13,
                                       color: th.dim,
                                       textAlign: "center",
                                     }}
@@ -4027,7 +4027,7 @@ import "./styles.css";
                   </div>
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 13,
                       color: th.muted,
                     }}
                   >
