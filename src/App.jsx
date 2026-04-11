@@ -7,6 +7,7 @@ import "./styles.css";
     createContext,
     useContext,
   } from "react";
+  import { Analytics } from "@vercel/analytics/react";
 
   /* ─── Firebase ───────────────────────────────────────────────────────────────── */
   import { initializeApp } from "firebase/app";
@@ -8850,13 +8851,15 @@ import "./styles.css";
               IRON BODY
             </div>
           </div>
-        </ThemeCtx.Provider>
+        <Analytics />
+      </ThemeCtx.Provider>
       );
     if (!user)
       return (
         <ThemeCtx.Provider value={th}>
           <AuthView />
-        </ThemeCtx.Provider>
+        <Analytics />
+      </ThemeCtx.Provider>
       );
     const handleTemplate = (prog) => {
       // Convert program exs (new per-set format) to workout exercises and start directly
@@ -10006,6 +10009,7 @@ import "./styles.css";
           </div>
         );
       })()}
+      <Analytics />
       </ThemeCtx.Provider>
     );
   }
