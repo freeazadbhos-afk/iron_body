@@ -1949,13 +1949,8 @@ import "./styles.css";
   function WeightPicker({ value, onChange }) {
     const th = useTheme();
     const [open, setOpen] = useState(false);
-    const [wpClosing, setWpClosing] = useState(false);
     const scrollRef = useRef(null);
     const timerRef = useRef(null);
-    const closeWp = () => {
-      setWpClosing(true);
-      setTimeout(() => { setOpen(false); setWpClosing(false); }, 280);
-    };
     const ITEM_W = 72;
 
     // Scroll ruler to selected value when sheet opens
@@ -2003,7 +1998,7 @@ import "./styles.css";
     return (
       <div style={{ position: "relative" }}>
         <div
-          onClick={() => { if (open) closeWp(); else setOpen(true); }}
+          onClick={() => setOpen((o) => !o)}
           style={{
             background: th.row,
             border: `1px solid ${open ? th.accentBg : th.inputB}`,
@@ -2025,7 +2020,7 @@ import "./styles.css";
         {open && (
           <>
             <div
-              onClick={() => closeWp()}
+              onClick={() => setOpen(false)}
               style={{
                 position: "fixed",
                 inset: 0,
@@ -2047,21 +2042,8 @@ import "./styles.css";
                 border: `1px solid ${th.border}`,
                 borderBottom: "none",
                 boxShadow: "0 -8px 40px rgba(0,0,0,.4)",
-                animation: wpClosing
-                  ? "wpSlideDown 0.28s cubic-bezier(0.4,0,1,1) forwards"
-                  : "wpSlideUp 0.32s cubic-bezier(0,0,0.2,1) forwards",
               }}
             >
-              <style>{`
-                @keyframes wpSlideUp {
-                  from { transform: translateX(-50%) translateY(100%); opacity: 0.6; }
-                  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
-                }
-                @keyframes wpSlideDown {
-                  from { transform: translateX(-50%) translateY(0);    opacity: 1; }
-                  to   { transform: translateX(-50%) translateY(100%); opacity: 0; }
-                }
-              `}</style>
               {/* Handle */}
               <div
                 style={{
@@ -2115,7 +2097,7 @@ import "./styles.css";
                   {value} KG
                 </span>
                 <button
-                  onClick={() => closeWp()}
+                  onClick={() => setOpen(false)}
                   style={{
                     background: th.accentBg,
                     border: "none",
@@ -2390,15 +2372,8 @@ import "./styles.css";
             </button>
           </div>
 
-          {/* Set rows — smooth expand/collapse via max-height transition */}
-          <div style={{
-            maxHeight: isOpen ? "800px" : "0px",
-            overflow: "hidden",
-            transition: isOpen
-              ? "max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease"
-              : "max-height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease",
-            opacity: isOpen ? 1 : 0,
-          }}>
+          {/* Set rows — only shown when expanded */}
+          {isOpen && (
             <div style={{ borderTop: `1px solid ${th.border}` }}>
               {isCardio ? (
                 <div style={{ padding: "12px 14px" }}>
@@ -2558,7 +2533,7 @@ import "./styles.css";
                 </>
               )}
             </div>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -2571,11 +2546,6 @@ import "./styles.css";
     const [q, setQ] = useState("");
     const [flt, setFlt] = useState("All");
     const [pending, setPending] = useState([]); // ids selected this session
-    const [closing, setClosing] = useState(false);
-    const closeMe = (cb) => {
-      setClosing(true);
-      setTimeout(() => { setClosing(false); (cb || onClose)(); }, 300);
-    };
     const filterFn =
       MUSCLE_FILTERS.find((f) => f.label === flt)?.fn || (() => true);
     const filtered = DB.filter(
@@ -2594,7 +2564,7 @@ import "./styles.css";
     };
     const confirmAdd = () => {
       pending.forEach((id) => onAdd(id));
-      closeMe();
+      onClose();
     };
 
     return (
@@ -2608,23 +2578,8 @@ import "./styles.css";
           flexDirection: "column",
           maxWidth: 480,
           margin: "0 auto",
-          animation: closing
-            ? "epFadeOut 0.3s ease-in forwards"
-            : "epFadeIn 0.25s ease-out forwards",
         }}
       >
-        <style>{`
-          @keyframes epFadeIn  { from { opacity: 0; } to { opacity: 1; } }
-          @keyframes epFadeOut { from { opacity: 1; } to { opacity: 0; } }
-          @keyframes epSlideUp {
-            from { transform: translateY(100%); opacity: 0.5; }
-            to   { transform: translateY(0);    opacity: 1; }
-          }
-          @keyframes epSlideDown {
-            from { transform: translateY(0);    opacity: 1; }
-            to   { transform: translateY(100%); opacity: 0; }
-          }
-        `}</style>
         <div
           style={{
             background: th.card,
@@ -2635,9 +2590,6 @@ import "./styles.css";
             flexDirection: "column",
             flex: 1,
             overflow: "hidden",
-            animation: closing
-              ? "epSlideDown 0.3s cubic-bezier(0.4,0,1,1) forwards"
-              : "epSlideUp 0.35s cubic-bezier(0,0,0.2,1) forwards",
           }}
         >
           <div style={{ padding: "18px 18px 0" }}>
@@ -2675,7 +2627,7 @@ import "./styles.css";
                   </button>
                 )}
                 <button
-                  onClick={() => closeMe()}
+                  onClick={onClose}
                   style={{
                     background: "none",
                     border: "none",
@@ -5846,7 +5798,16 @@ import "./styles.css";
       const raw = Math.min(avgScore / 1.5, 1) * 8 * 0.65 + completion * 2;
       return Math.min(10, Math.max(1, Math.round(raw * 10) / 10));
     };
-    const autoIntensity = allCardio ? 7 : calcAutoIntensity();
+    // For cardio: use avg intensity from entered set data, fallback to 7
+    const cardioIntensityFromData = (() => {
+      if (!allCardio) return 7;
+      const cardioExs = (finished.exercises || []).filter(e => e.type === "cardio");
+      const doneSets = cardioExs.flatMap(e => e.sets.filter(s => s.done));
+      const withInt = doneSets.filter(s => (s.intensity || 0) > 0);
+      if (!withInt.length) return 7;
+      return Math.round(withInt.reduce((a, s) => a + s.intensity, 0) / withInt.length);
+    })();
+    const autoIntensity = allCardio ? cardioIntensityFromData : calcAutoIntensity();
     const [intensity, setIntensity] = useState(autoIntensity);
     const [calories, setCalories] = useState(
       cardioTotals ? String(cardioTotals.cals || "") : ""
@@ -5987,9 +5948,22 @@ import "./styles.css";
               <div style={{ fontSize: 28, animation: "celebPulse 1.4s ease-in-out 0.4s 2", display: "inline-block" }}>{t.emoji}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: t.color, marginTop: 6, letterSpacing: "0.3px" }}>{msg}</div>
               <div style={{ fontSize: 11, color: th.muted, marginTop: 5 }}>
-                {pct >= 1
-                  ? `${finished.doneSets} sets · ${volT} · intensity ${intensity}/10 · ${durMin}min — nothing left`
-                  : `${finished.doneSets}/${finished.totalSets} sets · ${volT} · intensity ${intensity}/10 · ${durMin}min`}
+                {(() => {
+                  if (allCardio) {
+                    const cardExs = (finished.exercises || []).filter(e => e.type === "cardio");
+                    const dSets = cardExs.flatMap(e => e.sets.filter(s => s.done));
+                    const totDur = dSets.reduce((a,s) => a + (s.duration||0), 0);
+                    const totCal = dSets.reduce((a,s) => a + (s.calories||0), 0);
+                    const parts = [];
+                    if (totDur > 0) parts.push(`${totDur}min`);
+                    if (totCal > 0) parts.push(`${totCal.toLocaleString()} kcal`);
+                    parts.push(`intensity ${intensity}/10`);
+                    return parts.join(" · ");
+                  }
+                  return pct >= 1
+                    ? `${finished.doneSets} sets · ${volT} · intensity ${intensity}/10 · ${durMin}min — nothing left`
+                    : `${finished.doneSets}/${finished.totalSets} sets · ${volT} · intensity ${intensity}/10 · ${durMin}min`;
+                })()}
               </div>
             </div>
           );
@@ -6020,16 +5994,24 @@ import "./styles.css";
             marginBottom: 20,
           }}
         >
-          {[
-            {
-              v: finished.doneSets,
-              l: "SETS DONE",
-              u: `of ${finished.totalSets}`,
-            },
-            { v: finished.exercises.length, l: "EXERCISES", u: "completed" },
-            { v: fmtTime(elapsed), l: "DURATION", u: "recorded" },
-            { v: Math.round(vol).toLocaleString() + "kg", l: "VOLUME", u: "lifted" },
-          ].map((s) => (
+          {(() => {
+            const cardioExs = (finished.exercises || []).filter(e => e.type === "cardio");
+            const doneSets = cardioExs.flatMap(e => e.sets.filter(s => s.done));
+            const totalCalFromData = doneSets.reduce((a, s) => a + (s.calories || 0), 0);
+            const totalDurFromData = doneSets.reduce((a, s) => a + (s.duration || 0), 0);
+            const durationDisplay = allCardio && totalDurFromData > 0
+              ? totalDurFromData + "min"
+              : fmtTime(elapsed);
+            const tile4 = allCardio
+              ? { v: totalCalFromData > 0 ? totalCalFromData.toLocaleString() + " kcal" : "—", l: "CALORIES", u: "burned" }
+              : { v: Math.round(vol).toLocaleString() + "kg", l: "VOLUME", u: "lifted" };
+            return [
+              { v: finished.doneSets, l: "SETS DONE", u: `of ${finished.totalSets}` },
+              { v: finished.exercises.length, l: "EXERCISES", u: "completed" },
+              { v: durationDisplay, l: "DURATION", u: "recorded" },
+              tile4,
+            ];
+          })().map((s) => (
             <div
               key={s.l}
               style={{ ...S.card, padding: 15, textAlign: "center" }}
@@ -8329,7 +8311,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.3.0</span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.3.1</span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -8657,6 +8639,7 @@ import "./styles.css";
     const [selSessionOrigin, setSelSessionOrigin] = useState("history");
     const [selShortcut, setSelShortcut] = useState(null); // program opened from shortcuts
     const [showCal, setShowCal] = useState(false);
+    const [calOffset, setCalOffset] = useState(0); // months from current, 0=now
     const [countdown, setCountdown] = useState(null); // null | 3 | 2 | 1 | 0
     const countdownDataRef = useRef(null); // stores workout data during countdown
     const [calClosing, setCalClosing] = useState(false);
@@ -8833,21 +8816,37 @@ import "./styles.css";
     if (authLoading)
       return (
         <ThemeCtx.Provider value={th}>
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "#080809",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              className="bebas"
-              style={{ fontSize: 48, color: "#c8f030", letterSpacing: 2 }}
-            >
-              IRON BODY
+          <div style={{ position: "fixed", inset: 0, background: "#0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            {/* Gym photo — same as sign-in */}
+            <div style={{
+              position: "absolute", inset: 0,
+              backgroundImage: "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1920&q=80)",
+              backgroundSize: "cover", backgroundPosition: "center",
+              filter: "brightness(0.18)",
+            }} />
+            {/* Bottom lime glow — same as sign-in */}
+            <div style={{
+              position: "absolute", bottom: 0, left: 0, right: 0, height: "40%",
+              background: "linear-gradient(to top, rgba(200,240,48,0.06), transparent)",
+            }} />
+            {/* Logo — identical to AuthView */}
+            <div style={{ position: "relative", textAlign: "left", padding: "0 28px", width: "100%", maxWidth: 360, animation: "splashIn 0.55s cubic-bezier(0.34,1.2,0.64,1) both" }}>
+              <style>{`
+                @keyframes splashIn {
+                  from { opacity: 0; transform: scale(0.88) translateY(20px); }
+                  to   { opacity: 1; transform: scale(1) translateY(0); }
+                }
+                @keyframes splashOut {
+                  from { opacity: 1; }
+                  to   { opacity: 0; }
+                }
+              `}</style>
+              <div className="bebas" style={{ fontSize: 70, color: "#c8f030", lineHeight: 0.85, marginBottom: 8 }}>
+                IRON<br />BODY
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginBottom: 0, letterSpacing: "3px", fontFamily: "'Outfit',sans-serif" }}>
+                TRACK · LIFT · PROGRESS
+              </div>
             </div>
           </div>
         </ThemeCtx.Provider>
@@ -9480,7 +9479,7 @@ import "./styles.css";
                 {/* Date — only shown on Home tab, top-right of header */}
                 {view === "home" && (
                   <div
-                    onClick={() => { setShowCal(true); setCalClosing(false); }}
+                    onClick={() => { setCalOffset(0); setShowCal(true); setCalClosing(false); }}
                     style={{ textAlign: "right", flexShrink: 0, marginLeft: 10, cursor: "pointer" }}
                   >
                     <div
@@ -9833,6 +9832,15 @@ import "./styles.css";
                 boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
                 transformOrigin: "top right",
                 animation: calClosing ? "calClose 0.18s ease-in forwards" : "calPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                touchAction: "pan-y",
+              }}
+              onTouchStart={(e) => { e._calX = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                const dx = e.changedTouches[0].clientX - (e._calX || 0);
+                const earliest = sessions.length ? new Date(Math.min(...sessions.map(s => s.startTime || Date.now()))) : new Date();
+                const minOff = (earliest.getFullYear() - new Date().getFullYear()) * 12 + earliest.getMonth() - new Date().getMonth();
+                if (dx > 40 && calOffset > minOff) setCalOffset(o => o - 1); // swipe right = prev month
+                if (dx < -40 && calOffset < 0) setCalOffset(o => o + 1);     // swipe left = next month
               }}
             >
               <style>{`
@@ -9846,10 +9854,20 @@ import "./styles.css";
                 }
               `}</style>
               {(() => {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = now.getMonth();
-                const monthName = now.toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
+                // Determine earliest month with sessions
+                const earliest = sessions.length
+                  ? new Date(Math.min(...sessions.map((s) => s.startTime || Date.now())))
+                  : new Date();
+                const minOffset = (earliest.getFullYear() - new Date().getFullYear()) * 12 + earliest.getMonth() - new Date().getMonth();
+                const canGoBack = calOffset > minOffset;
+                const canGoFwd  = calOffset < 0;
+
+                const base = new Date();
+                base.setDate(1);
+                base.setMonth(base.getMonth() + calOffset);
+                const year  = base.getFullYear();
+                const month = base.getMonth();
+                const monthName = base.toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
 
                 // Build maps: day → session types
                 const dayTypes = {};
@@ -9857,30 +9875,45 @@ import "./styles.css";
                   const d = new Date(s.startTime || 0);
                   if (d.getFullYear() !== year || d.getMonth() !== month) return;
                   const day = d.getDate();
-                  const hasCardio = (s.exercises || []).some((e) => e.type === "cardio");
+                  const hasCardio   = (s.exercises || []).some((e) => e.type === "cardio");
                   const hasStrength = (s.exercises || []).some((e) => e.type !== "cardio");
                   if (!dayTypes[day]) dayTypes[day] = { cardio: false, strength: false };
                   if (hasCardio) dayTypes[day].cardio = true;
                   if (hasStrength) dayTypes[day].strength = true;
                 });
 
-                const firstDow = new Date(year, month, 1).getDay();
+                // Monday-first: shift Sunday (0) → 6, Mon (1) → 0, etc.
+                const rawDow = new Date(year, month, 1).getDay();
+                const firstDow = rawDow === 0 ? 6 : rawDow - 1;
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const now = new Date();
+                const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
                 const todayDate = now.getDate();
                 const cells = [];
                 for (let i = 0; i < firstDow; i++) cells.push(null);
                 for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
                 const STRENGTH_COL = "#c8f030";
-                const CARDIO_COL = "#4ecdc4";
-                const BOTH_COL = "#fd9644";
+                const CARDIO_COL   = "#4ecdc4";
+                const BOTH_COL     = "#fd9644";
 
                 return (
                   <>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", color: th.sub, textAlign: "center", marginBottom: 12 }}>{monthName}</div>
-                    {/* Day-of-week headers */}
+                    {/* Month nav header */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <button
+                        onClick={() => canGoBack && setCalOffset(o => o - 1)}
+                        style={{ background: "none", border: "none", color: canGoBack ? th.text : th.inputB, fontSize: 16, cursor: canGoBack ? "pointer" : "default", padding: "0 4px" }}
+                      >‹</button>
+                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", color: th.sub }}>{monthName}</div>
+                      <button
+                        onClick={() => canGoFwd && setCalOffset(o => o + 1)}
+                        style={{ background: "none", border: "none", color: canGoFwd ? th.text : th.inputB, fontSize: 16, cursor: canGoFwd ? "pointer" : "default", padding: "0 4px" }}
+                      >›</button>
+                    </div>
+                    {/* Day-of-week headers Mon–Sun */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
-                      {["S","M","T","W","T","F","S"].map((d, i) => (
+                      {["M","T","W","T","F","S","S"].map((d, i) => (
                         <div key={i} style={{ textAlign: "center", fontSize: 10, color: th.dim, fontWeight: 700 }}>{d}</div>
                       ))}
                     </div>
@@ -9888,27 +9921,19 @@ import "./styles.css";
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
                       {cells.map((day, i) => {
                         if (!day) return <div key={i} />;
-                        const isToday = day === todayDate;
+                        const isToday = isCurrentMonth && day === todayDate;
                         const t = dayTypes[day];
                         const hasBoth = t?.strength && t?.cardio;
                         const bg = hasBoth ? BOTH_COL : t?.strength ? STRENGTH_COL : t?.cardio ? CARDIO_COL : "transparent";
                         const isActive = !!t;
                         return (
-                          <div
-                            key={i}
-                            style={{
-                              aspectRatio: "1",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: "50%",
-                              background: bg,
-                              border: isToday && !isActive ? `1.5px solid ${th.inputB}` : "none",
-                              fontSize: 11,
-                              fontWeight: isActive || isToday ? 700 : 400,
-                              color: isActive ? "#080809" : isToday ? th.text : th.muted,
-                            }}
-                          >
+                          <div key={i} style={{
+                            aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center",
+                            borderRadius: "50%", background: bg,
+                            border: isToday && !isActive ? `1.5px solid ${th.inputB}` : "none",
+                            fontSize: 11, fontWeight: isActive || isToday ? 700 : 400,
+                            color: isActive ? "#080809" : isToday ? th.text : th.muted,
+                          }}>
                             {day}
                           </div>
                         );
