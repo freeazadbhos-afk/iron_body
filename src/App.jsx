@@ -3389,7 +3389,7 @@ import "./styles.css";
           >
             {getTimeGreeting()}, {firstName}!
           </div>
-          <div style={{ fontSize: 14, color: th.muted, marginTop: 4 }}>
+          <div style={{ fontSize: 18, color: th.muted, marginTop: 4 }}>
             {
               GREETINGS[
                 (new Date().getDay() * 3 + new Date().getHours()) %
@@ -3427,7 +3427,7 @@ import "./styles.css";
                 </div>
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: th.dim,
                     letterSpacing: "1.5px",
                     marginTop: 3,
@@ -3464,7 +3464,7 @@ import "./styles.css";
                     </div>
                     <div
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         color: th.dim,
                         letterSpacing: "1.5px",
                         marginTop: 3,
