@@ -3425,7 +3425,7 @@ import "./styles.css";
           >
             {getTimeGreeting()}, {firstName}!
           </div>
-          <div style={{ fontSize: 18, color: th.muted, marginTop: 4 }}>
+          <div style={{ fontSize: 16, color: th.muted, marginTop: 4 }}>
             {
               GREETINGS[
                 (new Date().getDay() * 3 + new Date().getHours()) %
@@ -3885,7 +3885,7 @@ import "./styles.css";
                         <div key={f} style={{ marginTop: 18 }}>
                           <div
                             style={{
-                              fontSize: 13,
+                              fontSize: 12,
                               color: th.sub,
                               letterSpacing: "1.5px",
                               fontWeight: 700,
@@ -9480,7 +9480,7 @@ import "./styles.css";
                   >
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 15,
                         color: th.muted,
                         fontWeight: 700,
                         letterSpacing: "1px",
@@ -9496,7 +9496,7 @@ import "./styles.css";
                     </div>
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 13,
                         color: th.dim,
                         letterSpacing: "1px",
                         marginTop: 2,
@@ -9542,7 +9542,7 @@ import "./styles.css";
                       border: `1px solid ${th.inputB}`,
                       borderRadius: 9,
                       color: th.accentFg,
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: 700,
                       padding: "7px 13px",
                       cursor: "pointer",
