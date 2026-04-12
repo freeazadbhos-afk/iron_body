@@ -9565,8 +9565,6 @@ import "./styles.css";
               overflowX: "hidden",
               padding: "68px 16px 0",
               minHeight: 0,
-              WebkitMaskImage: "linear-gradient(to bottom, transparent 0px, black 68px)",
-              maskImage: "linear-gradient(to bottom, transparent 0px, black 68px)",
             }}
           >
             {view === "home" && (
