@@ -9388,10 +9388,14 @@ import "./styles.css";
                 right: 0,
                 zIndex: 5,
                 pointerEvents: "none",
-                background: `linear-gradient(to bottom, ${th.bg} 55%, ${th.bg}99 75%, transparent)`,
-                padding: "14px 16px 28px",
               }}
             >
+              {/* Solid header background behind text */}
+              <div style={{
+                background: th.bg,
+                padding: "14px 16px 10px",
+                pointerEvents: "auto",
+              }}>
               <div style={{ pointerEvents: "auto" }}>
               <div
                 style={{
@@ -9551,8 +9555,14 @@ import "./styles.css";
                   </button>
                 )}
               </div>
-              <div style={{ height: 1, background: th.border, marginTop: 10 }} />
               </div>
+              </div>
+              {/* Pure gradient fade strip — no content, just dissolves edge */}
+              <div style={{
+                height: 16,
+                background: `linear-gradient(to bottom, ${th.bg}, transparent)`,
+                pointerEvents: "none",
+              }} />
             </div>
           )}
 
