@@ -1949,8 +1949,13 @@ import "./styles.css";
   function WeightPicker({ value, onChange }) {
     const th = useTheme();
     const [open, setOpen] = useState(false);
+    const [wpClosing, setWpClosing] = useState(false);
     const scrollRef = useRef(null);
     const timerRef = useRef(null);
+    const closeWp = () => {
+      setWpClosing(true);
+      setTimeout(() => { setOpen(false); setWpClosing(false); }, 280);
+    };
     const ITEM_W = 72;
 
     // Scroll ruler to selected value when sheet opens
@@ -1998,7 +2003,7 @@ import "./styles.css";
     return (
       <div style={{ position: "relative" }}>
         <div
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => { if (open) closeWp(); else setOpen(true); }}
           style={{
             background: th.row,
             border: `1px solid ${open ? th.accentBg : th.inputB}`,
@@ -2020,7 +2025,7 @@ import "./styles.css";
         {open && (
           <>
             <div
-              onClick={() => setOpen(false)}
+              onClick={() => closeWp()}
               style={{
                 position: "fixed",
                 inset: 0,
@@ -2042,8 +2047,21 @@ import "./styles.css";
                 border: `1px solid ${th.border}`,
                 borderBottom: "none",
                 boxShadow: "0 -8px 40px rgba(0,0,0,.4)",
+                animation: wpClosing
+                  ? "wpSlideDown 0.28s cubic-bezier(0.4,0,1,1) forwards"
+                  : "wpSlideUp 0.32s cubic-bezier(0,0,0.2,1) forwards",
               }}
             >
+              <style>{`
+                @keyframes wpSlideUp {
+                  from { transform: translateX(-50%) translateY(100%); opacity: 0.6; }
+                  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+                }
+                @keyframes wpSlideDown {
+                  from { transform: translateX(-50%) translateY(0);    opacity: 1; }
+                  to   { transform: translateX(-50%) translateY(100%); opacity: 0; }
+                }
+              `}</style>
               {/* Handle */}
               <div
                 style={{
@@ -2097,7 +2115,7 @@ import "./styles.css";
                   {value} KG
                 </span>
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={() => closeWp()}
                   style={{
                     background: th.accentBg,
                     border: "none",
@@ -2372,8 +2390,15 @@ import "./styles.css";
             </button>
           </div>
 
-          {/* Set rows — only shown when expanded */}
-          {isOpen && (
+          {/* Set rows — smooth expand/collapse via max-height transition */}
+          <div style={{
+            maxHeight: isOpen ? "800px" : "0px",
+            overflow: "hidden",
+            transition: isOpen
+              ? "max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease"
+              : "max-height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease",
+            opacity: isOpen ? 1 : 0,
+          }}>
             <div style={{ borderTop: `1px solid ${th.border}` }}>
               {isCardio ? (
                 <div style={{ padding: "12px 14px" }}>
@@ -2533,7 +2558,7 @@ import "./styles.css";
                 </>
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -2546,6 +2571,11 @@ import "./styles.css";
     const [q, setQ] = useState("");
     const [flt, setFlt] = useState("All");
     const [pending, setPending] = useState([]); // ids selected this session
+    const [epClosing, setEpClosing] = useState(false);
+    const closeMe = (cb) => {
+      setEpClosing(true);
+      setTimeout(() => { setEpClosing(false); (cb || onClose)(); }, 300);
+    };
     const filterFn =
       MUSCLE_FILTERS.find((f) => f.label === flt)?.fn || (() => true);
     const filtered = DB.filter(
@@ -2564,7 +2594,7 @@ import "./styles.css";
     };
     const confirmAdd = () => {
       pending.forEach((id) => onAdd(id));
-      onClose();
+      closeMe();
     };
 
     return (
@@ -2578,8 +2608,15 @@ import "./styles.css";
           flexDirection: "column",
           maxWidth: 480,
           margin: "0 auto",
+          animation: epClosing ? "epFadeOut 0.3s ease-in forwards" : "epFadeIn 0.25s ease-out forwards",
         }}
       >
+        <style>{`
+          @keyframes epFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes epFadeOut { from { opacity: 1; } to { opacity: 0; } }
+          @keyframes epSlideUp   { from { transform: translateY(100%); opacity:0.5; } to { transform: translateY(0); opacity:1; } }
+          @keyframes epSlideDown { from { transform: translateY(0); opacity:1; } to { transform: translateY(100%); opacity:0; } }
+        `}</style>
         <div
           style={{
             background: th.card,
@@ -2590,6 +2627,7 @@ import "./styles.css";
             flexDirection: "column",
             flex: 1,
             overflow: "hidden",
+            animation: epClosing ? "epSlideDown 0.3s cubic-bezier(0.4,0,1,1) forwards" : "epSlideUp 0.35s cubic-bezier(0,0,0.2,1) forwards",
           }}
         >
           <div style={{ padding: "18px 18px 0" }}>
@@ -2627,7 +2665,7 @@ import "./styles.css";
                   </button>
                 )}
                 <button
-                  onClick={onClose}
+                  onClick={() => closeMe()}
                   style={{
                     background: "none",
                     border: "none",
@@ -8640,6 +8678,7 @@ import "./styles.css";
     const [selShortcut, setSelShortcut] = useState(null); // program opened from shortcuts
     const [showCal, setShowCal] = useState(false);
     const [calOffset, setCalOffset] = useState(0); // months from current, 0=now
+    const [calDir, setCalDir] = useState(0); // -1=going back, +1=going fwd
     const [countdown, setCountdown] = useState(null); // null | 3 | 2 | 1 | 0
     const countdownDataRef = useRef(null); // stores workout data during countdown
     const [calClosing, setCalClosing] = useState(false);
@@ -9484,7 +9523,7 @@ import "./styles.css";
                   >
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 13,
                         color: th.muted,
                         fontWeight: 700,
                         letterSpacing: "1px",
@@ -9500,7 +9539,7 @@ import "./styles.css";
                     </div>
                     <div
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         color: th.dim,
                         letterSpacing: "1px",
                         marginTop: 2,
@@ -9829,18 +9868,20 @@ import "./styles.css";
                 borderRadius: 16,
                 zIndex: 201,
                 padding: "16px 16px 18px",
+                minHeight: 320,
                 boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
                 transformOrigin: "top right",
                 animation: calClosing ? "calClose 0.18s ease-in forwards" : "calPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
                 touchAction: "pan-y",
               }}
-              onTouchStart={(e) => { e._calX = e.touches[0].clientX; }}
+              onTouchStart={(e) => { e.currentTarget.dataset.sx = e.touches[0].clientX; }}
               onTouchEnd={(e) => {
-                const dx = e.changedTouches[0].clientX - (e._calX || 0);
+                const sx = parseFloat(e.currentTarget.dataset.sx || "0");
+                const dx = e.changedTouches[0].clientX - sx;
                 const earliest = sessions.length ? new Date(Math.min(...sessions.map(s => s.startTime || Date.now()))) : new Date();
                 const minOff = (earliest.getFullYear() - new Date().getFullYear()) * 12 + earliest.getMonth() - new Date().getMonth();
-                if (dx > 40 && calOffset > minOff) setCalOffset(o => o - 1); // swipe right = prev month
-                if (dx < -40 && calOffset < 0) setCalOffset(o => o + 1);     // swipe left = next month
+                if (dx > 40 && calOffset > minOff) { setCalDir(-1); setCalOffset(o => o - 1); }
+                if (dx < -40 && calOffset < 0) { setCalDir(1); setCalOffset(o => o + 1); }
               }}
             >
               <style>{`
@@ -9851,6 +9892,14 @@ import "./styles.css";
                 @keyframes calClose {
                   from { opacity: 1; transform: scale(1); }
                   to   { opacity: 0; transform: scale(0.5); }
+                }
+                @keyframes calSlideInLeft {
+                  from { opacity: 0; transform: translateX(30px); }
+                  to   { opacity: 1; transform: translateX(0); }
+                }
+                @keyframes calSlideInRight {
+                  from { opacity: 0; transform: translateX(-30px); }
+                  to   { opacity: 1; transform: translateX(0); }
                 }
               `}</style>
               {(() => {
@@ -9902,15 +9951,16 @@ import "./styles.css";
                     {/* Month nav header */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <button
-                        onClick={() => canGoBack && setCalOffset(o => o - 1)}
+                        onClick={() => { if (!canGoBack) return; setCalDir(-1); setCalOffset(o => o - 1); }}
                         style={{ background: "none", border: "none", color: canGoBack ? th.text : th.inputB, fontSize: 36, cursor: canGoBack ? "pointer" : "default", padding: "0 4px" }}
                       >‹</button>
                       <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "1.5px", color: th.sub }}>{monthName}</div>
                       <button
-                        onClick={() => canGoFwd && setCalOffset(o => o + 1)}
+                        onClick={() => { if (!canGoFwd) return; setCalDir(1); setCalOffset(o => o + 1); }}
                         style={{ background: "none", border: "none", color: canGoFwd ? th.text : th.inputB, fontSize: 36, cursor: canGoFwd ? "pointer" : "default", padding: "0 4px" }}
                       >›</button>
                     </div>
+                    <div key={calOffset} style={{ overflow: "hidden", animation: calDir < 0 ? "calSlideInRight 0.22s ease-out" : "calSlideInLeft 0.22s ease-out" }}>
                     {/* Day-of-week headers Mon–Sun */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
                       {["M","T","W","T","F","S","S"].map((d, i) => (
@@ -9951,6 +10001,7 @@ import "./styles.css";
                           <span style={{ fontSize: 11, color: th.muted }}>{label}</span>
                         </div>
                       ))}
+                    </div>
                     </div>
                   </>
                 );
