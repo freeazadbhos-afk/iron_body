@@ -9451,7 +9451,7 @@ import "./styles.css";
                   }}
                 >
                   {view === "home"
-                    ? "IRON BODY"
+                    ? "HOME"
                     : view === "programs"
                     ? "MY PROGRAMS"
                     : view === "history"
