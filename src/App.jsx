@@ -3378,10 +3378,8 @@ import "./styles.css";
         day: "numeric",
       })
       .toUpperCase();
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    weekStart.setHours(0, 0, 0, 0);
-    const ws = sessions.filter((s) => new Date(s.startTime) >= weekStart);
+    const last7Cutoff2 = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const ws = sessions.filter((s) => (s.startTime || 0) >= last7Cutoff2);
     const last8 = [...sessions].slice(0, 8).reverse();
     const firstName = user.name.split(" ")[0];
     const pinnedIds = settings.homePrograms;
@@ -3445,7 +3443,8 @@ import "./styles.css";
           <div style={{ display: "flex", gap: 7, marginBottom: 14 }}>
             {[
               { v: ws.length, l: "SESSIONS" },
-              { v: ws.reduce((a, s) => a + (s.doneSets || 0), 0), l: "SETS" },
+              { v: ws.reduce((a, s) => a + (s.exercises || []).filter(e => e.type !== "cardio")
+              .reduce((b, e) => b + (e.sets || []).filter(st => st.done).length, 0), 0), l: "SETS" },
             ].map((s) => (
               <div
                 key={s.l}
@@ -5851,7 +5850,7 @@ import "./styles.css";
       cardioTotals ? String(cardioTotals.cals || "") : ""
     );
     const [duration, setDuration] = useState(
-      cardioTotals?.dur
+      cardioTotals?.dur && cardioTotals.dur > 0
         ? String(cardioTotals.dur)
         : String(Math.round(elapsed / 60))
     );
@@ -7294,113 +7293,62 @@ import "./styles.css";
               </div>
             </div>
           )}
-          {!editMode && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 8,
-              }}
-            >
-              {[
-                { v: sessions.length, l: "SESSIONS" },
-                {
-                  v: sessions.reduce((a, s) => a + (s.doneSets || 0), 0),
-                  l: "TOTAL SETS",
-                },
-                { v: avgInt + "/10", l: "AVG INT." },
-              ].map((s) => (
-                <div
-                  key={s.l}
-                  style={{
-                    background: th.sect,
-                    borderRadius: 10,
-                    padding: "11px 8px",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    className="bebas"
-                    style={{ fontSize: 24, color: th.accentFg, lineHeight: 1 }}
-                  >
-                    {s.v}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 9,
-                      color: th.dim,
-                      letterSpacing: "1.5px",
-                      marginTop: 3,
-                    }}
-                  >
-                    {s.l}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        </div>{/* end profile card */}
         {!editMode && (
           <>
             <div style={{ ...S.card, padding: 16, marginBottom: 12 }}>
-              <div style={{ ...S.label, marginBottom: 12 }}>
+              <div style={{ ...S.label, marginBottom: 14 }}>
                 {new Date().getFullYear()} STATS
               </div>
               {(() => {
-                const yearStart = new Date(
-                  new Date().getFullYear(),
-                  0,
-                  1
-                ).getTime();
-                const yrSess = sessions.filter(
-                  (s) => (s.startTime || 0) >= yearStart
-                );
+                const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+                const yrSess = sessions.filter((s) => (s.startTime || 0) >= yearStart);
                 const yrVol = yrSess.reduce((a, s) => a + sessionVol(s), 0);
-                return [
-                  {
-                    l: "Total volume lifted",
-                    v:
-                      yrVol >= 1000
-                        ? `${(yrVol / 1000).toFixed(1)}t`
-                        : `${yrVol}kg`,
-                  },
-                  { l: "Sessions completed", v: yrSess.length },
-                  {
-                    l: "Avg session duration",
-                    v: yrSess.length
-                      ? Math.round(
-                          yrSess.reduce((a, s) => a + (s.duration || 0), 0) /
-                            yrSess.length
-                        ) + "min"
-                      : "—",
-                  },
-                  {
-                    l: "Avg sets per session",
-                    v: yrSess.length
-                      ? Math.round(
-                          yrSess.reduce((a, s) => a + (s.doneSets || 0), 0) /
-                            yrSess.length
-                        )
-                      : "—",
-                  },
-                ].map((s, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "10px 0",
-                      borderBottom: i < 3 ? `1px solid ${th.border}` : "none",
-                    }}
-                  >
-                    <span style={{ color: th.sub, fontSize: 14 }}>{s.l}</span>
-                    <span
-                      style={{ fontWeight: 700, color: th.text, fontSize: 14 }}
-                    >
-                      {s.v}
-                    </span>
+                const yrSets = yrSess.reduce((a, s) => a + (s.doneSets || 0), 0);
+                const yrAvgInt = yrSess.length
+                  ? (yrSess.reduce((a, s) => a + (s.intensity || 0), 0) / yrSess.length).toFixed(1)
+                  : "—";
+                const yrAvgDur = yrSess.length
+                  ? Math.round(yrSess.reduce((a, s) => a + (s.duration || 0), 0) / yrSess.length) + "min"
+                  : "—";
+                const yrVolDisplay = yrVol >= 1000
+                  ? `${(yrVol / 1000).toFixed(1)}t`
+                  : `${Math.round(yrVol).toLocaleString()}kg`;
+                const yearDays = Math.max(1, Math.ceil((Date.now() - yearStart) / (1000 * 60 * 60 * 24)));
+                const totalCals = yrSess.reduce((a, s) => a + (s.calories || 0), 0);
+                const avgCalsPerDay = totalCals > 0
+                  ? Math.round(totalCals / yearDays).toLocaleString() + " kcal"
+                  : "—";
+                const tiles = [
+                  { v: yrSess.length, l: "SESSIONS" },
+                  { v: yrSets.toLocaleString(), l: "TOTAL SETS" },
+                  { v: yrAvgInt + "/10", l: "AVG INTENSITY" },
+                  { v: yrVolDisplay, l: "VOLUME" },
+                  { v: yrAvgDur, l: "AVG DURATION" },
+                  { v: avgCalsPerDay, l: "AVG CALS/DAY" },
+                ];
+                return (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 7 }}>
+                    {tiles.map((s) => (
+                      <div
+                        key={s.l}
+                        style={{
+                          background: th.sect,
+                          borderRadius: 10,
+                          padding: "12px 8px",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div className="bebas" style={{ fontSize: 22, color: th.accentFg, lineHeight: 1 }}>
+                          {s.v}
+                        </div>
+                        <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1.5px", marginTop: 3 }}>
+                          {s.l}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ));
+                );
               })()}
             </div>
           </>
