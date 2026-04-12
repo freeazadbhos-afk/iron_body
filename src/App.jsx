@@ -9378,16 +9378,21 @@ import "./styles.css";
             </div>
           )}
 
-          {/* ── Universal locked header — covers ALL views ── */}
+          {/* ── Universal locked header — floats over scroll with gradient fade ── */}
           {view !== "workout" && (
             <div
               style={{
-                flexShrink: 0,
-                background: th.bg,
-                padding: "14px 16px 0",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
                 zIndex: 5,
+                pointerEvents: "none",
+                background: `linear-gradient(to bottom, ${th.bg} 55%, ${th.bg}99 75%, transparent)`,
+                padding: "14px 16px 28px",
               }}
             >
+              <div style={{ pointerEvents: "auto" }}>
               <div
                 style={{
                   display: "flex",
@@ -9547,6 +9552,7 @@ import "./styles.css";
                 )}
               </div>
               <div style={{ height: 1, background: th.border, marginTop: 10 }} />
+              </div>
             </div>
           )}
 
@@ -9557,8 +9563,10 @@ import "./styles.css";
               flex: 1,
               overflowY: "auto",
               overflowX: "hidden",
-              padding: "12px 16px 0",
+              padding: "68px 16px 0",
               minHeight: 0,
+              WebkitMaskImage: "linear-gradient(to bottom, transparent 0px, black 68px)",
+              maskImage: "linear-gradient(to bottom, transparent 0px, black 68px)",
             }}
           >
             {view === "home" && (
