@@ -9499,12 +9499,12 @@ import "./styles.css";
                   100% { transform: translateX(-50%) translateY(6px) scale(0.9);  opacity: 0; }
                 }
                 @keyframes pillPulse {
-                  0%   { box-shadow: 0 0  0px 0px color-mix(in srgb, var(--accent) 55%, transparent); }
-                  50%  { box-shadow: 0 0 14px 6px color-mix(in srgb, var(--accent) 25%, transparent); }
-                  100% { box-shadow: 0 0  0px 0px color-mix(in srgb, var(--accent) 55%, transparent); }
+                  0%   { box-shadow: 0 0  0px 0px color-mix(in srgb, ${th.accentBg} 50%, transparent); }
+                  50%  { box-shadow: 0 0 16px 6px color-mix(in srgb, ${th.accentBg} 28%, transparent); }
+                  100% { box-shadow: 0 0  0px 0px color-mix(in srgb, ${th.accentBg} 50%, transparent); }
                 }
               `}</style>
-              <style>{`.pill-pulse{animation:pillPulse 2s ease-in-out infinite}`}</style>
+              <style>{`.pill-pulse{animation:pillPulse 2.2s ease-in-out infinite}`}</style>
               <div className="pill-pulse" style={{ position:"absolute", inset:0, borderRadius:50, pointerEvents:"none" }} />
               <div style={{ minWidth: 0, flex: 1, position: "relative" }}>
                 <div style={{ color: th.accentT, fontWeight: 700, fontSize: 11, letterSpacing: "1.5px", whiteSpace: "nowrap" }}>
