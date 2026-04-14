@@ -9868,12 +9868,12 @@ import "./styles.css";
               onClick={() => { setEditingProg(null); setView("editProgram"); }}
               style={{
                 position: "absolute",
-                bottom: 86,
+                bottom: 95,
                 right: 28,
                 zIndex: 20,
                 width: 52,
                 height: 52,
-                borderRadius: 16,
+                borderRadius: 20,
                 background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
                 backdropFilter: "blur(14px)",
                 WebkitBackdropFilter: "blur(14px)",
