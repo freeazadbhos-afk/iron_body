@@ -4858,7 +4858,7 @@ import "./styles.css";
               onSave({ id: program?.id || uid(), name: name.trim(), exs });
             }}
             disabled={!name.trim() || exs.length === 0}
-            style={{ width: "100%" }}
+            style={{ width: "100%", fontSize: 14, fontFamily: "'Outfit',sans-serif", letterSpacing: 0.5 }}
           >
             SAVE PROGRAM
           </Btn>
@@ -5303,7 +5303,7 @@ import "./styles.css";
           <Btn
             onClick={() => onStart({ name: name || "Workout", exercises })}
             disabled={exercises.length === 0}
-            style={{ width: "100%" }}
+            style={{ width: "100%", fontSize: 14, fontFamily: "'Outfit',sans-serif", letterSpacing: 0.5 }}
           >
             START WORKOUT →
           </Btn>
@@ -7323,7 +7323,7 @@ import "./styles.css";
               )}
               <Btn
                 onClick={handleSaveProfile}
-                style={{ width: "100%", fontSize: 15, padding: "13px" }}
+                style={{ width: "100%", fontSize: 14, padding: "13px", fontFamily: "'Outfit',sans-serif", letterSpacing: 0.5 }}
               >
                 SAVE CHANGES
               </Btn>
@@ -7501,7 +7501,8 @@ import "./styles.css";
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 0,
+                gap: 7,
+                padding: "14px",
                 borderTop: `1px solid ${th.border}`,
               }}
             >
@@ -7512,18 +7513,19 @@ import "./styles.css";
                   l: "MUSCLE MASS",
                 },
                 { v: latest.fat ? latest.fat + "%" : "—", l: "BODY FAT %" },
-              ].map((s, i) => (
+              ].map((s) => (
                 <div
                   key={s.l}
                   style={{
+                    background: th.sect,
+                    borderRadius: 10,
                     padding: "12px 8px",
                     textAlign: "center",
-                    borderRight: i < 2 ? `1px solid ${th.border}` : "none",
                   }}
                 >
                   <div
                     className="bebas"
-                    style={{ fontSize: 20, color: th.accentFg, lineHeight: 1 }}
+                    style={{ fontSize: 22, color: th.accentFg, lineHeight: 1 }}
                   >
                     {s.v}
                   </div>
@@ -8639,18 +8641,16 @@ import "./styles.css";
   disabled={exs.length === 0}
   style={{ 
     width: "100%", 
-    fontSize: 20, 
+    fontSize: 14,
+    fontFamily: "'Outfit',sans-serif",
+    letterSpacing: 0.5,
     padding: "15px",
-    
-    // 1. Semi-transparent background with logic for the disabled state
     background: exs.length === 0 ? "rgba(200,240,48,0.2)" : "rgba(200,240,48,0.85)",
-    
-    // 2. The frosted glass blur effect
     backdropFilter: "blur(5px)",
     WebkitBackdropFilter: "blur(10px)",
   }}
 >
-  START WORKOUT &rarr;
+  START WORKOUT →
 </Btn>
         </div>
       </>
