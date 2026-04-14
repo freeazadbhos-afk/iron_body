@@ -1,4 +1,5 @@
 import "./styles.css";
+  import { createPortal } from "react-dom";
   import {
     useState,
     useEffect,
@@ -51,7 +52,7 @@ import "./styles.css";
   /* ─── Auto-Theme ─────────────────────────────────────────────────────────────── */
   function getAutoTheme() {
     const h = new Date().getHours();
-    return h >= 6 && h < 20 ? "light" : "dark";
+    return h >= 6 && h < 19 ? "light" : "dark";
   }
 
   /* ─── Themes ────────────────────────────────────────────────────────────────── */
@@ -68,6 +69,7 @@ import "./styles.css";
     row: "#1a1a1f",
     nav: "#0a0a0d",
     navB: "#1a1a1f",
+    navInactive: "#888890",
     sect: "#111115",
     accentBg: "#c8f030",
     accentT: "#080809",
@@ -94,10 +96,11 @@ import "./styles.css";
     row: "#ece9e2",
     nav: "#ffffff",
     navB: "#e0dfd8",
+    navInactive: "#555555",
     sect: "#f5f4ef",
     accentBg: "#c8f030",
     accentT: "#1a1a1a",
-    accentFg: "#3d6200",
+    accentFg: "#0b7a3f",
     done: "#eaf5d0",
     doneB: "#b8d860",
     doneText: "#2e5200",
@@ -125,7 +128,9 @@ import "./styles.css";
         fontFamily: "'Outfit',sans-serif",
       },
       card: {
-        background: th.card,
+        background: `color-mix(in srgb, ${th.card} 50%, transparent)`,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         border: `1px solid ${th.border}`,
         borderRadius: 16,
         overflow: "hidden",
@@ -977,6 +982,59 @@ import "./styles.css";
     },
     { id: "lg11", name: "Cable Hip Flexion", muscle: "Quads", group: "Legs" },
   ];
+
+
+  /* ─── Exercise Difficulty Map ────────────────────────────────────────────────
+     1 = Easy  (machine / simple isolation)
+     2 = Medium (dumbbell / cable compound / moderate free weight)
+     3 = Hard  (heavy barbell / technical compound / bodyweight hard)
+  ─────────────────────────────────────────────────────────────────────────────── */
+  const DIFFICULTY = {
+    // ── Chest ──────────────────────────────────────────────────────────────────
+    e1:"M", e2:"M", e3:"E", e4:"M", e5:"M", e6:"M", e7:"E", e8:"M",
+    e51:"H", e52:"H", e53:"M", e54:"M", e55:"M", e56:"M", e57:"M", e58:"E",
+    ch1:"M", ch3:"M",
+    // ── Back ───────────────────────────────────────────────────────────────────
+    e15:"M", e16:"M", e17:"M", e18:"E", e19:"M", e20:"H", e21:"E", e22:"M",
+    e59:"H", e60:"H", e61:"H", e62:"M", e63:"H", e64:"H", e65:"E", e66:"E",
+    e67:"M", e68:"M", e69:"H",
+    bk2:"H", bk3:"H", bk4:"H",
+    // ── Biceps ─────────────────────────────────────────────────────────────────
+    e9:"M", e10:"E", e11:"E", e12:"E", e13:"M", e14:"E",
+    e70:"M", e71:"M", e72:"E", e73:"M", e74:"M", e75:"E",
+    // ── Triceps ────────────────────────────────────────────────────────────────
+    e23:"E", e24:"M", e25:"M", e26:"E", e27:"H",
+    e76:"M", e77:"M", e78:"H", e79:"E", e80:"E", e81:"E",
+    // ── Forearms ───────────────────────────────────────────────────────────────
+    e41:"E", e82:"E", e83:"E",
+    ar5:"E", ar6:"E",
+    // ── Shoulders ──────────────────────────────────────────────────────────────
+    e28:"H", e29:"M", e30:"E", e31:"E", e32:"M", e33:"M",
+    e34:"E", e35:"E", e36:"E", e37:"E", e38:"M", e39:"E", e40:"E",
+    e84:"M", e85:"E", e86:"E", e87:"M", e88:"E", e89:"M", e90:"H", e91:"E",
+    sh1:"E", sh2:"E", sh4:"M",
+    // ── Legs ───────────────────────────────────────────────────────────────────
+    e42:"M", e43:"E", e44:"E", e45:"E", e46:"E", e47:"M", e48:"E", e49:"E", e50:"E",
+    e92:"H", e93:"H", e94:"H", e95:"M", e96:"E", e97:"E", e98:"E", e99:"E",
+    e100:"H", e101:"M", e102:"M", e103:"E", e104:"M", e105:"M", e106:"M",
+    g7:"M",
+    x1:"E", x2:"E", x3:"M", x4:"M", x5:"H", x6:"M", x7:"M", x9:"M", x10:"H",
+    x11:"E", x12:"E",
+    lg1:"H", lg2:"H", lg5:"E", lg6:"M", lg7:"M", lg8:"E", lg9:"E", lg10:"E", lg11:"E",
+    m17:"E", m18:"E", m19:"E", m22:"E", m23:"E", m24:"E", m25:"E", m26:"E",
+    // ── Core ───────────────────────────────────────────────────────────────────
+    x13:"M", x14:"H", x15:"M", x16:"M", x17:"M", x18:"E", x19:"E", x20:"E",
+    x21:"M", x22:"E", x23:"H", x24:"M", x25:"H", x26:"M", x27:"M", x28:"E",
+    x29:"E", x30:"M", x31:"E", x32:"M", x33:"H", x34:"M", x35:"E", x36:"M",
+    x37:"M", x38:"H", x39:"M", x40:"M", x41:"E", x42:"M", x43:"E", x44:"M",
+    x45:"E", x46:"M", x47:"M", x48:"M",
+    // ── Machines (all Easy) ────────────────────────────────────────────────────
+    m1:"E", m2:"E", m3:"E", m4:"E", m5:"E", m6:"E", m7:"E", m8:"E",
+    m9:"E", m10:"E", m11:"E", m12:"E", m13:"E", m14:"E", m15:"E", m16:"E",
+    // ── Cardio (all Easy — logging effort, not movement complexity) ────────────
+    c1:"E", c2:"E", c3:"E", c4:"E", c5:"E", c6:"E", c7:"E",
+    c8:"E", c9:"E", c10:"E", c11:"E", c12:"E", c13:"E",
+  };
 
   /* ─── Exercise picker muscle filter chips ─────────────────────────────────────
     Each entry: label shown in UI + filter function against a DB entry
@@ -1858,7 +1916,9 @@ import "./styles.css";
           padding: "15px 22px",
           transition: "opacity .2s",
           opacity: disabled ? 0.3 : 1,
-          background: th.accentBg,
+          background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           color: th.accentT,
           ...style,
         }}
@@ -2022,14 +2082,14 @@ import "./styles.css";
           {value}kg
         </div>
 
-        {open && (
+        {open && createPortal(
           <>
             <div
               onClick={() => closeWp()}
               style={{
                 position: "fixed",
                 inset: 0,
-                zIndex: 199,
+                zIndex: 1199,
                 background: "rgba(0,0,0,.35)",
               }}
             />
@@ -2041,7 +2101,7 @@ import "./styles.css";
                 transform: "translateX(-50%)",
                 width: "100%",
                 maxWidth: 480,
-                zIndex: 200,
+                zIndex: 1200,
                 background: th.card,
                 borderRadius: "18px 18px 0 0",
                 border: `1px solid ${th.border}`,
@@ -2117,7 +2177,9 @@ import "./styles.css";
                 <button
                   onClick={() => closeWp()}
                   style={{
-                    background: th.accentBg,
+                    background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
                     border: "none",
                     borderRadius: 8,
                     color: th.accentT,
@@ -2281,7 +2343,8 @@ import "./styles.css";
                 ))}
               </div>
             </div>
-          </>
+          </>,
+          document.body
         )}
       </div>
     );
@@ -2602,7 +2665,9 @@ import "./styles.css";
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(0,0,0,.9)",
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
           zIndex: 100,
           display: "flex",
           flexDirection: "column",
@@ -2614,12 +2679,14 @@ import "./styles.css";
         <style>{`
           @keyframes epFadeIn  { from { opacity: 0; } to { opacity: 1; } }
           @keyframes epFadeOut { from { opacity: 1; } to { opacity: 0; } }
-          @keyframes epSlideUp   { from { transform: translateY(100%); opacity:0.5; } to { transform: translateY(0); opacity:1; } }
+          @keyframes epSlideUp   { from { transform: translateY(100%); opacity:0.6; } to { transform: translateY(0); opacity:1; } }
           @keyframes epSlideDown { from { transform: translateY(0); opacity:1; } to { transform: translateY(100%); opacity:0; } }
         `}</style>
         <div
           style={{
-            background: th.card,
+            background: `color-mix(in srgb, ${th.card} 85%, transparent)`,
+            backdropFilter: "blur(5px)",
+            WebkitBackdropFilter: "blur(10px)",
             borderRadius: "20px 20px 0 0",
             borderTop: `1px solid ${th.border}`,
             marginTop: 50,
@@ -2650,7 +2717,9 @@ import "./styles.css";
                   <button
                     onClick={confirmAdd}
                     style={{
-                      background: th.accentBg,
+                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
                       border: "none",
                       borderRadius: 9,
                       color: th.accentT,
@@ -2705,11 +2774,11 @@ import "./styles.css";
                     borderRadius: 20,
                     border: "none",
                     cursor: "pointer",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     whiteSpace: "nowrap",
                     fontFamily: "'Outfit',sans-serif",
-                    background: flt === f.label ? th.accentBg : th.row,
+                    background: flt === f.label ? th.accentBg : th.bg,
                     color: flt === f.label ? th.accentT : th.muted,
                     transition: "all .15s",
                     flexShrink: 0,
@@ -2762,15 +2831,28 @@ import "./styles.css";
                     >
                       {e.name}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: gc(e.group),
-                        marginTop: 3,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {e.muscle.toUpperCase()}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11, color: gc(e.group), fontWeight: 600 }}>
+                        {e.muscle.toUpperCase()}
+                      </span>
+                      {(() => {
+                        const d = DIFFICULTY[e.id];
+                        if (!d) return null;
+                        const cfg = d === "H"
+                          ? { label: "HARD", bg: "rgba(255,107,107,0.15)", color: "#ff6b6b" }
+                          : d === "M"
+                          ? { label: "MED",  bg: "rgba(253,150,68,0.15)",  color: "#fd9644" }
+                          : { label: "EASY", bg: "rgba(34,168,85,0.15)",   color: "#2db55d" };
+                        return (
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, letterSpacing: "0.8px",
+                            padding: "2px 6px", borderRadius: 4,
+                            background: cfg.bg, color: cfg.color,
+                          }}>
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div
@@ -2815,7 +2897,9 @@ import "./styles.css";
                 onClick={confirmAdd}
                 style={{
                   width: "100%",
-                  background: th.accentBg,
+                  background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
                   border: "none",
                   borderRadius: 13,
                   padding: "14px",
@@ -2928,7 +3012,9 @@ import "./styles.css";
             onClick={onClose}
             style={{
               width: "100%",
-              background: th.accentBg,
+              background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
               border: "none",
               borderRadius: 12,
               padding: "13px",
@@ -3056,7 +3142,7 @@ import "./styles.css";
             position: "fixed",
             inset: 0,
             backgroundImage:
-              "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1920&q=80)",
+              "url(https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)",
             backgroundSize: "cover",
             backgroundPosition: "center",
             filter: "brightness(0.18)",
@@ -3087,7 +3173,8 @@ import "./styles.css";
           <div
             className="bebas"
             style={{
-              fontSize: 70,
+              fontSize: 85,
+              textAlign: "left",
               color: "#c8f030",
               lineHeight: 0.85,
               marginBottom: 8,
@@ -3101,6 +3188,7 @@ import "./styles.css";
             style={{
               color: "rgba(255,255,255,0.45)",
               fontSize: 12,
+              textAlign: "left",
               marginBottom: 36,
               letterSpacing: "3px",
             }}
@@ -3217,7 +3305,11 @@ import "./styles.css";
             disabled={loading}
             style={{
               width: "100%",
-              background: loading ? "rgba(200,240,48,0.5)" : "#c8f030",
+              // 1. Make the base color semi-transparent (0.8 opacity) so the blur is visible
+              background: loading ? "rgba(200,240,48,0.4)" : "rgba(200,240,48,0.9)", 
+              // 2. Add the blur effects
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)", // Important for Safari support on iPhones!
               border: "none",
               borderRadius: 13,
               padding: "15px",
@@ -3246,6 +3338,7 @@ import "./styles.css";
               border: "none",
               color: "rgba(255,255,255,50.35)",
               fontSize: 15,
+              fontFamily: "'Outfit',sans-serif",
               cursor: "pointer",
               marginTop: 14,
               width: "100%",
@@ -3279,7 +3372,7 @@ import "./styles.css";
             style={{
               marginTop: 48,
               textAlign: "center",
-              color: "rgba(255,255,100,1.2)",
+              color: "#c8f030",
               fontSize: 11,
               letterSpacing: "1.5px",
             }}
@@ -3414,7 +3507,7 @@ import "./styles.css";
 
     return (
       <div className="slide-up" style={{ paddingBottom: 90 }}>
-        <div style={{ marginBottom: 22 }}>
+        <div style={{ marginBottom: 22, textAlign: "left" }}>
           <div
             className="bebas"
             style={{
@@ -3425,7 +3518,7 @@ import "./styles.css";
           >
             {getTimeGreeting()}, {firstName}!
           </div>
-          <div style={{ fontSize: 16, color: th.muted, marginTop: 4 }}>
+          <div style={{ fontSize: 16, color: th.muted, marginTop: 4, textAlign: "left", }}>
             {
               GREETINGS[
                 (new Date().getDay() * 3 + new Date().getHours()) %
@@ -3436,7 +3529,7 @@ import "./styles.css";
         </div>
 
         {/* This Week — removed Volume, expanded muscles */}
-        <div style={{ ...S.card, padding: 16, marginBottom: 10 }}>
+        <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left", }}>
           <div style={{ ...S.label, marginBottom: 14 }}>
             YOUR 7-DAY HIGHLIGHTS
           </div>
@@ -3450,7 +3543,9 @@ import "./styles.css";
                 key={s.l}
                 style={{
                   flex: 1,
-                  background: th.sect,
+                  background: `color-mix(in srgb, ${th.sect} 50%, transparent)`,
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
                   borderRadius: 10,
                   padding: "12px 8px",
                   textAlign: "center",
@@ -3519,6 +3614,7 @@ import "./styles.css";
             <div
               style={{
                 fontSize: 10,
+                textAlign: "left",
                 color: th.dim,
                 letterSpacing: "1.5px",
                 marginBottom: 7,
@@ -3759,7 +3855,7 @@ import "./styles.css";
 
         {/* Body composition dashboard */}
         {measurements && measurements.length > 0 && (
-          <div style={{ ...S.card, padding: 16, marginBottom: 10 }}>
+          <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left", }}>
             <div style={{ ...S.label, marginBottom: 12 }}>BODY COMPOSITION</div>
             {(() => {
               const latest = measurements[0];
@@ -4040,7 +4136,9 @@ import "./styles.css";
                   onClick={() => onOpenShortcut(p)}
                   style={{
                     width: "100%",
-                    background: th.card,
+                    background: `color-mix(in srgb, ${th.card} 35%, transparent)`,
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
                     border: `1px solid ${th.border}`,
                     borderRadius: 14,
                     padding: "15px 13px",
@@ -4160,7 +4258,8 @@ import "./styles.css";
                     <span
                       style={{
                         flex: 1,
-                        fontSize: 14,
+                        fontSize: 15,
+                        textAlign: "left",
                         color: th.text,
                         fontWeight: 500,
                       }}
@@ -4170,7 +4269,7 @@ import "./styles.css";
                     <span
                       style={{
                         color: th.accentFg,
-                        fontSize: 18,
+                        fontSize: 28,
                         fontWeight: 700,
                       }}
                     >
@@ -4184,7 +4283,7 @@ import "./styles.css";
 
         {sessions.length > 0 && (
           <>
-            <div style={{ ...S.label, marginBottom: 12 }}>RECENT SESSIONS</div>
+            <div style={{ ...S.label, marginBottom: 12, textAlign: "left", }}>RECENT SESSIONS</div>
             {sessions.slice(0, 3).map((s) => (
               <div
                 key={s.id}
@@ -4193,6 +4292,7 @@ import "./styles.css";
                   ...S.card,
                   padding: "14px 16px",
                   marginBottom: 8,
+                  textAlign: "left",
                   cursor: "pointer",
                   transition: "border-color .2s",
                 }}
@@ -4337,47 +4437,7 @@ import "./styles.css";
     const S = useS();
     return (
       <div className="slide-up" style={{ paddingBottom: 90 }}>
-        {active && (
-          <div
-            onClick={onGoWorkout}
-            style={{
-              background: th.accentBg,
-              borderRadius: 13,
-              padding: "10px 16px",
-              marginBottom: 14,
-              cursor: "pointer",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: th.accentT,
-                  fontWeight: 700,
-                  fontSize: 11,
-                  letterSpacing: "1.5px",
-                }}
-              >
-                WORKOUT IN PROGRESS — TAP TO RETURN
-              </div>
-              <div
-                style={{
-                  color: th.accentT,
-                  opacity: 0.7,
-                  fontSize: 12,
-                  marginTop: 1,
-                }}
-              >
-                {active.name}
-              </div>
-            </div>
-            <span style={{ color: th.accentT, fontSize: 18, fontWeight: 800 }}>
-              →
-            </span>
-          </div>
-        )}
+
         <div style={{ marginBottom: 12, marginTop: 4 }} />
         {programs.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 18px" }}>
@@ -4415,6 +4475,7 @@ import "./styles.css";
                       style={{
                         fontWeight: 700,
                         fontSize: 16,
+                        textAlign: "left",
                         color: th.text,
                         marginBottom: 5,
                       }}
@@ -4422,7 +4483,7 @@ import "./styles.css";
                       {p.name}
                     </div>
                     <div
-                      style={{ fontSize: 12, color: th.muted, marginBottom: 8 }}
+                      style={{ fontSize: 12, color: th.muted, marginBottom: 8, textAlign: "left" }}
                     >
                       {p.exs.length} exercises
                     </div>
@@ -4453,7 +4514,9 @@ import "./styles.css";
                   <button
                     onClick={() => onStart(p)}
                     style={{
-                      background: th.accentBg,
+                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
                       border: "none",
                       borderRadius: 8,
                       color: th.accentT,
@@ -4472,8 +4535,10 @@ import "./styles.css";
                       if (window.confirm("Delete this program?")) onDelete(p.id);
                     }}
                     style={{
-                      background: th.del,
-                      border: `1px solid ${th.delB}`,
+                      background: "rgba(220, 50, 50, 0.15)",
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
+                      border: "1px solid rgba(220, 50, 50, 0.3)",
                       borderRadius: 8,
                       color: th.delText,
                       padding: "7px 12px",
@@ -4721,7 +4786,7 @@ import "./styles.css";
               hold ⠿ to reorder
             </span>
           </div>
-          <div ref={listRef} style={{ position: "relative" }}>
+          <div ref={listRef} style={{ position: "relative", textAlign: "left" }}>
             {exs.map((ex, exI) => {
               const isBeingDragged = dragIdx === exI;
               const isOver =
@@ -4782,7 +4847,8 @@ import "./styles.css";
             Add Exercise
           </button>
         </div>
-        <div style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
+        <div 
+        style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
           <Btn
             onClick={() => {
               if (!name.trim() || exs.length === 0) return;
@@ -5567,7 +5633,7 @@ import "./styles.css";
                       )}
                     </div>
                   </div>
-                  <div style={{ paddingLeft: 14 }}>
+                  <div style={{ paddingLeft: 14, marginTop: 2, textAlign: "left", }}>
                     <span style={S.tag(ex.group)}>{ex.muscle.toUpperCase()}</span>
                   </div>
                 </div>
@@ -5816,23 +5882,28 @@ import "./styles.css";
     const calcAutoIntensity = () => {
       const exs = (finished.exercises || []).filter((e) => e.type !== "cardio");
       if (exs.length === 0) return 7;
-      const W_REF = 60;
-      let totalScore = 0, doneCt = 0, totalCt = 0;
-      exs.forEach((ex) => {
-        (ex.sets || []).forEach((s) => {
-          totalCt++;
-          if (s.done) {
-            const relLoad = (s.weight || 0) > 0 ? s.weight / W_REF : 0.1;
-            const repFactor = Math.min(s.reps || 0, 20) / 20;
-            totalScore += relLoad * repFactor;
-            doneCt++;
-          }
-        });
-      });
-      if (doneCt === 0) return 1;
-      const avgScore = totalScore / doneCt;
-      const completion = totalCt > 0 ? doneCt / totalCt : 0;
-      const raw = Math.min(avgScore / 1.5, 1) * 8 * 0.65 + completion * 2;
+      const allSets  = exs.flatMap((ex) => ex.sets || []);
+      const doneSets = allSets.filter((s) => s.done);
+      if (doneSets.length === 0) return 1;
+
+      // 1. Completion: fraction of planned sets actually done
+      const completion = allSets.length > 0 ? doneSets.length / allSets.length : 0;
+
+      // 2. Load: weight × reps per set, normalised against a 60 kg × 10 rep reference
+      const REF = 600; // moderate set benchmark
+      const avgLoad = doneSets.reduce((sum, s) => {
+        const w = (s.weight || 0) > 0 ? s.weight : 30;
+        const r = Math.min(s.reps || 0, 30);
+        return sum + (w * r) / REF;
+      }, 0) / doneSets.length;
+      const normLoad = Math.min(avgLoad, 3) / 3; // cap at 3× reference → 0-1
+
+      // 3. Volume: number of completed sets (20 done sets = full score)
+      const volumeScore = Math.min(doneSets.length / 20, 1);
+
+      // Weighted composite → map to 1-10
+      const composite = completion * 0.4 + normLoad * 0.4 + volumeScore * 0.2;
+      const raw = 1 + composite * 9;
       return Math.min(10, Math.max(1, Math.round(raw * 10) / 10));
     };
     // For cardio: use avg intensity from entered set data, fallback to 7
@@ -6173,39 +6244,13 @@ import "./styles.css";
     elapsed,
     onViewDetail,
     onGoWorkout,
-    onSync,
     onDelete,
   }) {
     const th = useTheme();
     const S = useS();
-    const [syncing, setSyncing] = useState(false);
-    const [syncMsg, setSyncMsg] = useState("");
     const [confirmDelete, setConfirmDelete] = useState(null); // session id pending delete
-    const handleSync = async () => {
-      setSyncing(true);
-      setSyncMsg("");
-      try {
-        await onSync();
-      } catch (e) {
-        setSyncMsg("Sync failed — check connection");
-      } finally {
-        setSyncing(false);
-      }
-    };
     return (
       <div style={{ paddingBottom: 90 }} className="slide-up">
-        {syncMsg && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "#ff6b6b",
-              marginBottom: 12,
-              marginTop: 4,
-            }}
-          >
-            {syncMsg}
-          </div>
-        )}
         {sessions.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 16px" }}>
             <div className="bebas" style={{ fontSize: 42, color: th.border }}>
@@ -6269,10 +6314,12 @@ import "./styles.css";
                           setConfirmDelete(null);
                         }}
                         style={{
-                          background: th.delText,
-                          border: "none",
+                          background: "rgba(220, 50, 50, 0.15)",
+                          backdropFilter: "blur(10px)",
+                          WebkitBackdropFilter: "blur(10px)",
+                          border: "1px solid rgba(220, 50, 50, 0.3)",
                           borderRadius: 7,
-                          color: "#fff",
+                          color: th.delText,
                           fontSize: 12,
                           fontWeight: 700,
                           padding: "5px 12px",
@@ -6301,18 +6348,19 @@ import "./styles.css";
                       style={{
                         fontWeight: 700,
                         fontSize: 15,
+                        textAlign: "left",
                         color: th.text,
                         marginBottom: 4,
                       }}
                     >
                       {s.name}
                     </div>
-                    <div style={{ fontSize: 12, color: th.muted }}>
+                    <div style={{ fontSize: 12, color: th.muted, textAlign: "left", }}>
                       {fmtDate(s.startTime)} · {s.doneSets}/{s.totalSets} sets ·{" "}
                       {s.duration || "?"}min
                       {s.calories ? ` · ${s.calories}kcal` : ""}
                     </div>
-                    <div style={{ fontSize: 12, color: th.dim, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: th.dim, marginTop: 2,textAlign: "left", }}>
                       <span style={{ color: th.accentFg, fontWeight: 700 }}>
                         tap for details →
                       </span>
@@ -6439,6 +6487,7 @@ import "./styles.css";
                   fontSize: 17,
                   color: th.text,
                   marginBottom: 4,
+                  textAlign: "left"
                 }}
               >
                 {session.name}
@@ -6514,7 +6563,7 @@ import "./styles.css";
             ))}
           </div>
         </div>
-        <div style={{ ...S.label, marginBottom: 12 }}>
+        <div style={{ ...S.label, marginBottom: 12, textAlign: "left" }}>
           EXERCISES ({session.exercises.length})
         </div>
         {session.exercises.map((ex, i) => {
@@ -6586,6 +6635,45 @@ import "./styles.css";
   }
 
   /* ─── Profile View ───────────────────────────────────────────────────────────── */
+  /* ─── ProfileSection — animated expand/collapse wrapper ─────────────────────── */
+  function ProfileSection({ open, children }) {
+    const [mounted, setMounted] = useState(open);
+    const [closing, setClosing] = useState(false);
+    useEffect(() => {
+      if (open) {
+        setMounted(true);
+        setClosing(false);
+      } else if (mounted) {
+        setClosing(true);
+        const t = setTimeout(() => { setMounted(false); setClosing(false); }, 240);
+        return () => clearTimeout(t);
+      }
+    }, [open]);
+    if (!mounted) return null;
+    return (
+      <>
+        <style>{`
+          @keyframes profExpand {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes profCollapse {
+            from { opacity: 1; transform: translateY(0); }
+            to   { opacity: 0; transform: translateY(-8px); }
+          }
+        `}</style>
+        <div style={{
+          overflow: "hidden",
+          animation: closing
+            ? "profCollapse 0.24s ease-in forwards"
+            : "profExpand 0.28s cubic-bezier(0,0,0.2,1) forwards",
+        }}>
+          {children}
+        </div>
+      </>
+    );
+  }
+
   function ProfileView({
     user,
     sessions,
@@ -6915,7 +7003,9 @@ import "./styles.css";
               <button
                 onClick={() => setShowUpgrade(true)}
                 style={{
-                  background: th.accentBg,
+                  background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
                   border: "none",
                   borderRadius: 10,
                   color: th.accentT,
@@ -7032,10 +7122,10 @@ import "./styles.css";
               )}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 17, color: th.text }}>
+              <div style={{ fontWeight: 700, fontSize: 17, color: th.text, textAlign: "left" }}>
                 {user.name}
               </div>
-              <div style={{ fontSize: 12, color: th.muted }}>{user.email}</div>
+              <div style={{ fontSize: 12, color: th.muted, textAlign: "left" }}>{user.email}</div>
             </div>
             <button
               onClick={() => {
@@ -7061,23 +7151,23 @@ import "./styles.css";
               {editMode ? "Cancel" : "Edit"}
             </button>
           </div>
-          {editMode && (
+          <ProfileSection open={editMode}>
             <div style={{ borderTop: `1px solid ${th.border}`, paddingTop: 14 }}>
-              <div style={{ ...S.label, marginBottom: 6 }}>DISPLAY NAME</div>
+              <div style={{ ...S.label, marginBottom: 6, textAlign: "left", }}>DISPLAY NAME</div>
               <input
                 type="text"
                 value={eName}
                 onChange={(e) => setEName(e.target.value)}
                 style={{ ...S.input, marginBottom: 12 }}
               />
-              <div style={{ ...S.label, marginBottom: 6 }}>EMAIL</div>
+              <div style={{ ...S.label, marginBottom: 6, textAlign: "left", }}>EMAIL</div>
               <input
                 type="email"
                 value={eEmail}
                 onChange={(e) => setEEmail(e.target.value)}
                 style={{ ...S.input, marginBottom: 12 }}
               />
-              <div style={{ ...S.label, marginBottom: 8 }}>
+              <div style={{ ...S.label, marginBottom: 8, textAlign: "left", }}>
                 PROFILE PHOTO{" "}
                 <span
                   style={{
@@ -7173,7 +7263,7 @@ import "./styles.css";
                   ✕ Remove photo
                 </button>
               )}
-              <div style={{ ...S.label, marginBottom: 6 }}>
+              <div style={{ ...S.label, marginBottom: 6, textAlign: "left", }}>
                 NEW PASSWORD{" "}
                 <span style={{ color: th.dim, fontSize: 9, letterSpacing: 0 }}>
                   (leave blank to keep)
@@ -7277,27 +7367,40 @@ import "./styles.css";
                   }}
                   style={{
                     width: "100%",
-                    background: "transparent",
-                    border: `1px solid ${th.delText}`,
-                    borderRadius: 10,
-                    padding: "10px",
+                    
+                    // 1. A semi-transparent red background
+                    background: "rgba(220, 50, 50, 0.45)", 
+                    
+                    // 2. The frosted glass blur filters
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)", 
+                    
+                    // 3. A subtle matching semi-transparent border (replaces th.delB)
+                    border: "1px solid rgba(220, 50, 50, 0.3)", 
+                    
+                    borderRadius: 13,
+                    padding: 15,
                     cursor: "pointer",
-                    color: th.delText,
-                    fontWeight: 600,
-                    fontSize: 12,
+                    
+                    // 4. Keep your dynamic theme text color!
+                    color: th.text, 
+                    
+                    fontWeight: 700,
+                    fontSize: 14,
                     fontFamily: "'Outfit',sans-serif",
+                    marginBottom: 10,
                   }}
                 >
                   DELETE MY ACCOUNT
                 </button>
               </div>
             </div>
-          )}
+          </ProfileSection>
         </div>{/* end profile card */}
         {!editMode && (
           <>
             <div style={{ ...S.card, padding: 16, marginBottom: 12 }}>
-              <div style={{ ...S.label, marginBottom: 14 }}>
+              <div style={{ ...S.label, marginBottom: 14, textAlign: "left", }}>
                 {new Date().getFullYear()} STATS
               </div>
               {(() => {
@@ -7314,10 +7417,10 @@ import "./styles.css";
                 const yrVolDisplay = yrVol >= 1000
                   ? `${(yrVol / 1000).toFixed(1)}t`
                   : `${Math.round(yrVol).toLocaleString()}kg`;
-                const yearDays = Math.max(1, Math.ceil((Date.now() - yearStart) / (1000 * 60 * 60 * 24)));
-                const totalCals = yrSess.reduce((a, s) => a + (s.calories || 0), 0);
-                const avgCalsPerDay = totalCals > 0
-                  ? Math.round(totalCals / yearDays).toLocaleString() + " kcal"
+                const sessWithCals = yrSess.filter((s) => (s.calories || 0) > 0);
+                const totalCals = sessWithCals.reduce((a, s) => a + (s.calories || 0), 0);
+                const avgCalsPerDay = sessWithCals.length > 0
+                  ? Math.round(totalCals / sessWithCals.length).toLocaleString() + " kcal"
                   : "—";
                 const tiles = [
                   { v: yrSess.length, l: "SESSIONS" },
@@ -7325,7 +7428,7 @@ import "./styles.css";
                   { v: yrAvgInt + "/10", l: "AVG INTENSITY" },
                   { v: yrVolDisplay, l: "VOLUME" },
                   { v: yrAvgDur, l: "AVG DURATION" },
-                  { v: avgCalsPerDay, l: "AVG CALS/DAY" },
+                  { v: avgCalsPerDay, l: "AVG CALS/SESSION" },
                 ];
                 return (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 7 }}>
@@ -7355,7 +7458,7 @@ import "./styles.css";
         )}
         {/* Body measurements card */}
         <div
-          style={{ ...S.card, padding: 0, marginBottom: 12, overflow: "hidden" }}
+          style={{ ...S.card, padding: 0, marginBottom: 12, overflow: "hidden", textAlign: "left", }}
         >
           <div
             style={{
@@ -7444,7 +7547,7 @@ import "./styles.css";
             </div>
           )}
           {/* Log form */}
-          {showMeasure && (
+          <ProfileSection open={showMeasure}>
             <div
               style={{
                 borderTop: `1px solid ${th.border}`,
@@ -7578,7 +7681,7 @@ import "./styles.css";
                 SAVE MEASUREMENT
               </Btn>
             </div>
-          )}
+          </ProfileSection>
           {/* History — last 5 entries */}
           {measurements.length > 0 && !showMeasure && (
             <div
@@ -7608,7 +7711,7 @@ import "./styles.css";
                   >
                     {fmtDate(m.date)}
                   </span>
-                  <span style={{ fontSize: 12, color: th.sub, flex: 1 }}>
+                  <span style={{ fontSize: 12, color: th.sub, flex: 1, textAlign: "left", }}>
                     {m.weight ? m.weight + " kg" : ""}
                     {m.muscle ? ` · ${m.muscle}% muscle` : ""}
                     {m.fat ? ` · ${m.fat}% fat` : ""}
@@ -7649,12 +7752,15 @@ import "./styles.css";
                   <button
                     onClick={() => handleDeleteMeasurement(i)}
                     style={{
-                      background: "none",
-                      border: "none",
-                      color: th.dim,
+                      background: "rgba(220, 50, 50, 0.10)",
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
+                      border: "1px solid rgba(220, 50, 50, 0.2)",
+                      borderRadius: 6,
+                      color: th.delText,
                       cursor: "pointer",
-                      fontSize: 14,
-                      padding: "2px 4px",
+                      fontSize: 12,
+                      padding: "3px 7px",
                       flexShrink: 0,
                     }}
                   >
@@ -7668,7 +7774,7 @@ import "./styles.css";
 
         {!editMode && (
           <>
-            <div style={{ ...S.card, padding: 16, marginBottom: 12 }}>
+            <div style={{ ...S.card, padding: 16, marginBottom: 12, textAlign: "left", }}>
               <div style={{ ...S.label, marginBottom: 14 }}>APPEARANCE</div>
               <div
                 style={{
@@ -7679,11 +7785,11 @@ import "./styles.css";
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: th.text }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: th.text, textAlign: "left", }}>
                     Dark mode
                   </div>
-                  <div style={{ fontSize: 11, color: th.muted, marginTop: 2 }}>
-                    Auto: dark 20:00–06:00
+                  <div style={{ fontSize: 11, color: th.muted, marginTop: 2, textAlign: "left", }}>
+                    Auto: dark 19:00–06:00
                   </div>
                 </div>
                 {/* Toggle pill */}
@@ -7753,7 +7859,7 @@ import "./styles.css";
           </>
         )}
         {/* Feedback card */}
-        <div style={{ ...S.card, marginBottom: 12, overflow: "hidden" }}>
+        <div style={{ ...S.card, marginBottom: 12, overflow: "hidden", textAlign: "left", }}>
           <div
             style={{
               padding: "14px 18px",
@@ -7763,10 +7869,10 @@ import "./styles.css";
             }}
           >
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: th.text }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: th.text, textAlign: "left", }}>
                 {isAdmin ? "User Feedback" : "Send Feedback"}
               </div>
-              <div style={{ fontSize: 12, color: th.muted, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: th.muted, marginTop: 2, textAlign: "left", }}>
                 {isAdmin
                   ? "All submitted reports"
                   : "Report bugs or suggest features"}
@@ -7794,7 +7900,7 @@ import "./styles.css";
             </button>
           </div>
 
-          {showFeedback && !isAdmin && (
+          <ProfileSection open={showFeedback && !isAdmin}>
             <div
               style={{
                 borderTop: `1px solid ${th.border}`,
@@ -7895,9 +8001,9 @@ import "./styles.css";
                 </>
               )}
             </div>
-          )}
+          </ProfileSection>
 
-          {showFeedback && isAdmin && (
+          <ProfileSection open={showFeedback && isAdmin}>
             <div style={{ borderTop: `1px solid ${th.border}` }}>
               {adminFeedbacks.length === 0 ? (
                 <div
@@ -7956,7 +8062,7 @@ import "./styles.css";
                 ))
               )}
             </div>
-          )}
+          </ProfileSection>
         </div>
 
         {/* Changelog card */}
@@ -7970,7 +8076,7 @@ import "./styles.css";
             }}
           >
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: th.text }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: th.text, textAlign: "left", }}>
                 Change Log
               </div>
               <div style={{ fontSize: 12, color: th.muted, marginTop: 2 }}>
@@ -7999,8 +8105,8 @@ import "./styles.css";
             </button>
           </div>
 
-          {showChangelog && (
-            <div style={{ borderTop: `1px solid ${th.border}` }}>
+          <ProfileSection open={showChangelog}>
+            <div style={{ borderTop: `1px solid ${th.border}`, textAlign: "left", }}>
               {/* Admin post form */}
               {isAdmin && (
                 <div
@@ -8265,19 +8371,31 @@ import "./styles.css";
                 })
               )}
             </div>
-          )}
+          </ProfileSection>
         </div>
 
         <button
           onClick={onLogout}
           style={{
             width: "100%",
-            background: th.del,
-            border: `1px solid ${th.delB}`,
+            
+            // 1. A semi-transparent red background
+            background: "rgba(220, 50, 50, 0.15)", 
+            
+            // 2. The frosted glass blur filters
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)", 
+            
+            // 3. A subtle matching semi-transparent border (replaces th.delB)
+            border: "1px solid rgba(220, 50, 50, 0.3)", 
+            
             borderRadius: 13,
             padding: 15,
             cursor: "pointer",
-            color: th.delText,
+            
+            // 4. Keep your dynamic theme text color!
+            color: th.delText, 
+            
             fontWeight: 700,
             fontSize: 14,
             fontFamily: "'Outfit',sans-serif",
@@ -8297,7 +8415,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.3.1</span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.0 (beta)</span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -8368,7 +8486,7 @@ import "./styles.css";
             added={exs.map((e) => e.id)}
           />
         )}
-        <div className="slide-up" style={{ paddingBottom: 100, paddingTop: 4 }}>
+        <div className="slide-up" style={{ paddingBottom: 100, paddingTop: 4, textAlign: "left" }}>
           <div
             style={{
               ...S.label,
@@ -8504,7 +8622,7 @@ import "./styles.css";
               padding: 13,
               cursor: "pointer",
               color: th.muted,
-              fontSize: 14,
+              fontSize: 15,
               fontFamily: "'Outfit',sans-serif",
               display: "flex",
               alignItems: "center",
@@ -8513,7 +8631,7 @@ import "./styles.css";
               marginTop: 4,
             }}
           >
-            <span style={{ color: th.accentFg, fontSize: 18, fontWeight: 700 }}>
+            <span style={{ color: th.accentFg, fontSize: 20, fontWeight: 700 }}>
               +
             </span>{" "}
             Add Exercise
@@ -8521,13 +8639,24 @@ import "./styles.css";
         </div>
 
         <div style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
-          <Btn
-            onClick={() => onStart({ ...program, exs })}
-            disabled={exs.length === 0}
-            style={{ width: "100%", fontSize: 16, padding: "15px" }}
-          >
-            START WORKOUT →
-          </Btn>
+        <Btn
+  onClick={() => onStart({ ...program, exs })}
+  disabled={exs.length === 0}
+  style={{ 
+    width: "100%", 
+    fontSize: 20, 
+    padding: "15px",
+    
+    // 1. Semi-transparent background with logic for the disabled state
+    background: exs.length === 0 ? "rgba(200,240,48,0.2)" : "rgba(200,240,48,0.85)",
+    
+    // 2. The frosted glass blur effect
+    backdropFilter: "blur(5px)",
+    WebkitBackdropFilter: "blur(10px)",
+  }}
+>
+  START WORKOUT &rarr;
+</Btn>
         </div>
       </>
     );
@@ -8633,6 +8762,8 @@ import "./styles.css";
     const closeCal = () => { setCalClosing(true); setTimeout(() => { setShowCal(false); setCalClosing(false); }, 200); };
     const [measurements, setMeasurements] = useState([]);
     const [paused, setPaused] = useState(false);
+    const [pillPressing, setPillPressing] = useState(false);
+    const [workoutExiting, setWorkoutExiting] = useState(false);
     const elRef = useRef(0);
     const [elapsed, setElapsed] = useState(0);
     const timerRef = useRef(null);
@@ -8972,7 +9103,22 @@ import "./styles.css";
             }));
             return { ...pe, sets: newSets };
           });
-          return { ...p, exs: updatedExs };
+          // Append any new non-cardio exercises added ad-hoc during the session
+          const progExIds = new Set(p.exs.map((pe) => pe.id));
+          const newlyAdded = finished.exercises
+            .filter((we) => !progExIds.has(we.exId) && we.type !== "cardio")
+            .map((we) => {
+              const doneSets = we.sets.filter((st) => st.done);
+              const lastDone = doneSets[doneSets.length - 1] || {};
+              return {
+                id: we.exId,
+                s: we.sets.length,
+                r: lastDone.reps  || 10,
+                w: lastDone.weight || 20,
+                sets: doneSets.map((st) => ({ reps: st.reps || 0, weight: st.weight || 0 })),
+              };
+            });
+          return { ...p, exs: [...updatedExs, ...newlyAdded] };
         });
         savePrograms(updatedPrograms);
       }
@@ -9091,8 +9237,8 @@ import "./styles.css";
     // Dark: dumbbells photo; Light: bright, airy gym
     const appBg =
       theme === "dark"
-        ? "url(https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1920&q=60) center/cover no-repeat"
-        : "url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1920&q=60) center/cover no-repeat";
+        ? "url(https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&h=1600&fit=crop) center/cover no-repeat"
+        : "url(https://images.unsplash.com/photo-1683889843123-5eca2abfd882?q=80&w=1920&auto=format&fit=crop&w=800&h=1600&fit=crop) center/cover no-repeat";
     const bgOverlay =
       theme === "dark" ? "rgba(8,8,9,0.87)" : "rgba(248,246,240,0.77)";
 
@@ -9169,6 +9315,7 @@ import "./styles.css";
                     className="bebas"
                     style={{
                       fontSize: 20,
+                      textAlign: "left",
                       letterSpacing: 2,
                       color: th.text,
                       overflow: "hidden",
@@ -9186,14 +9333,14 @@ import "./styles.css";
                       marginTop: 2,
                     }}
                   >
-                    <span style={{ fontSize: 12, color: th.muted }}>
+                    <span style={{ fontSize: 15, color: th.muted }}>
                       {wDoneSets}/{wTotalSets} sets
                     </span>
                     <span
                       style={{
                         color: paused ? "#fd9644" : th.accentFg,
                         fontWeight: 700,
-                        fontSize: 16,
+                        fontSize: 18,
                         fontFamily: "'Bebas Neue',sans-serif",
                         letterSpacing: 1,
                       }}
@@ -9271,7 +9418,9 @@ import "./styles.css";
                       handleFinishWorkout(active.exercises);
                     }}
                     style={{
-                      background: th.accentBg,
+                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
                       border: "none",
                       borderRadius: 9,
                       color: th.accentT,
@@ -9309,71 +9458,64 @@ import "./styles.css";
             </div>
           )}
 
-          {/* ── Floating "workout in progress" banner — visible on all tabs except workout ── */}
+          {/* ── Floating pill "workout in progress" — hovers above nav bar ── */}
           {active && view !== "workout" && (
             <div
-              onClick={() => setView("workout")}
+              onClick={() => {
+                if (pillPressing) return;
+                setPillPressing(true);
+                setTimeout(() => {
+                  setPillPressing(false);
+                  setView("workout");
+                }, 220);
+              }}
               style={{
-                flexShrink: 0,
-                background: th.accentBg,
+                position: "absolute",
+                bottom: 88,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "calc(80% - 90px)",
+                maxWidth: 360,
+                zIndex: 15,
+                background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                borderRadius: 50,
                 cursor: "pointer",
-                zIndex: 20,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "6px 14px 6px 16px",
+                gap: 10,
+                animation: pillPressing
+                  ? "pillPress 0.22s cubic-bezier(0.4,0,1,1) forwards"
+                  : "pillFadeIn 0.35s cubic-bezier(0,0,0.2,1) forwards",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "9px 16px",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      color: th.accentT,
-                      fontWeight: 700,
-                      fontSize: 11,
-                      letterSpacing: "1.5px",
-                    }}
-                  >
-                    WORKOUT IN PROGRESS — TAP TO RETURN
-                  </div>
-                  <div
-                    style={{
-                      color: th.accentT,
-                      opacity: 0.75,
-                      fontSize: 12,
-                      marginTop: 1,
-                    }}
-                  >
-                    {active.name} · {wDoneSets}/{wTotalSets} sets
-                  </div>
+              <style>{`
+                @keyframes pillFadeIn {
+                  from { opacity: 0; transform: translateX(-50%) translateY(16px) scale(0.94); }
+                  to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1); }
+                }
+                @keyframes pillPress {
+                  0%   { transform: translateX(-50%) translateY(0) scale(1);    opacity: 1; }
+                  40%  { transform: translateX(-50%) translateY(2px) scale(0.95); opacity: 0.85; }
+                  100% { transform: translateX(-50%) translateY(6px) scale(0.9);  opacity: 0; }
+                }
+              `}</style>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: th.accentT, fontWeight: 700, fontSize: 10, letterSpacing: "1.5px", whiteSpace: "nowrap" }}>
+                  WORKOUT IN PROGRESS
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span
-                    className="bebas"
-                    style={{ color: th.accentT, fontSize: 18, letterSpacing: 1 }}
-                  >
-                    {fmtTime(elapsed)}
-                  </span>
-                  <span
-                    style={{ color: th.accentT, fontSize: 18, fontWeight: 700 }}
-                  >
-                    →
-                  </span>
+                <div style={{ color: th.accentT, opacity: 0.7, fontSize: 11, marginTop: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {active.name} · {wDoneSets}/{wTotalSets} sets
                 </div>
               </div>
-              {/* thin progress strip */}
-              <div style={{ height: 3, background: "rgba(0,0,0,0.15)" }}>
-                <div
-                  style={{
-                    height: 3,
-                    width: `${wPct * 100}%`,
-                    background: "rgba(0,0,0,0.35)",
-                    transition: "width .4s ease",
-                  }}
-                />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <span className="bebas" style={{ color: th.accentT, fontSize: 15, letterSpacing: 1 }}>
+                  {fmtTime(elapsed)}
+                </span>
+                <span style={{ color: th.accentT, fontSize: 16, fontWeight: 700 }}>→</span>
               </div>
             </div>
           )}
@@ -9392,8 +9534,10 @@ import "./styles.css";
             >
               {/* Solid header background behind text */}
               <div style={{
-                background: th.bg,
-                padding: "14px 16px 10px",
+                background: `color-mix(in srgb, ${th.bg} 25%, transparent)`,
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)", // Crucial for Safari compatibility
+                padding: "14px 16px 1px",
                 pointerEvents: "auto",
               }}>
               <div style={{ pointerEvents: "auto" }}>
@@ -9440,11 +9584,12 @@ import "./styles.css";
                 <div
                   className="bebas"
                   style={{
-                    fontSize: 32,
+                    fontSize: 40,
                     letterSpacing: 2,
                     color: th.text,
                     lineHeight: 1,
                     flex: 1,
+                    textAlign: "left",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -9476,7 +9621,7 @@ import "./styles.css";
                 {view === "home" && (
                   <div
                     onClick={() => { setCalOffset(0); setShowCal(true); setCalClosing(false); }}
-                    style={{ textAlign: "right", flexShrink: 0, marginLeft: 10, cursor: "pointer" }}
+                    style={{ textAlign: "right", flexShrink: 0, marginLeft: 20, cursor: "pointer" }}
                   >
                     <div
                       style={{
@@ -9516,7 +9661,9 @@ import "./styles.css";
                       setView("editProgram");
                     }}
                     style={{
-                      background: th.accentBg,
+                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
                       border: "none",
                       borderRadius: 10,
                       color: th.accentT,
@@ -9527,39 +9674,19 @@ import "./styles.css";
                       letterSpacing: 1,
                       fontFamily: "'Outfit',sans-serif",
                       flexShrink: 0,
+                      transform: "translateY(-4px)",
                     }}
                   >
                     + NEW
                   </button>
                 )}
-                {/* Right-side action for history tab: SYNC button */}
-                {view === "history" && (
-                  <button
-                    onClick={handleSync}
-                    disabled={false}
-                    style={{
-                      background: "transparent",
-                      border: `1px solid ${th.inputB}`,
-                      borderRadius: 9,
-                      color: th.accentFg,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      padding: "7px 13px",
-                      cursor: "pointer",
-                      fontFamily: "'Outfit',sans-serif",
-                      letterSpacing: 1,
-                      flexShrink: 0,
-                    }}
-                  >
-                    SYNC
-                  </button>
-                )}
+
               </div>
               </div>
               </div>
               {/* Pure gradient fade strip — no content, just dissolves edge */}
               <div style={{
-                height: 16,
+                height: 0,
                 background: `linear-gradient(to bottom, ${th.bg}, transparent)`,
                 pointerEvents: "none",
               }} />
@@ -9567,6 +9694,20 @@ import "./styles.css";
           )}
 
           {/* ── Scrollable content ── */}
+          <style>{`
+            @keyframes workoutFadeIn {
+              from { opacity: 0; transform: translateY(18px) scale(0.98); }
+              to   { opacity: 1; transform: translateY(0)    scale(1); }
+            }
+            @keyframes completeFadeIn {
+              from { opacity: 0; transform: translateY(24px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes pipExit {
+              from { opacity: 1; transform: translateY(0)   scale(1); }
+              to   { opacity: 0; transform: translateY(10px) scale(0.97); }
+            }
+          `}</style>
           <div
             key={view}
             style={{
@@ -9575,6 +9716,11 @@ import "./styles.css";
               overflowX: "hidden",
               padding: "68px 16px 0",
               minHeight: 0,
+              animation:
+                workoutExiting      ? "pipExit 0.32s cubic-bezier(0.4,0,1,1) forwards" :
+                view === "workout"  ? "workoutFadeIn 0.45s cubic-bezier(0,0,0.2,1) forwards" :
+                view === "complete" ? "completeFadeIn 0.4s ease-out forwards" :
+                undefined,
             }}
           >
             {view === "home" && (
@@ -9627,7 +9773,13 @@ import "./styles.css";
                 onFinish={handleFinishWorkout}
                 onAbandon={handleAbandon}
                 onSaveActive={saveActive}
-                onMinimize={() => setView("home")}
+                onMinimize={() => {
+                  setWorkoutExiting(true);
+                  setTimeout(() => {
+                    setWorkoutExiting(false);
+                    setView("home");
+                  }, 320);
+                }}
               />
             )}
             {view === "complete" && finished && (
@@ -9682,7 +9834,6 @@ import "./styles.css";
                   setView("sessionDetail");
                 }}
                 onGoWorkout={() => setView("workout")}
-                onSync={handleSync}
                 onDelete={handleDeleteSession}
               />
             )}
@@ -9737,18 +9888,26 @@ import "./styles.css";
           {/* ── Nav bar ── */}
           {!hideNav && (
             <div
-              style={{
-                display: "flex",
-                background: th.nav,
-                borderTop: `1px solid ${th.navB}`,
-                flexShrink: 0,
-                zIndex: 1,
-              }}
+            style={{
+              position: "absolute",
+              bottom: 20, // Lifts it off the bottom edge
+              left: 24,   // Pulls it in from the left
+              right: 24,  // Pulls it in from the right
+              borderRadius: 200, // Creates the rounded pill shape
+              display: "flex",
+              background: `color-mix(in srgb, ${th.nav} 30%, transparent)`, 
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              border: `1px solid ${th.navB}`, // Changed from borderTop to a full border
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.15)", // The shadow makes it float!
+              zIndex: 10,
+              overflow: "hidden", // Crucial: Keeps the inner buttons from poking outside the rounded corners
+            }}
             >
               {NAV.map((tab) => {
                 const isActive =
                   view === tab.id || (view === "workout" && tab.id === "home");
-                const col = isActive ? th.accentFg : th.dim;
+                  const col = isActive ? th.accentFg : th.navInactive;
                 return (
                   <button
                     key={tab.id}
@@ -9762,7 +9921,7 @@ import "./styles.css";
                       background: "none",
                       border: "none",
                       cursor: "pointer",
-                      padding: "8px 0 30px",
+                      padding: "10px 0 10px",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
@@ -9828,14 +9987,16 @@ import "./styles.css";
                 top: 52,
                 right: 12,
                 width: 340,
-                background: th.card,
-                borderRadius: 16,
+                background: `color-mix(in srgb, ${th.card} 45%, transparent)`,
+                backdropFilter: "blur(12px) brightness(1.9)",
+                WebkitBackdropFilter: "blur(12px) brightness(1.3)",
+                borderRadius: 36,
                 zIndex: 201,
                 padding: "16px 16px 18px",
                 minHeight: 320,
                 boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
                 transformOrigin: "top right",
-                animation: calClosing ? "calClose 0.18s ease-in forwards" : "calPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                animation: calClosing ? "calClose 0.2s ease-in forwards" : "calPop 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards",
                 touchAction: "pan-y",
               }}
               onTouchStart={(e) => { e.currentTarget.dataset.sx = e.touches[0].clientX; }}
