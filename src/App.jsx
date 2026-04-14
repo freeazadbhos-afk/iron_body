@@ -98,9 +98,9 @@ import "./styles.css";
     navB: "#e0dfd8",
     navInactive: "#555555",
     sect: "#f5f4ef",
-    accentBg: "#c8f030",
-    accentT: "#1a1a1a",
-    accentFg: "#0b7a3f",
+    accentBg: "#96c015",
+    accentT: "#ffffff",
+    accentFg: "#96c015",
     done: "#eaf5d0",
     doneB: "#b8d860",
     doneText: "#2e5200",
@@ -1382,8 +1382,9 @@ import "./styles.css";
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
   }
-  function intColor(n) {
-    return n >= 8 ? "#c8f030" : n >= 5 ? "#fd9644" : "#ff6b6b";
+  function intColor(n, th) {
+    const hi = th ? th.accentFg : "#c8f030";
+    return n >= 8 ? hi : n >= 5 ? "#fd9644" : "#ff6b6b";
   }
   function sessionVol(s) {
     return s.exercises.reduce(
@@ -2102,11 +2103,13 @@ import "./styles.css";
                 width: "100%",
                 maxWidth: 480,
                 zIndex: 1200,
-                background: th.card,
+                background: `color-mix(in srgb, ${th.card} 72%, transparent)`,
+                backdropFilter: "blur(22px)",
+                WebkitBackdropFilter: "blur(22px)",
                 borderRadius: "18px 18px 0 0",
                 border: `1px solid ${th.border}`,
                 borderBottom: "none",
-                boxShadow: "0 -8px 40px rgba(0,0,0,.4)",
+                boxShadow: "0 -8px 40px rgba(0,0,0,.35)",
                 animation: wpClosing
                   ? "wpSlideDown 0.28s cubic-bezier(0.4,0,1,1) forwards"
                   : "wpSlideUp 0.32s cubic-bezier(0,0,0.2,1) forwards",
@@ -2284,7 +2287,7 @@ import "./styles.css";
                     top: 0,
                     bottom: 0,
                     width: 60,
-                    background: `linear-gradient(to right,${th.card},transparent)`,
+                    background: `linear-gradient(to right, color-mix(in srgb, ${th.card} 72%, transparent), transparent)`,
                     pointerEvents: "none",
                   }}
                 />
@@ -2295,7 +2298,7 @@ import "./styles.css";
                     top: 0,
                     bottom: 0,
                     width: 60,
-                    background: `linear-gradient(to left,${th.card},transparent)`,
+                    background: `linear-gradient(to left, color-mix(in srgb, ${th.card} 72%, transparent), transparent)`,
                     pointerEvents: "none",
                   }}
                 />
@@ -3175,7 +3178,7 @@ import "./styles.css";
             style={{
               fontSize: 85,
               textAlign: "left",
-              color: "#c8f030",
+              color: th.accentFg,
               lineHeight: 0.85,
               marginBottom: 8,
             }}
@@ -3372,7 +3375,7 @@ import "./styles.css";
             style={{
               marginTop: 48,
               textAlign: "center",
-              color: "#c8f030",
+              color: th.accentFg,
               fontSize: 11,
               letterSpacing: "1.5px",
             }}
@@ -3633,9 +3636,9 @@ import "./styles.css";
                       borderRadius: 6,
                       fontSize: 10,
                       fontWeight: 700,
-                      background: hit ? "#c8f030" : "transparent",
-                      color: hit ? "#080809" : th.dim,
-                      border: `1px solid ${hit ? "#c8f030" : th.inputB}`,
+                      background: hit ? th.accentBg : "transparent",
+                      color: hit ? th.accentT : th.dim,
+                      border: `1px solid ${hit ? th.accentBg : th.inputB}`,
                       transition: "all .2s",
                     }}
                   >
@@ -3773,7 +3776,7 @@ import "./styles.css";
                           ) / 10;
                       }
                       const h = hasData ? Math.max(8, (n / 10) * 80) : 6;
-                      const col = hasData ? intColor(n) : th.inputB;
+                      const col = hasData ? intColor(n, th) : th.inputB;
                       const dateLabel = d.toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
@@ -4335,7 +4338,7 @@ import "./styles.css";
                       className="bebas"
                       style={{
                         fontSize: 28,
-                        color: intColor(s.intensity),
+                        color: intColor(s.intensity, th),
                         lineHeight: 1,
                         flexShrink: 0,
                         marginLeft: 12,
@@ -5553,7 +5556,7 @@ import "./styles.css";
     };
 
     return (
-      <div style={{ paddingBottom: 32 }}>
+      <div style={{ paddingBottom: 120 }}>
         {showExPicker && (
           <ExercisePicker
             onAdd={addExFromPicker}
@@ -5841,15 +5844,7 @@ import "./styles.css";
           </span>{" "}
           Add Exercise
         </button>
-        <Btn
-          onClick={() => {
-            if (!window.confirm("Finish this workout and save results?")) return;
-            onFinish(exercises);
-          }}
-          style={{ width: "100%" }}
-        >
-          FINISH WORKOUT
-        </Btn>
+
       </div>
     );
   }
@@ -5951,7 +5946,7 @@ import "./styles.css";
           const tiers = {
             legend: {
               emoji: "🏆",
-              color: "#c8f030",
+              color: th.accentFg,
               bg: "rgba(200,240,48,0.13)",
               border: "rgba(200,240,48,0.3)",
               msgs: [
@@ -5964,7 +5959,7 @@ import "./styles.css";
             },
             great: {
               emoji: "🔥",
-              color: "#c8f030",
+              color: th.accentFg,
               bg: "rgba(200,240,48,0.09)",
               border: "rgba(200,240,48,0.22)",
               msgs: [
@@ -6159,7 +6154,7 @@ import "./styles.css";
           )}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-              const col = n <= 3 ? "#ff6b6b" : n <= 6 ? "#fd9644" : "#c8f030";
+              const col = n <= 3 ? "#ff6b6b" : n <= 6 ? "#fd9644" : th.accentFg;
               return (
                 <button
                   key={n}
@@ -6263,7 +6258,7 @@ import "./styles.css";
         ) : (
           sessions.map((s) => {
             const vol = sessionVol(s);
-            const ic = intColor(s.intensity || 0);
+            const ic = intColor(s.intensity || 0, th);
             const isPendingDelete = confirmDelete === s.id;
             return (
               <div
@@ -6468,7 +6463,7 @@ import "./styles.css";
     const th = useTheme();
     const S = useS();
     const vol = sessionVol(session);
-    const ic = intColor(session.intensity || 0);
+    const ic = intColor(session.intensity || 0, th);
     return (
       <div className="slide-up" style={{ paddingBottom: 60, paddingTop: 4 }}>
         <div style={{ ...S.card, padding: 16, marginBottom: 12 }}>
@@ -7959,11 +7954,9 @@ import "./styles.css";
                             border: "none",
                             cursor: "pointer",
                             lineHeight: 1,
-                            filter:
-                              n <= feedbackStars
-                                ? "none"
-                                : "grayscale(1) opacity(0.3)",
-                            transition: "filter .15s",
+                            color: n <= feedbackStars ? th.accentFg : th.dim,
+                            opacity: n <= feedbackStars ? 1 : 0.3,
+                            transition: "color .15s, opacity .15s",
                           }}
                         >
                           ★
@@ -8049,8 +8042,10 @@ import "./styles.css";
                       </span>
                     </div>
                     {f.stars > 0 && (
-                      <div style={{ marginBottom: 4 }}>
-                        {"★".repeat(f.stars) + "☆".repeat(5 - f.stars)}
+                      <div style={{ marginBottom: 4, fontSize: 15, letterSpacing: 2 }}>
+                        {[1,2,3,4,5].map(n => (
+                          <span key={n} style={{ color: n <= f.stars ? th.accentFg : th.dim, opacity: n <= f.stars ? 1 : 0.35 }}>★</span>
+                        ))}
                       </div>
                     )}
                     <div
@@ -9459,7 +9454,7 @@ import "./styles.css";
           )}
 
           {/* ── Floating pill "workout in progress" — hovers above nav bar ── */}
-          {active && view !== "workout" && (
+          {active && view !== "workout" && view !== "complete" && (
             <div
               onClick={() => {
                 if (pillPressing) return;
@@ -9474,22 +9469,23 @@ import "./styles.css";
                 bottom: 88,
                 left: "50%",
                 transform: "translateX(-50%)",
-                width: "calc(80% - 90px)",
-                maxWidth: 360,
+                width: "calc(100% - 80px)",
+                maxWidth: 380,
                 zIndex: 15,
                 background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
+                backdropFilter: "blur(14px)",
+                WebkitBackdropFilter: "blur(14px)",
                 borderRadius: 50,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "6px 14px 6px 16px",
+                padding: "11px 18px 11px 20px",
                 gap: 10,
                 animation: pillPressing
                   ? "pillPress 0.22s cubic-bezier(0.4,0,1,1) forwards"
                   : "pillFadeIn 0.35s cubic-bezier(0,0,0.2,1) forwards",
+                boxShadow: `0 0 0 0 color-mix(in srgb, ${th.accentBg} 60%, transparent)`,
               }}
             >
               <style>{`
@@ -9502,9 +9498,16 @@ import "./styles.css";
                   40%  { transform: translateX(-50%) translateY(2px) scale(0.95); opacity: 0.85; }
                   100% { transform: translateX(-50%) translateY(6px) scale(0.9);  opacity: 0; }
                 }
+                @keyframes pillPulse {
+                  0%   { box-shadow: 0 0  0px 0px color-mix(in srgb, var(--accent) 55%, transparent); }
+                  50%  { box-shadow: 0 0 14px 6px color-mix(in srgb, var(--accent) 25%, transparent); }
+                  100% { box-shadow: 0 0  0px 0px color-mix(in srgb, var(--accent) 55%, transparent); }
+                }
               `}</style>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ color: th.accentT, fontWeight: 700, fontSize: 10, letterSpacing: "1.5px", whiteSpace: "nowrap" }}>
+              <style>{`.pill-pulse{animation:pillPulse 2s ease-in-out infinite}`}</style>
+              <div className="pill-pulse" style={{ position:"absolute", inset:0, borderRadius:50, pointerEvents:"none" }} />
+              <div style={{ minWidth: 0, flex: 1, position: "relative" }}>
+                <div style={{ color: th.accentT, fontWeight: 700, fontSize: 11, letterSpacing: "1.5px", whiteSpace: "nowrap" }}>
                   WORKOUT IN PROGRESS
                 </div>
                 <div style={{ color: th.accentT, opacity: 0.7, fontSize: 11, marginTop: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -9653,33 +9656,7 @@ import "./styles.css";
                     </div>
                   </div>
                 )}
-                {/* Right-side action for programs tab: NEW button */}
-                {view === "programs" && (
-                  <button
-                    onClick={() => {
-                      setEditingProg(null);
-                      setView("editProgram");
-                    }}
-                    style={{
-                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      border: "none",
-                      borderRadius: 10,
-                      color: th.accentT,
-                      padding: "8px 14px",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      letterSpacing: 1,
-                      fontFamily: "'Outfit',sans-serif",
-                      flexShrink: 0,
-                      transform: "translateY(-4px)",
-                    }}
-                  >
-                    + NEW
-                  </button>
-                )}
+
 
               </div>
               </div>
@@ -9885,6 +9862,43 @@ import "./styles.css";
             )}
           </div>
 
+          {/* ── Programs FAB — floating + button above nav ── */}
+          {view === "programs" && !hideNav && (
+            <div
+              onClick={() => { setEditingProg(null); setView("editProgram"); }}
+              style={{
+                position: "absolute",
+                bottom: 86,
+                right: 28,
+                zIndex: 20,
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                backdropFilter: "blur(14px)",
+                WebkitBackdropFilter: "blur(14px)",
+                border: `1px solid color-mix(in srgb, ${th.accentBg} 60%, transparent)`,
+                boxShadow: `0 4px 20px color-mix(in srgb, ${th.accentBg} 30%, transparent)`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: th.accentT,
+                fontSize: 26,
+                fontWeight: 300,
+                lineHeight: 1,
+                userSelect: "none",
+                transition: "transform .12s ease, opacity .12s ease",
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
+              onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+              onTouchStart={e => e.currentTarget.style.transform = "scale(0.9)"}
+              onTouchEnd={e => e.currentTarget.style.transform = "scale(1)"}
+            >
+              +
+            </div>
+          )}
+
           {/* ── Nav bar ── */}
           {!hideNav && (
             <div
@@ -9947,21 +9961,7 @@ import "./styles.css";
                       {tab.icon(col, user?.email === "freeazadbhos@gmail.com")}
                       <span>{tab.label}</span>
                     </div>
-                    {tab.id === "home" && active && view !== "workout" && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: 5,
-                          right: "calc(50% - 15px)",
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: th.accentBg,
-                          animation: "pulse 1.5s ease-in-out infinite",
-                          boxShadow: `0 0 0 2px ${th.nav}`,
-                        }}
-                      />
-                    )}
+
                   </button>
                 );
               })}
@@ -10067,7 +10067,7 @@ import "./styles.css";
                 for (let i = 0; i < firstDow; i++) cells.push(null);
                 for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-                const STRENGTH_COL = "#c8f030";
+                const STRENGTH_COL = th.accentBg;
                 const CARDIO_COL   = "#4ecdc4";
                 const BOTH_COL     = "#fd9644";
 
