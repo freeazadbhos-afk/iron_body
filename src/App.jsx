@@ -2781,7 +2781,9 @@ import "./styles.css";
                     fontWeight: 700,
                     whiteSpace: "nowrap",
                     fontFamily: "'Outfit',sans-serif",
-                    background: flt === f.label ? th.accentBg : th.bg,
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    background: flt === f.label ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : th.bg,
                     color: flt === f.label ? th.accentT : th.muted,
                     transition: "all .15s",
                     flexShrink: 0,
@@ -3402,7 +3404,9 @@ import "./styles.css";
       <div
         onClick={onResume}
         style={{
-          background: th.accentBg,
+          background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           padding: "10px 16px",
           marginBottom: 12,
           borderRadius: 13,
@@ -5824,7 +5828,7 @@ import "./styles.css";
           style={{
             width: "100%",
             background: "none",
-            border: `1px dashed ${th.inputB}`,
+            border: `1px dashed ${th.text}`,
             borderRadius: 13,
             padding: 13,
             cursor: "pointer",
@@ -7132,7 +7136,9 @@ import "./styles.css";
                 setEPhoto(user.photoURL || "");
               }}
               style={{
-                background: editMode ? th.accentBg : "transparent",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                background: editMode ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
                 border: `1px solid ${editMode ? th.accentBg : th.inputB}`,
                 borderRadius: 9,
                 color: editMode ? th.accentT : th.muted,
@@ -7473,27 +7479,55 @@ import "./styles.css";
                 </div>
               )}
             </div>
-            <button
-              onClick={() => {
-                if (showMeasure) {
-                  setShowMeasure(false);
-                  setEditingMeasureIdx(null);
-                } else openMeasureForm(null);
-              }}
-              style={{
-                background: showMeasure ? th.accentBg : "transparent",
-                border: `1px solid ${showMeasure ? th.accentBg : th.inputB}`,
-                borderRadius: 9,
-                color: showMeasure ? th.accentT : th.muted,
-                padding: "7px 14px",
-                cursor: "pointer",
-                fontSize: 12,
-                fontFamily: "'Outfit',sans-serif",
-                fontWeight: 700,
-              }}
-            >
-              {showMeasure ? "Cancel" : "Log"}
-            </button>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {showMeasure && editingMeasureIdx !== null && (
+                <button
+                  onClick={() => {
+                    handleDeleteMeasurement(editingMeasureIdx);
+                    setShowMeasure(false);
+                    setEditingMeasureIdx(null);
+                  }}
+                  style={{
+                    background: "rgba(220, 50, 50, 0.15)",
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    border: "1px solid rgba(220, 50, 50, 0.3)",
+                    borderRadius: 9,
+                    color: th.delText,
+                    padding: "7px 12px",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontFamily: "'Outfit',sans-serif",
+                    fontWeight: 700,
+                  }}
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (showMeasure) {
+                    setShowMeasure(false);
+                    setEditingMeasureIdx(null);
+                  } else openMeasureForm(null);
+                }}
+                style={{
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
+                  background: showMeasure ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
+                  border: `1px solid ${showMeasure ? th.accentBg : th.inputB}`,
+                  borderRadius: 9,
+                  color: showMeasure ? th.accentT : th.muted,
+                  padding: "7px 14px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontFamily: "'Outfit',sans-serif",
+                  fontWeight: 700,
+                }}
+              >
+                {showMeasure ? "Cancel" : "Log"}
+              </button>
+            </div>
           </div>
           {/* Latest snapshot */}
           {latest && !showMeasure && (
@@ -7673,7 +7707,7 @@ import "./styles.css";
               </div>
               <Btn
                 onClick={handleSaveMeasurement}
-                style={{ width: "100%", fontSize: 15, padding: "13px" }}
+                style={{ width: "100%", fontSize: 14, padding: "13px", fontFamily: "'Outfit',sans-serif", letterSpacing: 0.5 }}
               >
                 SAVE MEASUREMENT
               </Btn>
@@ -7732,7 +7766,9 @@ import "./styles.css";
                   <button
                     onClick={() => openMeasureForm(i)}
                     style={{
-                      background: "none",
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
+                      background: `color-mix(in srgb, ${th.text} 6%, transparent)`,
                       border: `1px solid ${th.inputB}`,
                       borderRadius: 6,
                       color: th.muted,
@@ -7746,23 +7782,7 @@ import "./styles.css";
                   >
                     Edit
                   </button>
-                  <button
-                    onClick={() => handleDeleteMeasurement(i)}
-                    style={{
-                      background: "rgba(220, 50, 50, 0.10)",
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      border: "1px solid rgba(220, 50, 50, 0.2)",
-                      borderRadius: 6,
-                      color: th.delText,
-                      cursor: "pointer",
-                      fontSize: 12,
-                      padding: "3px 7px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    ✕
-                  </button>
+
                 </div>
               ))}
             </div>
@@ -7882,7 +7902,9 @@ import "./styles.css";
                 if (isAdmin && !showFeedback) handleLoadFeedbacks();
               }}
               style={{
-                background: showFeedback ? th.accentBg : "transparent",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                background: showFeedback ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
                 border: `1px solid ${showFeedback ? th.accentBg : th.inputB}`,
                 borderRadius: 9,
                 color: showFeedback ? th.accentT : th.muted,
@@ -8087,7 +8109,9 @@ import "./styles.css";
                 setChangelogSent(false);
               }}
               style={{
-                background: showChangelog ? th.accentBg : "transparent",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                background: showChangelog ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
                 border: `1px solid ${showChangelog ? th.accentBg : th.inputB}`,
                 borderRadius: 9,
                 color: showChangelog ? th.accentT : th.muted,
@@ -8412,7 +8436,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.2 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -8645,7 +8669,9 @@ import "./styles.css";
     fontFamily: "'Outfit',sans-serif",
     letterSpacing: 0.5,
     padding: "15px",
-    background: exs.length === 0 ? "rgba(200,240,48,0.2)" : "rgba(200,240,48,0.85)",
+    background: exs.length === 0
+      ? `color-mix(in srgb, ${th.accentBg} 30%, transparent)`
+      : `color-mix(in srgb, ${th.accentBg} 90%, transparent)`,
     backdropFilter: "blur(5px)",
     WebkitBackdropFilter: "blur(10px)",
   }}
@@ -8672,6 +8698,29 @@ import "./styles.css";
     useEffect(() => {
       document.body.style.background = th.bg;
     }, [th.bg]);
+
+    // Edge-to-edge: extend content under iOS status bar
+    useEffect(() => {
+      // 1. viewport-fit=cover — lets the layout fill the full screen incl. safe areas
+      const vp = document.querySelector("meta[name=viewport]");
+      if (vp && !vp.getAttribute("content").includes("viewport-fit")) {
+        vp.setAttribute("content", vp.getAttribute("content") + ", viewport-fit=cover");
+      }
+
+      // 2. Transparent status bar — CRITICAL for removing the black bar in PWA mode
+      const ensureMeta = (name, content) => {
+        let m = document.querySelector(`meta[name="${name}"]`);
+        if (!m) { m = document.createElement("meta"); m.name = name; document.head.appendChild(m); }
+        m.setAttribute("content", content);
+      };
+      ensureMeta("apple-mobile-web-app-capable", "yes");
+      ensureMeta("apple-mobile-web-app-status-bar-style", "black-translucent");
+      ensureMeta("mobile-web-app-capable", "yes");
+
+      // 3. Strip any browser chrome that adds offset
+      document.documentElement.style.cssText += ";height:100%;overflow:hidden;";
+      document.body.style.cssText += ";margin:0;padding:0;height:100%;overflow:hidden;";
+    }, []);
 
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
@@ -9183,16 +9232,10 @@ import "./styles.css";
         id: "programs",
         label: "PROGRAMS",
         icon: (c) => (
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 26 26"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect x="2" y="5" width="20" height="2.8" rx="1.4" fill={c} />
-            <rect x="2" y="11" width="20" height="2.8" rx="1.4" fill={c} />
-            <rect x="2" y="17" width="20" height="2.8" rx="1.4" fill={c} />
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="4"    width="18" height="2.5" rx="1.25" fill={c} />
+            <rect x="2" y="9.75" width="18" height="2.5" rx="1.25" fill={c} />
+            <rect x="2" y="15.5" width="18" height="2.5" rx="1.25" fill={c} />
           </svg>
         ),
       },
@@ -9200,7 +9243,11 @@ import "./styles.css";
         id: "history",
         label: "HISTORY",
         icon: (c) => (
-          <span style={{ fontSize: 22, lineHeight: 1, color: c }}>◎</span>
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="11" cy="11" r="8.5" stroke={c} strokeWidth="2" />
+            <line x1="11" y1="11" x2="11"  y2="6"  stroke={c} strokeWidth="2" strokeLinecap="round" />
+            <line x1="11" y1="11" x2="14.5" y2="11" stroke={c} strokeWidth="2" strokeLinecap="round" />
+          </svg>
         ),
       },
       {
@@ -9208,7 +9255,10 @@ import "./styles.css";
         label: "PROFILE",
         icon: (c, isA) => (
           <div style={{ position: "relative", display: "inline-flex" }}>
-            <span style={{ fontSize: 22, lineHeight: 1, color: c }}>◉</span>
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="7.5" r="3.5" stroke={c} strokeWidth="2" />
+              <path d="M3 19.5c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke={c} strokeWidth="2" strokeLinecap="round" />
+            </svg>
             {isA && unreadFeedback > 0 && (
               <div
                 style={{
@@ -9292,7 +9342,10 @@ import "./styles.css";
                 flexShrink: 0,
                 background: th.bg,
                 borderBottom: `1px solid ${th.border}`,
-                padding: "10px 16px 0",
+                paddingTop: "calc(10px + env(safe-area-inset-top, 0px))",
+                paddingRight: "16px",
+                paddingBottom: "0",
+                paddingLeft: "16px",
                 zIndex: 20,
               }}
             >
@@ -9540,7 +9593,10 @@ import "./styles.css";
                 background: `color-mix(in srgb, ${th.bg} 25%, transparent)`,
                 backdropFilter: "blur(12px)",
                 WebkitBackdropFilter: "blur(12px)", // Crucial for Safari compatibility
-                padding: "14px 16px 1px",
+                paddingTop: "calc(14px + env(safe-area-inset-top, 0px))",
+                paddingRight: "16px",
+                paddingBottom: "1px",
+                paddingLeft: "16px",
                 pointerEvents: "auto",
               }}>
               <div style={{ pointerEvents: "auto" }}>
@@ -9691,7 +9747,7 @@ import "./styles.css";
               flex: 1,
               overflowY: "auto",
               overflowX: "hidden",
-              padding: "68px 16px 0",
+              padding: "calc(68px + env(safe-area-inset-top, 0px)) 16px 0",
               minHeight: 0,
               animation:
                 workoutExiting      ? "pipExit 0.32s cubic-bezier(0.4,0,1,1) forwards" :
@@ -9926,6 +9982,17 @@ import "./styles.css";
                   <button
                     key={tab.id}
                     onClick={() => {
+                      try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain); gain.connect(ctx.destination);
+                        osc.type = "sine"; osc.frequency.value = 440;
+                        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.04);
+                        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.04);
+                        ctx.close();
+                      } catch (_) {}
                       if (tab.id === "home" && view === "workout")
                         setView("home");
                       else setView(tab.id);
@@ -9990,7 +10057,7 @@ import "./styles.css";
                 background: `color-mix(in srgb, ${th.card} 65%, transparent)`,
                 backdropFilter: "blur(10px) brightness(1.6)",
                 WebkitBackdropFilter: "blur(10px) brightness(1.3)",
-                borderRadius: 36,
+                borderRadius: 25,
                 zIndex: 201,
                 padding: "16px 16px 18px",
                 minHeight: 320,
@@ -10139,7 +10206,7 @@ import "./styles.css";
       {countdown !== null && (() => {
         const quoteIdx = Math.floor(Date.now() / 10000) % GREETINGS.length;
         const quote = GREETINGS[quoteIdx];
-        const bgUrl = "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80";
+        const bgUrl = "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1920&q=80";
         return (
           <div
             style={{
