@@ -25,6 +25,7 @@ import "./styles.css";
     deleteUser,
     linkWithCredential,
     signInAnonymously,
+    sendPasswordResetEmail,
   } from "firebase/auth";
   import {
     getFirestore,
@@ -131,6 +132,8 @@ import "./styles.css";
         background: `color-mix(in srgb, ${th.card} 50%, transparent)`,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
+        willChange: "backdrop-filter",
+        transform: "translateZ(0)",
         border: `1px solid ${th.border}`,
         borderRadius: 16,
         overflow: "hidden",
@@ -2771,7 +2774,7 @@ import "./styles.css";
               {MUSCLE_FILTERS.map((f) => (
                 <button
                   key={f.label}
-                  onClick={() => setFlt(f.label)}
+                  onClick={() => setFlt(prev => prev === f.label ? "All" : f.label)}
                   style={{
                     padding: "5px 13px",
                     borderRadius: 20,
@@ -3024,9 +3027,10 @@ import "./styles.css";
               borderRadius: 12,
               padding: "13px",
               cursor: "pointer",
-              fontFamily: "'Bebas Neue',sans-serif",
-              fontSize: 16,
-              letterSpacing: 2,
+              fontFamily: "'Outfit',sans-serif",
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: 0.5,
               color: th.accentT,
               marginTop: 6,
             }}
@@ -3050,6 +3054,21 @@ import "./styles.css";
     const [pw, setPw] = useState("");
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(false);
+    const [forgotMode, setForgotMode] = useState(false);
+    const [resetSent, setResetSent] = useState(false);
+
+    const handleResetPassword = async () => {
+      if (!email.trim()) { setErr("Enter your email address first."); return; }
+      setLoading(true); setErr("");
+      try {
+        await sendPasswordResetEmail(fbAuth, email.trim());
+        setResetSent(true);
+      } catch (e) {
+        setErr(friendlyError(e.code));
+      } finally {
+        setLoading(false);
+      }
+    };
 
     const handleLogin = async () => {
       if (!email.trim() || !pw) {
@@ -3280,32 +3299,85 @@ import "./styles.css";
               marginBottom: 12,
             }}
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            style={{
-              width: "100%",
-              background: "rgba(255,255,255,0.09)",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 12,
-              padding: "14px 16px",
-              color: "#f0f0f0",
-              fontSize: 16,
-              fontWeight: 500,
-              outline: "none",
-              fontFamily: "'Outfit',sans-serif",
-              marginBottom: 12,
-            }}
-          />
+          {!forgotMode && (
+            <input
+              type="password"
+              placeholder="Password"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              style={{
+                width: "100%",
+                background: "rgba(255,255,255,0.09)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 12,
+                padding: "14px 16px",
+                color: "#f0f0f0",
+                fontSize: 16,
+                fontWeight: 500,
+                outline: "none",
+                fontFamily: "'Outfit',sans-serif",
+                marginBottom: 12,
+              }}
+            />
+          )}
+          {tab === "login" && !forgotMode && (
+            <div style={{ textAlign: "right", marginBottom: 8, marginTop: -4 }}>
+              <button
+                onClick={() => { setForgotMode(true); setErr(""); setResetSent(false); }}
+                style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)",
+                  fontSize: 12, fontFamily: "'Outfit',sans-serif", cursor: "pointer", padding: 0 }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+          {forgotMode && (
+            <div style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "16px",
+              marginBottom: 12 }}>
+              {resetSent ? (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 22, marginBottom: 8 }}>✉️</div>
+                  <div style={{ color: "#c8f030", fontWeight: 700, fontSize: 14, marginBottom: 6 }}>Reset email sent!</div>
+                  <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 12 }}>
+                    Check your inbox and follow the link to reset your password.
+                  </div>
+                  <button onClick={() => { setForgotMode(false); setResetSent(false); }}
+                    style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)",
+                      fontSize: 12, fontFamily: "'Outfit',sans-serif", cursor: "pointer" }}>
+                    Back to login
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginBottom: 10 }}>
+                    Enter your email and we'll send a reset link.
+                  </div>
+                  <button onClick={handleResetPassword} disabled={loading}
+                    style={{ width: "100%", background: "rgba(200,240,48,0.85)",
+                      backdropFilter: "blur(10px)", border: "none", borderRadius: 10,
+                      padding: "12px", cursor: loading ? "not-allowed" : "pointer",
+                      fontFamily: "'Outfit',sans-serif", fontSize: 14, fontWeight: 700,
+                      letterSpacing: 0.5, color: "#080809", marginBottom: 8 }}>
+                    {loading ? "SENDING..." : "SEND RESET EMAIL"}
+                  </button>
+                  <button onClick={() => { setForgotMode(false); setErr(""); }}
+                    style={{ width: "100%", background: "none", border: "none",
+                      color: "rgba(255,255,255,0.45)", fontSize: 12,
+                      fontFamily: "'Outfit',sans-serif", cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {err && (
             <div style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 10 }}>
               {err}
             </div>
           )}
-          <button
+          {!forgotMode && <button
             onClick={tab === "login" ? handleLogin : handleSignup}
             disabled={loading}
             style={{
@@ -3319,9 +3391,10 @@ import "./styles.css";
               borderRadius: 13,
               padding: "15px",
               cursor: loading ? "not-allowed" : "pointer",
-              fontFamily: "'Bebas Neue',sans-serif",
-              fontSize: 18,
-              letterSpacing: 2,
+              fontFamily: "'Outfit',sans-serif",
+              fontSize: 15,
+              fontWeight: 700,
+              letterSpacing: 0.5,
               color: "#080809",
               marginTop: 4,
               transition: "background .2s",
@@ -3332,7 +3405,7 @@ import "./styles.css";
               : tab === "login"
               ? "LOG IN →"
               : "CREATE ACCOUNT →"}
-          </button>
+          </button>}
           <button
             onClick={() => {
               setTab((t) => (t === "login" ? "signup" : "login"));
@@ -5561,12 +5634,13 @@ import "./styles.css";
 
     return (
       <div style={{ paddingBottom: 120 }}>
-        {showExPicker && (
+        {showExPicker && createPortal(
           <ExercisePicker
             onAdd={addExFromPicker}
             onClose={() => setShowExPicker(false)}
             added={exercises.map((e) => e.exId)}
-          />
+          />,
+          document.body
         )}
 
         {/* Exercise cards */}
@@ -8436,7 +8510,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.2 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.3 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -9968,6 +10042,8 @@ import "./styles.css";
               background: `color-mix(in srgb, ${th.nav} 30%, transparent)`, 
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
+              willChange: "backdrop-filter",
+              transform: "translateZ(0)",
               border: `1px solid ${th.navB}`, // Changed from borderTop to a full border
               boxShadow: "0 10px 30px rgba(0, 0, 0, 0.15)", // The shadow makes it float!
               zIndex: 10,
