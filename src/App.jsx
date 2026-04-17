@@ -1405,6 +1405,8 @@ import "./styles.css";
   function useDragSort(items, setItems) {
     const [dragIdx, setDragIdx] = useState(null);
     const [insertIdx, setInsertIdx] = useState(null);
+    const [droppedIdx, setDroppedIdx] = useState(null);
+    const [dropDir, setDropDir] = useState(null); // 'up' | 'down'
     const itemRects = useRef([]);
     const dragIdxRef = useRef(null);
     const insertIdxRef = useRef(null);
@@ -1467,6 +1469,9 @@ import "./styles.css";
             const [moved] = next.splice(from, 1);
             next.splice(rawTo, 0, moved);
             setItems(next);
+            setDroppedIdx(rawTo);
+            setDropDir(rawTo > from ? "down" : "up");
+            setTimeout(() => { setDroppedIdx(null); setDropDir(null); }, 480);
           }
         }
         dragIdxRef.current = null;
@@ -1486,7 +1491,7 @@ import "./styles.css";
       window.addEventListener("touchend", onEnd);
     };
 
-    return { dragIdx, insertIdx, start };
+    return { dragIdx, insertIdx, droppedIdx, dropDir, start };
   }
 
   /* ─── 3×3 dot grip icon — denser dots ───────────────────────────────────────── */
@@ -1952,37 +1957,68 @@ import "./styles.css";
   }
   function CheckCircle({ done, onClick }) {
     const th = useTheme();
-    const [pop, setPop] = useState(false);
+    const [smashing, setSmashing] = useState(false);
+    const [burst, setBurst] = useState(false);
     const h = () => {
       if (!done) {
-        setPop(true);
-        setTimeout(() => setPop(false), 300);
+        setSmashing(true);
+        setBurst(true);
+        setTimeout(() => setSmashing(false), 380);
+        setTimeout(() => setBurst(false), 500);
       }
       onClick();
     };
     return (
-      <div
-        onClick={h}
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          flexShrink: 0,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          transition: "all .22s",
-          border: done ? `2px solid ${th.accentBg}` : `2px solid #2e2e35`,
-          background: done ? th.accentBg : "transparent",
-          animation: pop ? "pop .3s ease" : "none",
-        }}
-      >
-        {done && (
-          <span style={{ color: th.accentT, fontSize: 14, fontWeight: 800 }}>
-            ✓
-          </span>
+      <div style={{ position: "relative", width: 28, height: 28, flexShrink: 0 }}>
+        <style>{`
+          @keyframes smashIn {
+            0%   { transform: scale(1); }
+            25%  { transform: scale(0.65); }
+            55%  { transform: scale(1.35); }
+            75%  { transform: scale(0.92); }
+            100% { transform: scale(1); }
+          }
+          @keyframes burstRing {
+            0%   { transform: translate(-50%,-50%) scale(0.4); opacity: 0.8; }
+            100% { transform: translate(-50%,-50%) scale(2.2); opacity: 0; }
+          }
+          @keyframes checkTick {
+            0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+            60%  { transform: scale(1.3) rotate(5deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+          }
+        `}</style>
+        {burst && (
+          <div style={{
+            position: "absolute", top: "50%", left: "50%",
+            width: 28, height: 28, borderRadius: "50%",
+            border: `2px solid ${th.accentBg}`,
+            pointerEvents: "none",
+            animation: "burstRing 0.5s ease-out forwards",
+          }} />
         )}
+        <div
+          onClick={h}
+          style={{
+            width: 28, height: 28, borderRadius: "50%",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            border: done ? `2px solid ${th.accentBg}` : `2px solid #2e2e35`,
+            background: done ? th.accentBg : "transparent",
+            transition: "background .18s, border-color .18s",
+            animation: smashing ? "smashIn 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards" : "none",
+          }}
+        >
+          {done && (
+            <span style={{
+              color: th.accentT, fontSize: 13, fontWeight: 900,
+              display: "block",
+              animation: smashing ? "checkTick 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards" : "none",
+            }}>
+              ✓
+            </span>
+          )}
+        </div>
       </div>
     );
   }
@@ -2370,20 +2406,34 @@ import "./styles.css";
     onRemoveSet,
     onDragStart,
     listRef,
+    wasDropped,
+    dropDir,
   }) {
     const th = useTheme();
     const S = useS();
     const db = DB.find((d) => d.id === ex.id);
     const isCardio = db?.type === "cardio";
     const sets = ex.sets || [];
+    const [removing, setRemoving] = useState(false);
+    const [removingSet, setRemovingSet] = useState(null);
+
+    const animateRemoveEx = () => {
+      setRemoving(true);
+      setTimeout(() => onRemoveEx(), 310);
+    };
+    const animateRemoveSet = (sIdx) => {
+      setRemovingSet(sIdx);
+      setTimeout(() => { onRemoveSet(sIdx); setRemovingSet(null); }, 300);
+    };
 
     return (
       <div
         data-drag-item=""
-        style={{ opacity: isDragging ? 0.35 : 1, transition: "opacity .15s" }}
+        style={{ opacity: isDragging ? 0.35 : 1, transition: "opacity .15s",
+          animation: removing ? "removeSlide 0.31s ease-in forwards" : wasDropped ? (dropDir === "down" ? "dropFromAbove 0.45s cubic-bezier(0.34,1.3,0.64,1) forwards" : "dropFromBelow 0.45s cubic-bezier(0.34,1.3,0.64,1) forwards") : undefined }}
       >
         {isOver && <DropLine />}
-        <div style={{ ...S.card, marginBottom: 7 }}>
+        <div style={{ ...S.card, marginBottom: 7, overflow: "hidden" }}>
           {/* Header: grip + name + muscle tag + chevron + REMOVE */}
           <div
             style={{
@@ -2442,7 +2492,7 @@ import "./styles.css";
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onRemoveEx();
+                animateRemoveEx();
               }}
               style={{
                 background: "none",
@@ -2494,6 +2544,8 @@ import "./styles.css";
                         gap: 7,
                         padding: "9px 14px",
                         borderBottom: `1px solid ${th.input}`,
+                        animation: removingSet === sIdx ? "removeSlide 0.3s ease-in forwards" : undefined,
+                        overflow: "hidden",
                       }}
                     >
                       <div
@@ -2587,7 +2639,7 @@ import "./styles.css";
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onRemoveSet(sIdx);
+                          animateRemoveSet(sIdx);
                         }}
                         style={{
                           background: "none",
@@ -3543,6 +3595,11 @@ import "./styles.css";
     const S = useS();
     const [editShortcuts, setEditShortcuts] = useState(false);
     const [addingShortcut, setAddingShortcut] = useState(false);
+    const [removingShortcut, setRemovingShortcut] = useState(null);
+    const animatedRemoveFromHome = (pid) => {
+      setRemovingShortcut(pid);
+      setTimeout(() => { removeFromHome(pid); setRemovingShortcut(null); }, 310);
+    };
     const today = new Date();
     const dow = today
       .toLocaleDateString("en-US", {
@@ -4185,11 +4242,12 @@ import "./styles.css";
             }}
           >
             {shownPrograms.map((p) => (
-              <div key={p.id} style={{ position: "relative" }}>
+              <div key={p.id} style={{ position: "relative",
+                animation: removingShortcut === p.id ? "removeSlide 0.31s ease-in forwards" : undefined }}>
                 {/* Remove-from-home ✕ */}
                 {editShortcuts && (
                   <button
-                    onClick={() => removeFromHome(p.id)}
+                    onClick={() => animatedRemoveFromHome(p.id)}
                     style={{
                       position: "absolute",
                       top: 7,
@@ -4213,18 +4271,19 @@ import "./styles.css";
                   </button>
                 )}
                 <div
-                  onClick={() => onOpenShortcut(p)}
+                  onClick={() => !editShortcuts && onOpenShortcut(p)}
                   style={{
                     width: "100%",
                     background: `color-mix(in srgb, ${th.card} 35%, transparent)`,
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
-                    border: `1px solid ${th.border}`,
+                    border: `1px solid ${editShortcuts ? th.accentBg + "44" : th.border}`,
                     borderRadius: 14,
                     padding: "15px 13px",
                     textAlign: "left",
-                    transition: "border-color .2s",
-                    cursor: "pointer",
+                    transition: "border-color .25s",
+                    cursor: editShortcuts ? "default" : "pointer",
+                    animation: editShortcuts ? "shortcutBtnIn 0.28s cubic-bezier(0,0,0.2,1) forwards" : undefined,
                   }}
                 >
                   <div style={{ marginBottom: 8 }}>
@@ -4268,6 +4327,7 @@ import "./styles.css";
                   justifyContent: "center",
                   gap: 6,
                   minHeight: 90,
+                  animation: "shortcutBtnIn 0.3s cubic-bezier(0,0,0.2,1) forwards",
                 }}
               >
                 <span
@@ -4283,7 +4343,7 @@ import "./styles.css";
           </div>
         )}
         {addingShortcut && (
-          <div style={{ ...S.card, padding: 14, marginBottom: 16 }}>
+          <div style={{ ...S.card, padding: 14, marginBottom: 16, animation: "shortcutListIn 0.28s cubic-bezier(0,0,0.2,1) forwards" }}>
             <div
               style={{
                 display: "flex",
@@ -4530,7 +4590,7 @@ import "./styles.css";
           </div>
         ) : (
           programs.map((p) => (
-            <div key={p.id} style={{ ...S.card, marginBottom: 9 }}>
+            <div key={p.id} id={"prog-card-" + p.id} style={{ ...S.card, marginBottom: 9, overflow: "hidden" }}>
               <div
                 style={{
                   padding: "15px 16px",
@@ -4612,7 +4672,14 @@ import "./styles.css";
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm("Delete this program?")) onDelete(p.id);
+                      if (!window.confirm("Delete this program?")) return;
+                      const el = document.getElementById("prog-card-" + p.id);
+                      if (el) {
+                        el.style.animation = "removeSlide 0.31s ease-in forwards";
+                        setTimeout(() => onDelete(p.id), 310);
+                      } else {
+                        onDelete(p.id);
+                      }
                     }}
                     style={{
                       background: "rgba(220, 50, 50, 0.15)",
@@ -4662,7 +4729,7 @@ import "./styles.css";
     const [expandedEx, setExpandedEx] = useState(null);
     const [showSuggestions, setShowSuggestions] = useState(!editing);
     const listRef = useRef(null);
-    const { dragIdx, insertIdx, start: dragStart } = useDragSort(exs, setExs);
+    const { dragIdx, insertIdx, droppedIdx, dropDir, start: dragStart } = useDragSort(exs, setExs);
 
     const loadSuggestion = (s) => {
       setName(s.name);
@@ -4871,6 +4938,7 @@ import "./styles.css";
               const isBeingDragged = dragIdx === exI;
               const isOver =
                 insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
+              const wasDropped = droppedIdx === exI;
               return (
                 <ExerciseEditCard
                   key={ex.id}
@@ -4879,6 +4947,8 @@ import "./styles.css";
                   isOpen={expandedEx === ex.id}
                   isOver={isOver}
                   isDragging={isBeingDragged}
+                  wasDropped={wasDropped}
+                  dropDir={dropDir}
                   onToggleOpen={() =>
                     setExpandedEx(expandedEx === ex.id ? null : ex.id)
                   }
@@ -5602,15 +5672,25 @@ import "./styles.css";
         )
       );
     };
-    const removeSet = (eIdx, sIdx) =>
-      upd(
-        exercises.map((ex, i) =>
+    const removeSet = (eIdx, sIdx) => {
+      const key = `${eIdx}-${sIdx}`;
+      setRemovingSetKey(key);
+      setTimeout(() => {
+        upd(exercises.map((ex, i) =>
           i !== eIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== sIdx) }
-        )
-      );
+        ));
+        setRemovingSetKey(null);
+      }, 300);
+    };
+    const [removingExIdx, setRemovingExIdx] = useState(null);
+    const [removingSetKey, setRemovingSetKey] = useState(null);
     const removeEx = (eIdx) => {
-      if (window.confirm("Remove this exercise?"))
+      if (!window.confirm("Remove this exercise?")) return;
+      setRemovingExIdx(eIdx);
+      setTimeout(() => {
         upd(exercises.filter((_, i) => i !== eIdx));
+        setRemovingExIdx(null);
+      }, 320);
     };
 
     const addExFromPicker = (dbId) => {
@@ -5655,6 +5735,8 @@ import "./styles.css";
                 marginBottom: 9,
                 borderColor: allDone ? th.doneB : th.border,
                 transition: "border-color .15s",
+                animation: removingExIdx === eIdx ? "removeSlide 0.32s ease-in forwards" : undefined,
+                overflow: "hidden",
               }}
             >
               {/* Exercise header */}
@@ -5762,6 +5844,8 @@ import "./styles.css";
                           opacity: set.done ? 0.32 : 1,
                           transition: "opacity .3s",
                           background: set.done ? th.done : "transparent",
+                          animation: removingSetKey === `${eIdx}-${sIdx}` ? "removeSlide 0.3s ease-in forwards" : undefined,
+                          overflow: "hidden",
                         }}
                       >
                         <CheckCircle
@@ -8510,7 +8594,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.3 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.4 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -8549,7 +8633,7 @@ import "./styles.css";
       onSave({ ...program, exs: next });
     };
 
-    const { dragIdx, insertIdx, start: dragStart } = useDragSort(exs, updateExs);
+    const { dragIdx, insertIdx, droppedIdx, dropDir, start: dragStart } = useDragSort(exs, updateExs);
 
     const addEx = (dbId) => {
       const db = DB.find((e) => e.id === dbId);
@@ -8608,6 +8692,7 @@ import "./styles.css";
               const isBeingDragged = dragIdx === exI;
               const isOver =
                 insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
+              const wasDropped = droppedIdx === exI;
               return (
                 <ExerciseEditCard
                   key={ex.id}
@@ -8616,6 +8701,8 @@ import "./styles.css";
                   isOver={isOver}
                   isOpen={expandedEx === ex.id}
                   isDragging={isBeingDragged}
+                  wasDropped={wasDropped}
+                  dropDir={dropDir}
                   onToggleOpen={() =>
                     setExpandedEx(expandedEx === ex.id ? null : ex.id)
                   }
@@ -9483,23 +9570,6 @@ import "./styles.css";
                   }}
                 >
                   <button
-                    onClick={() => setView("home")}
-                    style={{
-                      background: "transparent",
-                      border: `1px solid ${th.inputB}`,
-                      borderRadius: 9,
-                      color: th.sub,
-                      fontSize: 10,
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      fontFamily: "'Outfit',sans-serif",
-                      fontWeight: 700,
-                      letterSpacing: ".5px",
-                    }}
-                  >
-                    PIP
-                  </button>
-                  <button
                     onClick={() => setPaused((p) => !p)}
                     style={{
                       background: paused ? th.pause : "transparent",
@@ -9806,6 +9876,29 @@ import "./styles.css";
               from { opacity: 0; transform: translateY(18px) scale(0.98); }
               to   { opacity: 1; transform: translateY(0)    scale(1); }
             }
+            @keyframes removeSlide {
+              0%   { opacity: 1; transform: translateX(0)   scaleY(1); max-height: 200px; }
+              60%  { opacity: 0; transform: translateX(24px) scaleY(0.8); }
+              100% { opacity: 0; transform: translateX(24px) scaleY(0); max-height: 0; padding: 0; margin: 0; }
+            }
+            @keyframes dropFromAbove {
+              0%   { transform: translateY(-28px) scale(1.03); opacity: 0.7; box-shadow: 0 12px 28px rgba(0,0,0,0.22); }
+              55%  { transform: translateY(4px) scale(0.99); opacity: 1; }
+              100% { transform: translateY(0) scale(1); box-shadow: none; }
+            }
+            @keyframes dropFromBelow {
+              0%   { transform: translateY(28px) scale(1.03); opacity: 0.7; box-shadow: 0 -12px 28px rgba(0,0,0,0.22); }
+              55%  { transform: translateY(-4px) scale(0.99); opacity: 1; }
+              100% { transform: translateY(0) scale(1); box-shadow: none; }
+            }
+            @keyframes shortcutBtnIn {
+              from { opacity: 0; transform: scale(0.88); }
+              to   { opacity: 1; transform: scale(1); }
+            }
+            @keyframes shortcutListIn {
+              from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+              to   { opacity: 1; transform: translateY(0) scale(1); }
+            }
             @keyframes completeFadeIn {
               from { opacity: 0; transform: translateY(24px); }
               to   { opacity: 1; transform: translateY(0); }
@@ -9920,11 +10013,14 @@ import "./styles.css";
               <CreateProgramView
                 program={editingProg}
                 onSave={(p) => {
-                  savePrograms(
-                    editingProg
-                      ? programs.map((x) => (x.id === p.id ? p : x))
-                      : [...programs, p]
-                  );
+                  const updated = editingProg
+                    ? programs.map((x) => (x.id === p.id ? p : x))
+                    : [...programs, p];
+                  savePrograms(updated);
+                  // Don't auto-pin new programs to shortcuts
+                  if (!editingProg && settings.homePrograms === null) {
+                    saveSettings({ ...settings, homePrograms: programs.map((x) => x.id) });
+                  }
                   setView("programs");
                 }}
                 onBack={() => setView("programs")}
