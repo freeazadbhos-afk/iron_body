@@ -1349,7 +1349,20 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false };
+  const ALL_DASHBOARDS = [
+    { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
+    { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
+    { id: "intensity",  label: "Intensity",             icon: "⚡" },
+    { id: "calories",   label: "Calories Burned",       icon: "🔥" },
+    { id: "bodycomp",   label: "Body Composition",      icon: "⚖️" },
+    { id: "bodytrends", label: "Body Trends",           icon: "📉" },
+    { id: "recovery",   label: "Muscle Recovery",       icon: "🩺" },
+    { id: "efficiency", label: "Training Efficiency",   icon: "📈" },
+    { id: "strength",   label: "Strength Progression",  icon: "🏋️" },
+    { id: "prs",        label: "Personal Records",      icon: "🏆" },
+    { id: "volume",     label: "Weekly Volume",         icon: "📊" },
+  ];
   // Measurements: array of {date, weight, muscle, fat} entries
   function getMeasurements(uid) {
     return ls("ib3-" + uid + "-measurements", []);
@@ -2495,12 +2508,13 @@ import "./styles.css";
                 animateRemoveEx();
               }}
               style={{
-                background: "none",
-                border: "none",
-                color: th.dim,
+                background: "rgba(220,50,50,0.12)",
+                border: "1px solid rgba(220,50,50,0.3)",
+                borderRadius: 7,
+                color: th.delText,
                 cursor: "pointer",
-                fontSize: 15,
-                padding: "2px 6px",
+                fontSize: 12,
+                padding: "2px 8px",
                 flexShrink: 0,
                 marginLeft: 8,
               }}
@@ -2642,15 +2656,15 @@ import "./styles.css";
                           animateRemoveSet(sIdx);
                         }}
                         style={{
-                          background: "none",
-                          border: "none",
-                          color: th.dim,
+                          background: "rgba(220,50,50,0.12)",
+                          border: "1px solid rgba(220,50,50,0.3)",
+                          borderRadius: 6,
+                          color: th.delText,
                           cursor: "pointer",
-                          fontSize: 16,
+                          fontSize: 12,
                           lineHeight: 1,
-                          padding: "4px",
+                          padding: "3px 7px",
                           flexShrink: 0,
-                          opacity: 0.6,
                         }}
                       >
                         ✕
@@ -3152,7 +3166,7 @@ import "./styles.css";
           isGuest: true,
         });
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [] });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"] });
       } catch (e) {
         setErr(friendlyError(e.code));
       } finally {
@@ -3187,7 +3201,7 @@ import "./styles.css";
         });
         // 3. Seed default programs, but keep shortcuts empty so home tab is clean
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [] });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"] });
         // 4. Reload Firebase user so displayName is fresh on next auth state change
         await cred.user.reload();
         // 5. Belt-and-suspenders: if auth state already fired with empty name, patch it directly
@@ -3576,6 +3590,567 @@ import "./styles.css";
   /* ═══════════════════════════════════════════════════════════════════════════════
     HOME VIEW
   ═══════════════════════════════════════════════════════════════════════════════ */
+  /* ─── Highlights Card — toggle 7day / month / year ─────────────────────────── */
+  function HighlightsCard({ sessions, sessionVol }) {
+    const th = useTheme();
+    const S = useS();
+    const [range, setRange] = useState("7d");
+    const now = Date.now();
+    const cutoff = range === "7d"
+      ? now - 7 * 24 * 60 * 60 * 1000
+      : range === "month"
+      ? now - 30 * 24 * 60 * 60 * 1000
+      : new Date(new Date().getFullYear(), 0, 1).getTime();
+    const ws = sessions.filter(s => (s.startTime || 0) >= cutoff);
+    const resistSess = ws.filter(s => (s.exercises||[]).some(e => e.type !== "cardio"));
+    const cardioSess = ws.filter(s => (s.exercises||[]).every(e => e.type === "cardio") && s.exercises.length > 0);
+    const totalMins = ws.reduce((a,s) => a+(s.duration||0),0);
+    const hrsDisplay = totalMins >= 60 ? `${Math.floor(totalMins/60)}h ${totalMins%60}m` : `${totalMins}m`;
+    const totalCals = ws.reduce((a,s) => a+(s.calories||0),0);
+    const avgInt = ws.length ? (ws.reduce((a,s) => a+(s.intensity||0),0)/ws.length).toFixed(1) : "—";
+    const totalKg = ws.reduce((a,s) => a+sessionVol(s),0);
+    const loadsDisplay = totalKg >= 1000 ? `${(totalKg/1000).toFixed(1)}t` : `${Math.round(totalKg)}kg`;
+    const tiles = [
+      { v: resistSess.length, l: "RESISTANCE", col: th.accentFg },
+      { v: cardioSess.length, l: "CARDIO",     col: "#4ecdc4"   },
+      { v: hrsDisplay,        l: "HOURS TRAINED", col: th.accentFg },
+      { v: totalCals ? totalCals.toLocaleString() + " kcal" : "—", l: "CALS BURNED", col: "#fd9644" },
+      { v: avgInt !== "—" ? avgInt + "/10" : "—", l: "AVG INTENSITY", col: th.accentFg },
+      { v: loadsDisplay,      l: "LOADS LIFTED", col: th.accentFg },
+    ];
+    const RANGES = [
+      { key: "7d",    label: "7 Days"  },
+      { key: "month", label: "Month"   },
+      { key: "year",  label: "Year"    },
+    ];
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ ...S.label }}>YOUR HIGHLIGHTS</div>
+          <div style={{ display:"flex", gap:4 }}>
+            {RANGES.map(r => (
+              <button key={r.key} onClick={() => setRange(r.key)} style={{
+                padding:"3px 9px", borderRadius:20, fontSize:12, fontWeight:700,
+                border:`1px solid ${range===r.key ? th.accentBg : th.inputB}`,
+                background: range===r.key ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
+                color: range===r.key ? th.accentT : th.muted,
+                cursor:"pointer", fontFamily:"'Outfit',sans-serif",
+                backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+              }}>{r.label}</button>
+            ))}
+          </div>
+        </div>
+        <style>{`
+          @keyframes tabSlideIn { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes tabSlideOut { from{opacity:1} to{opacity:0} }
+        `}</style>
+        <div key={range} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7, animation:"tabSlideIn 0.2s ease-out" }}>
+          {tiles.map(s => (
+            <div key={s.l} style={{ background:`color-mix(in srgb, ${th.sect} 60%, transparent)`, backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", borderRadius:10, padding:"12px 8px", textAlign:"center" }}>
+              <div className="bebas" style={{ fontSize:22, color:s.col, lineHeight:1, letterSpacing:0.5 }}>{s.v}</div>
+              <div style={{ fontSize:9, color:th.dim, letterSpacing:"1.2px", marginTop:3 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Strength Progression — standalone component so useState is valid ──────── */
+  /* ─── Body Composition Trend — needs useState for tab toggle ─────────────────── */
+  function BodyTrendChart({ measurements }) {
+    const th = useTheme();
+    const TABS = [
+      { f: "weight", label: "WEIGHT", unit: "kg", color: th.accentBg },
+      { f: "muscle", label: "MUSCLE", unit: "%",  color: "#4ecdc4"   },
+      { f: "fat",    label: "FAT",    unit: "%",  color: "#ff6b6b"   },
+    ];
+    const [selTab, setSelTab] = useState("weight");
+    const tab = TABS.find(t => t.f === selTab) || TABS[0];
+    const pts = measurements.filter(m => m[tab.f] != null).slice(0, 7).reverse();
+    if (pts.length < 2) return null;
+    const vals = pts.map(p => p[tab.f]);
+    const mn = Math.min(...vals); const mx = Math.max(...vals);
+    const floor   = mn - (mx-mn)*0.2 || mn*0.95;
+    const ceiling = mx + (mx-mn)*0.2 || mx*1.05;
+    const range = ceiling - floor || 1;
+    const W = 280, H = 52, R = 3;
+    const xs = pts.map((_,i) => (i/(pts.length-1))*W);
+    const ys = pts.map(p => H - ((p[tab.f]-floor)/range)*(H-R*2) - R);
+    const path = xs.map((x,i) => (i===0?`M${x},${ys[i]}`:`L${x},${ys[i]}`)).join(" ");
+    const areaPath = `${path} L${xs[xs.length-1]},${H+4} L0,${H+4} Z`;
+    // Latest value + trend arrow
+    const latest = pts[pts.length-1][tab.f];
+    const first  = pts[0][tab.f];
+    const trendDir = latest > first ? "↑" : latest < first ? "↓" : null;
+    // Direction shows change; color shows improvement:
+    // Fat ↑ = bad (red), Fat ↓ = good (green). All others: ↑ = good (green), ↓ = bad (red)
+    const trendCol = tab.f === "fat"
+      ? (trendDir === "↑" ? "#ff6b6b" : "#1db954")
+      : (trendDir === "↑" ? "#1db954" : "#ff6b6b");
+    return (
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ display:"flex", gap:5 }}>
+            {TABS.map(t => (
+              <button key={t.f} onClick={() => setSelTab(t.f)} style={{
+                padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:700,
+                border:`1px solid ${selTab===t.f ? t.color : th.inputB}`,
+                background: selTab===t.f ? `${t.color}22` : "transparent",
+                color: selTab===t.f ? t.color : th.muted,
+                cursor:"pointer", fontFamily:"'Outfit',sans-serif",
+              }}>{t.label}</button>
+            ))}
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
+              {trendDir && <span style={{ fontSize:14, color:trendCol, fontWeight:700 }}>{trendDir}</span>}
+              <span className="bebas" style={{ fontSize:26, color:tab.color, lineHeight:1 }}>{latest}{tab.unit}</span>
+            </div>
+            <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px" }}>LATEST</div>
+          </div>
+        </div>
+        <div key={selTab} style={{ animation:"tabSlideIn 0.2s ease-out" }}>
+        <svg viewBox={`0 0 ${W} ${H+20}`} width="100%" style={{ overflow:"visible" }}>
+          <path d={areaPath} fill={tab.color} opacity="0.08" />
+          <path d={path} fill="none" stroke={tab.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          {pts.map((p,i) => (
+            <g key={i}>
+              <circle cx={xs[i]} cy={ys[i]} r={R} fill={i===pts.length-1?tab.color:th.card} stroke={tab.color} strokeWidth="1.5" />
+              <text x={xs[i]} y={H+14}
+                textAnchor={i===0?"start":i===pts.length-1?"end":"middle"}
+                fontSize="8" fill={i===pts.length-1?tab.color:"#666"}
+                fontFamily="Outfit,sans-serif" fontWeight={i===pts.length-1?"700":"400"}>
+                {p[tab.f]}{tab.unit}
+              </text>
+            </g>
+          ))}
+        </svg>
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Personal Records — paginated, 3 per page ──────────────────────────────── */
+  function PRsDashboard({ allPrs }) {
+    const th = useTheme();
+    const S = useS();
+    const PAGE = 3;
+    const [page, setPage] = useState(0);
+    const [dir, setDir] = useState(1); // 1=right, -1=left
+    const totalPages = Math.ceil(allPrs.length / PAGE);
+    const prs = allPrs.slice(page * PAGE, page * PAGE + PAGE);
+    const goTo = (next) => {
+      setDir(next > page ? 1 : -1);
+      setPage(next);
+    };
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
+        <style>{`
+          @keyframes prSlideL { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes prSlideR { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+        `}</style>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ ...S.label }}>PERSONAL RECORDS</div>
+          {totalPages > 1 && (
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <button onClick={() => goTo(Math.max(0, page-1))} disabled={page===0}
+                style={{ background:"none", border:"none", color: page===0 ? th.inputB : th.muted,
+                  fontSize:26, cursor: page===0 ? "default" : "pointer", padding:"0 6px", lineHeight:1 }}>‹</button>
+              <button onClick={() => goTo(Math.min(totalPages-1, page+1))} disabled={page===totalPages-1}
+                style={{ background:"none", border:"none", color: page===totalPages-1 ? th.inputB : th.muted,
+                  fontSize:26, cursor: page===totalPages-1 ? "default" : "pointer", padding:"0 6px", lineHeight:1 }}>›</button>
+            </div>
+          )}
+        </div>
+        <div key={page} style={{ animation: dir === 1 ? "prSlideL 0.22s ease-out" : "prSlideR 0.22s ease-out" }}>
+          {prs.map((pr, i) => (
+            <div key={pr.name} style={{
+              display:"flex", alignItems:"center", gap:10,
+              padding:"8px 0",
+              borderBottom: i < prs.length-1 ? `1px solid ${th.border}` : "none",
+            }}>
+              <div className="bebas" style={{ fontSize:14, color:th.dim, width:22, flexShrink:0, textAlign:"right" }}>
+                #{page*PAGE+i+1}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:th.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{pr.name}</div>
+                <div style={{ fontSize:10, color:th.muted, marginTop:1 }}>
+                  {pr.muscle}{pr.reps ? ` · ${pr.reps} reps` : ""} · {new Date(pr.t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
+                </div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <span className="bebas" style={{ fontSize:22, color:th.accentFg, lineHeight:1 }}>{pr.w}</span>
+                <span style={{ fontSize:10, color:th.dim }}> kg</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function StrengthProgression({ sessions }) {
+    const th = useTheme();
+    const S = useS();
+    // Map DB groups to movement categories
+    const GROUP_MAP = {
+      "Chest":"Push","Shoulders":"Push",
+      "Back":"Pull",
+      "Legs":"Legs",
+      "Arms":"Arms",
+    };
+    const GROUPS = [
+      { key: "Push", label: "Push", col: th.accentBg },
+      { key: "Pull", label: "Pull", col: "#4ecdc4"   },
+      { key: "Legs", label: "Legs", col: "#fd9644"   },
+      { key: "Arms", label: "Arms", col: "#ff7675"   },
+    ];
+    const [selGroup, setSelGroup] = useState("Push");
+    const [selId, setSelId] = useState("");
+    const group = GROUPS.find(g => g.key === selGroup) || GROUPS[0];
+
+    // Scan sessions for all exercises belonging to this movement group
+    const exerciseMap = {};
+    sessions.forEach(s => {
+      (s.exercises||[]).forEach(ex => {
+        if (!ex) return;
+        const id = ex.id || ex.exId;
+        if (!id) return;
+        const dbEx = DB.find(d => d && d.id === id);
+        if (!dbEx) return;
+        const cat = GROUP_MAP[dbEx.group];
+        if (cat !== selGroup) return;
+        const rm = Math.max(...(ex.sets||[]).filter(st => st.done && (st.weight||0) > 0).map(st => st.weight*(1+(st.reps||1)/30)), 0);
+        if (rm <= 0) return;
+        if (!exerciseMap[id]) exerciseMap[id] = { id, name: dbEx.name, pts: [] };
+        exerciseMap[id].pts.push({ t: s.startTime||0, w: rm });
+      });
+    });
+    const liftHistory = Object.values(exerciseMap)
+      .map(l => ({ ...l, pts: l.pts.sort((a,b) => a.t - b.t) }))
+      .sort((a,b) => b.pts.length - a.pts.length);
+
+    const shownLifts = liftHistory.slice(0, 5);
+    const lift = shownLifts.find(l => l.id === selId) || shownLifts[0];
+    const fmtW = w => w >= 100 ? w.toFixed(0) : w.toFixed(1);
+
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
+        {/* Group selector */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ ...S.label }}>STRENGTH PROGRESSION</div>
+          {lift && (() => {
+            const allPts = lift.pts;
+            const delta = allPts.length >= 2 ? allPts[allPts.length-1].w - allPts[0].w : 0;
+            const trendCol = delta > 0 ? "#1db954" : "#ff6b6b";
+            const trend = delta > 0 ? "↑" : delta < 0 ? "↓" : null;
+            return (
+              <div style={{ textAlign:"right" }}>
+                <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
+                  {trend && <span style={{ fontSize:14, color:trendCol, fontWeight:700 }}>{trend}</span>}
+                  <span className="bebas" style={{ fontSize:26, color:group.col, lineHeight:1 }}>{fmtW(allPts[allPts.length-1].w)}</span>
+                </div>
+                <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px" }}>KG 1RM</div>
+              </div>
+            );
+          })()}
+        </div>
+        <div style={{ display:"flex", gap:5, marginBottom: shownLifts.length > 1 ? 6 : 10, flexWrap:"wrap" }}>
+          {GROUPS.map(g => (
+            <button key={g.key} onClick={() => { setSelGroup(g.key); setSelId(""); }} style={{
+              padding:"4px 11px", borderRadius:20, fontSize:11, fontWeight:700,
+              border:`1px solid ${selGroup===g.key ? g.col : th.inputB}`,
+              background: selGroup===g.key ? `${g.col}22` : "transparent",
+              color: selGroup===g.key ? g.col : th.muted,
+              cursor:"pointer", fontFamily:"'Outfit',sans-serif",
+            }}>{g.label}</button>
+          ))}
+        </div>
+        {shownLifts.length === 0 && (
+          <div style={{ fontSize:12, color:th.muted, padding:"10px 0" }}>No data yet for this movement group.</div>
+        )}
+        {shownLifts.length > 1 && (
+          <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
+            {shownLifts.map(l => {
+              const isActive = selId===l.id || (!selId && l===shownLifts[0]);
+              return (
+                <button key={l.id} onClick={() => setSelId(l.id)} style={{
+                  padding:"3px 9px", borderRadius:20, fontSize:10, fontWeight:600,
+                  border:`1px solid ${isActive ? "#4ecdc4" : th.inputB}`,
+                  background: isActive ? "#4ecdc418" : "transparent",
+                  color: isActive ? "#4ecdc4" : th.dim,
+                  cursor:"pointer", fontFamily:"'Outfit',sans-serif",
+                  whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120,
+                  transition:"all .18s",
+                }}>{l.name}</button>
+              );
+            })}
+          </div>
+        )}
+        {lift && (() => {
+          const allPts = lift.pts;
+          if (allPts.length < 2) return (
+            <div key={selGroup+selId} style={{ height:80, display:"flex", flexDirection:"column", justifyContent:"center", gap:4, animation:"tabSlideIn 0.2s ease-out" }}>
+              <div style={{ fontSize:12, color:th.muted, fontWeight:600 }}>Not enough data</div>
+              <div style={{ fontSize:11, color:th.dim }}>Log at least 2 sessions with <span style={{ color:th.sub }}>{lift.name}</span> to see the trend.</div>
+            </div>
+          );
+          const vals = allPts.map(p => p.w);
+          const mn = Math.min(...vals); const mx = Math.max(...vals, mn+1);
+          const range = mx - mn || 1;
+          const W = 280, H = 60, R = 3;
+          const xs = allPts.map((_,i) => (i/(allPts.length-1))*W);
+          const ys = allPts.map(p => H - ((p.w-mn)/range)*(H-R*2) - R);
+          const linePath = xs.map((x,i) => (i===0?`M${x},${ys[i]}`:`L${x},${ys[i]}`)).join(" ");
+          const areaPath = `${linePath} L${xs[xs.length-1]},${H+4} L0,${H+4} Z`;
+          return (
+            <svg key={selGroup+selId} viewBox={`0 0 ${W} ${H+20}`} width="100%" style={{ overflow:"visible", minHeight:80, animation:"tabSlideIn 0.2s ease-out" }}>
+              <path d={areaPath} fill={group.col} opacity="0.07" />
+              <path d={linePath} fill="none" stroke={group.col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {allPts.map((p,i) => (
+                <circle key={i} cx={xs[i]} cy={ys[i]} r={i===allPts.length-1?R+1:R}
+                  fill={i===allPts.length-1?group.col:th.card} stroke={group.col} strokeWidth="1.5" />
+              ))}
+              <text x={xs[0]} y={H+15} textAnchor="start" fontSize="10" fill="#666" fontFamily="Outfit,sans-serif">{fmtW(allPts[0].w)} kg</text>
+              <text x={xs[xs.length-1]} y={H+15} textAnchor="end" fontSize="10" fill={group.col} fontFamily="Outfit,sans-serif" fontWeight="700">{fmtW(allPts[allPts.length-1].w)} kg</text>
+            </svg>
+          );
+        })()}
+      </div>
+    );
+  }
+
+  /* ─── Dashboard Editor — drag-and-drop reorder, split added/available ──────── */
+  /* ─── Dashboard Onboarding — shown once to new users ───────────────────────── */
+  function DashboardOnboarding({ onDismiss }) {
+    const th = useTheme();
+    const S = useS();
+    const [step, setStep] = useState(0);
+    const [leaving, setLeaving] = useState(false);
+    const [dir, setDir] = useState(1);
+
+    const STEPS = [
+      {
+        icon: "▦",
+        title: "Your Home Screen",
+        body: "Your home is built from dashboards — each one tracks a different aspect of your training. You start with a few essentials.",
+      },
+      {
+        icon: "✎",
+        title: "Customise What You See",
+        body: "Tap EDIT next to MY DASHBOARDS to add, remove, or reorder your dashboards however you like.",
+      },
+      {
+        icon: "⠿",
+        title: "Drag to Reorder",
+        body: "Inside the editor, grab the grip handle on the left of any dashboard and drag it to the position you want.",
+      },
+      {
+        icon: "✕",
+        title: "Remove Anytime",
+        body: "Tap the ✕ on a dashboard to remove it from your home screen. You can always add it back from the ADD TO HOME section.",
+      },
+    ];
+
+    const goTo = (next) => {
+      setDir(next > step ? 1 : -1);
+      setLeaving(true);
+      setTimeout(() => { setStep(next); setLeaving(false); }, 160);
+    };
+
+    const isLast = step === STEPS.length - 1;
+    const s = STEPS[step];
+
+    return (
+      <div style={{
+        ...S.card, padding: 0, marginBottom: 10, overflow: "hidden",
+        border: `1px solid ${th.accentBg}44`,
+        animation: "shortcutListIn 0.3s cubic-bezier(0,0,0.2,1) forwards",
+      }}>
+        <style>{`
+          @keyframes obSlideIn  { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideInR { from{opacity:0;transform:translateX(-22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-18px)} }
+          @keyframes obSlideOutR{ from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(18px)} }
+        `}</style>
+        {/* Accent top bar */}
+        <div style={{ height: 3, background: th.accentBg }} />
+        <div style={{ padding: "16px 16px 14px" }}>
+          {/* Step content */}
+          <div
+            key={step}
+            style={{
+              animation: leaving
+                ? (dir > 0 ? "obSlideOut 0.16s ease-in forwards" : "obSlideOutR 0.16s ease-in forwards")
+                : (dir > 0 ? "obSlideIn 0.22s cubic-bezier(0,0,0.2,1) forwards" : "obSlideInR 0.22s cubic-bezier(0,0,0.2,1) forwards"),
+              minHeight: 84,
+            }}
+          >
+            <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                background: `color-mix(in srgb, ${th.accentBg} 15%, ${th.sect})`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize: 18, color: th.accentFg, fontWeight: 700,
+              }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 13, textAlign: "left", fontWeight: 700, color: th.text, marginBottom: 5 }}>{s.title}</div>
+                <div style={{ fontSize: 12, textAlign: "left", color: th.muted, lineHeight: 1.5 }}>{s.body}</div>
+              </div>
+            </div>
+          </div>
+          {/* Footer: dots + navigation */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop: 14 }}>
+            <div style={{ display:"flex", gap:5 }}>
+              {STEPS.map((_,i) => (
+                <div key={i} onClick={() => goTo(i)} style={{
+                  width: i === step ? 18 : 6, height: 6, borderRadius: 3,
+                  background: i === step ? th.accentBg : th.inputB,
+                  cursor: "pointer",
+                  transition: "width 0.2s, background 0.2s",
+                }} />
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={onDismiss} style={{
+                background: "none", border: "none",
+                color: th.dim, fontSize: 12, cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif", fontWeight: 600, padding: "6px 0",
+              }}>
+                {isLast ? "Done" : "Skip"}
+              </button>
+              {!isLast ? (
+                <button onClick={() => goTo(step + 1)} style={{
+                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                  border: "none", borderRadius: 9, color: th.accentT,
+                  padding: "6px 16px", cursor: "pointer", fontSize: 12,
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 700,
+                }}>Next →</button>
+              ) : (
+                <button onClick={onDismiss} style={{
+                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                  border: "none", borderRadius: 9, color: th.accentT,
+                  padding: "6px 16px", cursor: "pointer", fontSize: 12,
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 700,
+                }}>Got it ✓</button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function DashboardEditor({ activeDashOrder, onSave, onCancel }) {
+    const th = useTheme();
+    const S = useS();
+    const [order, setOrder] = useState([...activeDashOrder]);
+    const [closing, setClosing] = useState(false);
+    const listRef = useRef(null);
+    const { dragIdx, insertIdx, droppedIdx, dropDir, start: dragStart } = useDragSort(order, setOrder);
+    const dismiss = (cb) => { setClosing(true); setTimeout(cb, 250); };
+
+    const addedItems    = order.map(id => ALL_DASHBOARDS.find(d => d.id === id)).filter(Boolean);
+    const availableItems = ALL_DASHBOARDS.filter(d => !order.includes(d.id));
+
+    const removeItem = (id) => setOrder(prev => prev.filter(x => x !== id));
+    const addItem    = (id) => setOrder(prev => [...prev, id]);
+
+    return (
+      <div style={{ ...S.card, padding: 14, marginBottom: 10, animation: closing ? "dashClose 0.2s ease-out forwards" : "shortcutListIn 0.28s cubic-bezier(0,0,0.2,1) forwards" }}>
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ ...S.label, textAlign:"left" }}>DASHBOARDS</div>
+          <div style={{ display:"flex", gap:6 }}>
+            <button onClick={() => dismiss(onCancel)} style={{ background:"none", border:`1px solid ${th.inputB}`, borderRadius:9, color:th.muted, padding:"6px 12px", cursor:"pointer", fontSize:12, fontFamily:"'Outfit',sans-serif", fontWeight:700 }}>Cancel</button>
+            <button onClick={() => dismiss(() => onSave(order))} style={{ background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:9, color:th.accentT, padding:"6px 14px", cursor:"pointer", fontSize:12, fontFamily:"'Outfit',sans-serif", fontWeight:700 }}>SAVE</button>
+          </div>
+        </div>
+
+        {/* Top — added dashboards (drag to reorder) */}
+        <div style={{ fontSize:10, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ON HOME SCREEN</div>
+        <div ref={listRef} style={{ marginBottom: availableItems.length > 0 ? 12 : 0 }}>
+          {addedItems.length === 0 && (
+            <div style={{ fontSize:12, color:th.muted, padding:"10px 0" }}>No dashboards added yet.</div>
+          )}
+          {addedItems.map((d, exI) => {
+            const isBeingDragged = dragIdx === exI;
+            const isOver = insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx;
+            const wasDropped = droppedIdx === exI;
+            return (
+              <div
+                key={d.id}
+                data-drag-item=""
+                style={{
+                  opacity: isBeingDragged ? 0.35 : 1,
+                  transition: "opacity .15s",
+                  animation: wasDropped
+                    ? (dropDir === "down" ? "dropFromAbove 0.45s cubic-bezier(0.34,1.3,0.64,1) forwards" : "dropFromBelow 0.45s cubic-bezier(0.34,1.3,0.64,1) forwards")
+                    : undefined,
+                }}
+              >
+                {isOver && <DropLine />}
+                <div style={{
+                  display:"flex", alignItems:"center", gap:8,
+                  padding:"9px 0",
+                  borderBottom: `1px solid ${th.border}`,
+                }}>
+                  {/* Grip */}
+                  <div
+                    onPointerDown={(e) => { e.stopPropagation(); dragStart(e, exI, listRef); }}
+                    style={{ cursor:"grab", flexShrink:0, touchAction:"none", userSelect:"none", padding:"2px 8px 2px 2px" }}
+                  >
+                    <GripIcon />
+                  </div>
+                  {/* Label only */}
+                  <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign: "left" }}>{d.label}</span>
+                  {/* Remove ✕ */}
+                  <button
+                    onClick={() => removeItem(d.id)}
+                    style={{ background:"rgba(220,50,50,0.12)", border:"1px solid rgba(220, 50, 50, 0.3)", borderRadius:7, color:th.delText, cursor:"pointer", fontSize:14, padding:"2px 7px", lineHeight:1, flexShrink:0 }}
+                  >✕</button>
+                </div>
+              </div>
+            );
+          })}
+          {insertIdx === addedItems.length && dragIdx !== null && <DropLine />}
+        </div>
+
+        {/* Bottom — available (not on home) */}
+        <div style={{ borderTop:`1px solid ${th.border}`, paddingTop:10, marginTop: addedItems.length > 0 ? 8 : 0 }}>
+          <div style={{ fontSize:10, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ADD TO HOME</div>
+          {availableItems.length === 0 ? (
+            <div style={{ fontSize:12, color:th.muted, padding:"8px 0" }}>All dashboards are added.</div>
+          ) : (
+            availableItems.map((d, i) => (
+              <div key={d.id} style={{
+                display:"flex", alignItems:"center", gap:8,
+                padding:"9px 0",
+                borderBottom: i < availableItems.length - 1 ? `1px solid ${th.border}` : "none",
+              }}>
+                <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign: "left" }}>{d.label}</span>
+                <button
+                  onClick={() => addItem(d.id)}
+                  style={{
+                    background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                    backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+                    border:"none",
+                    borderRadius:9, color:th.accentT,
+                    padding:"6px 14px", cursor:"pointer", fontSize:12,
+                    fontFamily:"'Outfit',sans-serif", fontWeight:700, flexShrink:0,
+                  }}
+                >+ Add</button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function HomeView({
     sessions,
     programs,
@@ -3595,6 +4170,17 @@ import "./styles.css";
     const S = useS();
     const [editShortcuts, setEditShortcuts] = useState(false);
     const [addingShortcut, setAddingShortcut] = useState(false);
+    const [streakOff, setStreakOff] = useState(0); // months offset; 0=current
+    const [streakDir, setStreakDir] = useState(1);
+    const [editingDashboards, setEditingDashboards] = useState(false);
+    const [showDashOnboarding, setShowDashOnboarding] = useState(!settings.hasDashOnboarded);
+    const dismissDashOnboarding = () => {
+      setShowDashOnboarding(false);
+      onUpdateSettings({ ...settings, hasDashOnboarded: true });
+    };
+    const enabledDashboards = settings.homeDashboards || ["streak","intensity","strength","volume"];
+    const isDashEnabled = (id) => enabledDashboards.includes(id);
+    const cancelDashEdit = () => setEditingDashboards(false);
     const [removingShortcut, setRemovingShortcut] = useState(null);
     const animatedRemoveFromHome = (pid) => {
       setRemovingShortcut(pid);
@@ -3665,197 +4251,160 @@ import "./styles.css";
           </div>
         </div>
 
-        {/* This Week — removed Volume, expanded muscles */}
-        <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left", }}>
-          <div style={{ ...S.label, marginBottom: 14 }}>
-            YOUR 7-DAY HIGHLIGHTS
-          </div>
-          <div style={{ display: "flex", gap: 7, marginBottom: 14 }}>
-            {[
-              { v: ws.length, l: "SESSIONS" },
-              { v: ws.reduce((a, s) => a + (s.exercises || []).filter(e => e.type !== "cardio")
-              .reduce((b, e) => b + (e.sets || []).filter(st => st.done).length, 0), 0), l: "SETS" },
-            ].map((s) => (
-              <div
-                key={s.l}
-                style={{
-                  flex: 1,
-                  background: `color-mix(in srgb, ${th.sect} 50%, transparent)`,
-                  backdropFilter: "blur(12px)",
-                  WebkitBackdropFilter: "blur(12px)",
-                  borderRadius: 10,
-                  padding: "12px 8px",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  className="bebas"
-                  style={{ fontSize: 26, color: th.accentFg, lineHeight: 1 }}
-                >
-                  {s.v}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: th.dim,
-                    letterSpacing: "1.5px",
-                    marginTop: 3,
-                  }}
-                >
-                  {s.l}
-                </div>
-              </div>
-            ))}
-            {/* Loads lifted this week */}
-            <div
-              key="loads"
-              style={{
-                flex: 1,
-                background: th.sect,
-                borderRadius: 10,
-                padding: "12px 8px",
-                textAlign: "center",
-              }}
+        <HighlightsCard sessions={sessions} sessionVol={sessionVol} />
+        <div style={{ height: 8 }} />
+
+        {/* ── My Dashboards header ── */}
+        {!editingDashboards && (
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, marginTop:16 }}>
+            <div style={S.label}>MY DASHBOARDS</div>
+            <button
+              onClick={() => setEditingDashboards(true)}
+              style={{ background:"none", border:"none", color:th.dim, fontSize:12, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700 }}
             >
-              {(() => {
-                const totalKg = ws.reduce((a, s) => a + sessionVol(s), 0);
-                const display =
-                  totalKg >= 1000
-                    ? `${(totalKg / 1000).toFixed(1)}t`
-                    : `${totalKg}kg`;
-                return (
-                  <>
-                    <div
-                      className="bebas"
-                      style={{ fontSize: 26, color: th.accentFg, lineHeight: 1 }}
-                    >
-                      {display}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: th.dim,
-                        letterSpacing: "1.5px",
-                        marginTop: 3,
-                      }}
-                    >
-                      LOADS
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
+              EDIT ✎
+            </button>
           </div>
-          {/* Granular muscles trained */}
-          <div>
-            <div
-              style={{
-                fontSize: 10,
-                textAlign: "left",
-                color: th.dim,
-                letterSpacing: "1.5px",
-                marginBottom: 7,
-              }}
-            >
-              MUSCLES TRAINED — LAST 7 DAYS
-            </div>
+        )}
+
+        {/* ── Dashboard onboarding card ── */}
+        {showDashOnboarding && <DashboardOnboarding onDismiss={dismissDashOnboarding} />}
+
+        {/* ── Dashboard editor panel ── */}
+        {editingDashboards && (
+          <DashboardEditor
+            activeDashOrder={enabledDashboards}
+            onSave={(newOrder) => { onUpdateSettings({ ...settings, homeDashboards: newOrder }); setEditingDashboards(false); }}
+            onCancel={cancelDashEdit}
+          />
+        )}
+
+        {/* ── Dashboards ordered by enabledDashboards ── */}
+        <div style={{ display:"flex", flexDirection:"column" }}>
+        {isDashEnabled("muscles") && (
+          <div style={{ order: enabledDashboards.indexOf("muscles") }}>
+          <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div style={{ ...S.label }}>MUSCLES TRAINED</div>
+            <div style={{ fontSize:11, color:th.dim, letterSpacing:"0.5px" }}>LAST 7 DAYS</div>
+          </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {ALL_MUSCLES.map((m) => {
                 const hit = weekMuscleSet.has(m);
                 return (
-                  <div
-                    key={m}
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: 6,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      background: hit ? th.accentBg : "transparent",
-                      color: hit ? th.accentT : th.dim,
-                      border: `1px solid ${hit ? th.accentBg : th.inputB}`,
-                      transition: "all .2s",
-                    }}
-                  >
-                    {m}
-                  </div>
+                  <div key={m} style={{
+                    padding: "3px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700,
+                    background: hit ? th.accentBg : "transparent",
+                    color: hit ? th.accentT : th.dim,
+                    border: `1px solid ${hit ? th.accentBg : th.inputB}`,
+                    transition: "all .2s",
+                  }}>{m}</div>
                 );
               })}
             </div>
           </div>
+        </div>)}
+
+        <div style={{ order: enabledDashboards.indexOf("streak") }}>
+        {isDashEnabled("streak") ? sessions.length > 0 && (() => {
+          const todayMs = new Date(); todayMs.setHours(0,0,0,0);
+          const sessionDays = new Set(sessions.map(s => {
+            const d = new Date(s.startTime || 0); d.setHours(0,0,0,0);
+            return d.getTime();
+          }));
+          let streak = 0;
+          for (let i = 0; i <= 365; i++) {
+            const d = new Date(todayMs); d.setDate(d.getDate() - i);
+            if (sessionDays.has(d.getTime())) streak++;
+            else if (i > 0) break;
+          }
+          const base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + streakOff);
+          const year = base.getFullYear(); const month = base.getMonth();
+          const monthName = base.toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
+          const rawDow = new Date(year, month, 1).getDay();
+          const firstDow = rawDow === 0 ? 6 : rawDow - 1;
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          const earliest = sessions.length ? new Date(Math.min(...sessions.map(s => s.startTime||Date.now()))) : new Date();
+          const minOff = (earliest.getFullYear() - new Date().getFullYear()) * 12 + earliest.getMonth() - new Date().getMonth();
+          const canBack = streakOff > minOff;
+          const canFwd  = streakOff < 0;
+          // Fixed 6-row grid (42 cells) so height never changes between months
+          const cells = [];
+          for (let i = 0; i < firstDow; i++) cells.push(null);
+          for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+          while (cells.length < 42) cells.push(null);
+          const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+          return (
+            <div style={{ ...S.card, padding: "12px 12px 10px", marginBottom: 10, textAlign: "left" }}>
+              <style>{`
+                @keyframes streakSlideL { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
+                @keyframes streakSlideR { from{opacity:0;transform:translateX(-18px)} to{opacity:1;transform:translateX(0)} }
+              `}</style>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ ...S.label }}>STREAK</div>
+                <div style={{ textAlign: "right" }}>
+                  <span className="bebas" style={{ fontSize: 28, color: th.accentFg, lineHeight: 1 }}>{streak}</span>
+                  <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1px" }}>DAYS</div>
+                </div>
+              </div>
+              {/* Month nav */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <button onClick={() => { if (!canBack) return; setStreakDir(-1); setStreakOff(o => o-1); }}
+                  style={{ background:"none",border:"none",color:canBack?th.text:th.inputB,fontSize:22,cursor:canBack?"pointer":"default",padding:"0 2px",lineHeight:1 }}>‹</button>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", color: th.sub }}>{monthName}</div>
+                <button onClick={() => { if (!canFwd) return; setStreakDir(1); setStreakOff(o => o+1); }}
+                  style={{ background:"none",border:"none",color:canFwd?th.text:th.inputB,fontSize:22,cursor:canFwd?"pointer":"default",padding:"0 2px",lineHeight:1 }}>›</button>
+              </div>
+              {/* DOW headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1, marginBottom: 1 }}>
+                {DOW.map((d, i) => <div key={i} style={{ textAlign:"center",fontSize:12,color:th.sub,fontWeight:700,letterSpacing:0 }}>{d}</div>)}
+              </div>
+              {/* Fixed 6-row × 7-col grid */}
+              <div key={streakOff} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridTemplateRows: "repeat(6, 1fr)", gap: 1,
+                animation: streakDir < 0 ? "streakSlideR 0.22s ease-out" : "streakSlideL 0.22s ease-out" }}>
+                {cells.map((day, ci) => {
+                  if (!day) return <div key={ci} style={{ aspectRatio:"1" }} />;
+                  const dt = new Date(year, month, day); dt.setHours(0,0,0,0);
+                  const isToday = dt.getTime() === todayMs.getTime();
+                  const daySess = sessions.filter(s => { const sd = new Date(s.startTime||0); sd.setHours(0,0,0,0); return sd.getTime() === dt.getTime(); });
+                  const active = daySess.length > 0;
+                  const hasResist = daySess.some(s => (s.exercises||[]).some(e => e.type !== "cardio"));
+                  const hasCardio = daySess.some(s => (s.exercises||[]).some(e => e.type === "cardio"));
+                  const bg = !active ? "transparent"
+                    : hasResist && hasCardio ? "#fd9644"
+                    : hasCardio ? "#4ecdc4" : th.accentBg;
+                  return (
+                    <div key={ci} style={{ aspectRatio:"1", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <div style={{
+                        width:"90%", height:"90%", borderRadius:"50%", background:bg,
+                        border: isToday && !active ? `1.5px solid ${th.inputB}` : "none",
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        fontSize:13, color: active ? th.accentT : isToday ? th.text : th.sub,
+                        fontWeight: active || isToday ? 700 : 400,
+                      }}>{day}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display:"flex", gap:10, marginTop:8, justifyContent:"center" }}>
+                {[{ label:"Resistance",col:th.accentBg },{ label:"Cardio",col:"#4ecdc4" },{ label:"Mix",col:"#fd9644" }].map(({label,col})=>(
+                  <div key={label} style={{ display:"flex",alignItems:"center",gap:4 }}>
+                    <div style={{ width:8,height:8,borderRadius:"50%",background:col }} />
+                    <span style={{ fontSize:9,color:th.dim }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })() : null}
         </div>
 
         {/* Performance dashboards */}
         {sessions.length > 0 && (
           <>
-            {/* Row 1 — last 7 days stats */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 8,
-                marginBottom: 8,
-              }}
-            >
-              {(function () {
-                const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-                const recent = sessions.filter(
-                  (s) => (s.startTime || 0) >= cutoff
-                );
-                const mins = recent.reduce((a, s) => a + (s.duration || 0), 0);
-                const cals = recent.reduce((a, s) => a + (s.calories || 0), 0);
-                const avgInt = recent.length
-                  ? (
-                      recent.reduce((a, s) => a + (s.intensity || 0), 0) /
-                      recent.length
-                    ).toFixed(1) + "/10"
-                  : "—";
-                const statItems = [
-                  {
-                    v:
-                      mins >= 60
-                        ? `${Math.floor(mins / 60)}h ${mins % 60}m`
-                        : `${mins}m`,
-                    l: "TIME TRAINED",
-                  },
-                  { v: cals.toLocaleString() + " kcal", l: "CALS BURNED" },
-                  { v: avgInt, l: "AVERAGE INTENSITY" },
-                ];
-                return statItems.map((s) => (
-                  <div
-                    key={s.l}
-                    style={{
-                      ...S.card,
-                      padding: "12px 8px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      className="bebas"
-                      style={{
-                        fontSize: 22,
-                        color: th.accentFg,
-                        lineHeight: 1,
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {s.v}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 9,
-                        color: th.dim,
-                        letterSpacing: "1.2px",
-                        marginTop: 3,
-                      }}
-                    >
-                      {s.l}
-                    </div>
-                  </div>
-                ));
-              })()}
-            </div>
-            {/* Row 2 — intensity-only bar chart */}
-            <div
+            {isDashEnabled("intensity") && <div style={{ order: enabledDashboards.indexOf("intensity") }}><div
               style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 16 }}
             >
               <div
@@ -3866,8 +4415,27 @@ import "./styles.css";
                   marginBottom: 10,
                 }}
               >
-                <div style={{ ...S.label }}>RECENT PERFORMANCE</div>
-                <div style={{ fontSize: 12, color: th.dim }}>last 7 days</div>
+                <div style={{ ...S.label }}>INTENSITY</div>
+                {(() => {
+                  const cut7 = Date.now() - 7*24*60*60*1000;
+                  const r7 = sessions.filter(s => (s.startTime||0) >= cut7 && (s.intensity||0) > 0);
+                  if (!r7.length) return null;
+                  const avgI = (r7.reduce((a,s)=>a+(s.intensity||0),0)/r7.length).toFixed(1);
+                  const cut14 = Date.now() - 14*24*60*60*1000;
+                  const prev7 = sessions.filter(s => (s.startTime||0) >= cut14 && (s.startTime||0) < cut7 && (s.intensity||0) > 0);
+                  const prevAvgI = prev7.length ? (prev7.reduce((a,s)=>a+(s.intensity||0),0)/prev7.length) : null;
+                  const intArrow = prevAvgI != null ? (parseFloat(avgI) > prevAvgI ? "↑" : parseFloat(avgI) < prevAvgI ? "↓" : null) : null;
+                  const intArrowCol = intArrow === "↑" ? "#1db954" : "#ff6b6b";
+                  return (
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
+                        {intArrow && <span style={{ fontSize:14, color:intArrowCol, fontWeight:700 }}>{intArrow}</span>}
+                        <span className="bebas" style={{ fontSize:28, color:th.accentFg, lineHeight:1 }}>{avgI}</span>
+                      </div>
+                      <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px" }}>AVG /10</div>
+                    </div>
+                  );
+                })()}
               </div>
               {(() => {
                 // Build last-7-days slots (always 7, empty days shown dimmed)
@@ -3909,8 +4477,13 @@ import "./styles.css";
                             }, 0) * 10
                           ) / 10;
                       }
+                      const hasResist = daySessions.some(s => (s.exercises||[]).some(e => e.type !== "cardio"));
+                      const hasCardio = daySessions.some(s => (s.exercises||[]).some(e => e.type === "cardio"));
                       const h = hasData ? Math.max(8, (n / 10) * 80) : 6;
-                      const col = hasData ? intColor(n, th) : th.inputB;
+                      const barBg = hasData
+                        ? (hasResist && hasCardio ? "#fd9644" : hasCardio ? "#4ecdc4" : th.accentBg)
+                        : th.inputB;
+                      const col = hasData ? (hasCardio && !hasResist ? "#4ecdc4" : th.accentFg) : th.inputB;
                       const dateLabel = d.toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
@@ -3941,7 +4514,7 @@ import "./styles.css";
                             style={{
                               width: "100%",
                               height: h,
-                              background: col,
+                              background: barBg,
                               borderRadius: "3px 3px 0 0",
                               opacity: hasData ? 1 : 0.25,
                             }}
@@ -3964,35 +4537,112 @@ import "./styles.css";
                   </div>
                 );
               })()}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginTop: 8,
-                  justifyContent: "center",
-                }}
-              >
-                <div
-                  style={{
-                    width: 28,
-                    height: 10,
-                    borderRadius: 2,
-                    background:
-                      "linear-gradient(to right,#ff6b6b,#fd9644,#c8f030)",
-                  }}
-                />
-                <span style={{ fontSize: 11, color: th.dim }}>
-                  Intensity (accounts for volume, weights & completion)
-                </span>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                {[
+                  { label: "Resistance", swatch: th.accentBg },
+                  { label: "Cardio", swatch: "#4ecdc4" },
+                  { label: "Mix", swatch: "#fd9644" },
+                ].map(({ label, swatch }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 22, height: 8, borderRadius: 2, background: swatch }} />
+                    <span style={{ fontSize: 10, color: th.dim }}>{label}</span>
+                  </div>
+                ))}
               </div>
-            </div>
+            </div></div>}
+
+            {isDashEnabled("calories") && <div style={{ order: enabledDashboards.indexOf("calories") }}><div style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ ...S.label }}>CALORIES BURNED</div>
+                {(() => {
+                  const cut7 = Date.now() - 7*24*60*60*1000;
+                  const r7 = sessions.filter(s => (s.startTime||0) >= cut7 && (s.calories||0) > 0);
+                  if (!r7.length) return null;
+                  const avgC = Math.round(r7.reduce((a,s)=>a+(s.calories||0),0)/r7.length);
+                  const cut14c = Date.now() - 14*24*60*60*1000;
+                  const prev7c = sessions.filter(s => (s.startTime||0) >= cut14c && (s.startTime||0) < cut7 && (s.calories||0) > 0);
+                  const prevAvgC = prev7c.length ? Math.round(prev7c.reduce((a,s)=>a+(s.calories||0),0)/prev7c.length) : null;
+                  const calArrow = prevAvgC != null ? (avgC > prevAvgC ? "↑" : avgC < prevAvgC ? "↓" : null) : null;
+                  const calArrowCol = calArrow === "↑" ? "#1db954" : "#ff6b6b";
+                  return (
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
+                        {calArrow && <span style={{ fontSize:14, color:calArrowCol, fontWeight:700 }}>{calArrow}</span>}
+                        <span className="bebas" style={{ fontSize:28, color:th.accentFg, lineHeight:1 }}>{avgC.toLocaleString()}</span>
+                      </div>
+                      <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px" }}>AVG KCAL</div>
+                    </div>
+                  );
+                })()}
+              </div>
+              {(() => {
+                const days = Array.from({ length: 7 }, (_, i) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (6 - i));
+                  d.setHours(0, 0, 0, 0);
+                  return d;
+                });
+                const byDate = {};
+                sessions.forEach((s) => {
+                  if (!s.startTime) return;
+                  const dk = new Date(s.startTime).toDateString();
+                  if (!byDate[dk]) byDate[dk] = [];
+                  byDate[dk].push(s);
+                });
+                const dayData = days.map((d) => {
+                  const dk = d.toDateString();
+                  const ds = byDate[dk] || [];
+                  const resistCal = ds.filter(s => (s.exercises||[]).some(e => e.type !== "cardio")).reduce((a,s) => a+(s.calories||0),0);
+                  const cardioCal = ds.filter(s => (s.exercises||[]).every(e => e.type === "cardio") && s.exercises.length>0).reduce((a,s) => a+(s.calories||0),0);
+                  const total = ds.reduce((a,s) => a+(s.calories||0),0);
+                  return { total, resistCal, cardioCal, hasResist: resistCal>0, hasCardio: cardioCal>0 };
+                });
+                const maxCal = Math.max(...dayData.map(d=>d.total), 1);
+                return (
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    {days.map((d, i) => {
+                      const { total, resistCal, cardioCal, hasResist, hasCardio } = dayData[i];
+                      const hasData = total > 0;
+                      const h = hasData ? Math.max(8, (total / maxCal) * 80) : 6;
+                      const barBg = hasData
+                        ? (hasResist && hasCardio ? "#fd9644" : hasCardio ? "#4ecdc4" : th.accentBg)
+                        : th.inputB;
+                      const col = hasData ? (hasCardio && !hasResist ? "#4ecdc4" : th.accentFg) : th.inputB;
+                      const dateLabel = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                      return (
+                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: hasData ? col : "transparent", marginBottom: 3, lineHeight: 1 }}>
+                            {hasData ? total : "·"}
+                          </span>
+                          <div style={{ width: "100%", height: h, background: barBg, borderRadius: "3px 3px 0 0", opacity: hasData ? 1 : 0.25 }} />
+                          <span style={{ fontSize: 11, color: th.dim, marginTop: 4, lineHeight: 1, textAlign: "center", whiteSpace: "nowrap" }}>
+                            {dateLabel}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+              <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                {[
+                  { label: "Resistance", swatch: th.accentBg },
+                  { label: "Cardio", swatch: "#4ecdc4" },
+                  { label: "Mix", swatch: "#fd9644" },
+                ].map(({ label, swatch }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 22, height: 8, borderRadius: 2, background: swatch }} />
+                    <span style={{ fontSize: 10, color: th.dim }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div></div>}
           </>
         )}
 
-        {/* Body composition dashboard */}
-        {measurements && measurements.length > 0 && (
-          <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left", }}>
+        <div style={{ order: enabledDashboards.indexOf("bodycomp") }}>
+        {isDashEnabled("bodycomp") && measurements && measurements.length > 0 && (
+          <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
             <div style={{ ...S.label, marginBottom: 12 }}>BODY COMPOSITION</div>
             {(() => {
               const latest = measurements[0];
@@ -4001,191 +4651,311 @@ import "./styles.css";
                 if (!prev || prev[f] == null || latest[f] == null) return null;
                 const d = (latest[f] - prev[f]).toFixed(1);
                 return {
-                  d,
-                  sign: d > 0 ? "+" : "",
-                  col:
-                    f === "fat"
-                      ? d < 0
-                        ? "#1db954" // green — fat decreased (good)
-                        : "#ff6b6b" // red — fat increased (bad)
-                      : d > 0
-                      ? "#1db954" // green — weight/muscle increased (good)
-                      : "#ff6b6b", // red — decreased
+                  d, sign: d > 0 ? "+" : "",
+                  col: f === "fat" ? (d < 0 ? "#1db954" : "#ff6b6b") : (d > 0 ? "#1db954" : "#ff6b6b"),
                 };
               };
               return (
-                <>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
-                      gap: 8,
-                      marginBottom: 12,
-                    }}
-                  >
-                    {[
-                      { f: "weight", l: "WEIGHT", unit: "kg" },
-                      { f: "muscle", l: "MUSCLE MASS", unit: "%" },
-                      { f: "fat", l: "BODY FAT %", unit: "%" },
-                    ].map((m) => {
-                      const val = latest[m.f];
-                      const d = delta(m.f, m.unit);
-                      return (
-                        <div
-                          key={m.f}
-                          style={{
-                            background: th.sect,
-                            borderRadius: 10,
-                            padding: "12px 8px",
-                            textAlign: "center",
-                          }}
-                        >
-                          <div
-                            className="bebas"
-                            style={{
-                              fontSize: 22,
-                              color: th.accentFg,
-                              lineHeight: 1,
-                            }}
-                          >
-                            {val != null ? val + m.unit : "—"}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: th.dim,
-                              letterSpacing: "1.5px",
-                              marginTop: 2,
-                            }}
-                          >
-                            {m.l}
-                          </div>
-                          {d && (
-                            <div
-                              style={{
-                                fontSize: 12,
-                                color: d.col,
-                                fontWeight: 700,
-                                marginTop: 3,
-                              }}
-                            >
-                              {d.sign}
-                              {d.d}
-                              {m.unit}
-                            </div>
-                          )}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+                  {[
+                    { f:"weight", l:"WEIGHT",     unit:"kg" },
+                    { f:"muscle", l:"MUSCLE MASS", unit:"%" },
+                    { f:"fat",    l:"BODY FAT %",  unit:"%" },
+                  ].map((m) => {
+                    const val = latest[m.f];
+                    const d = delta(m.f, m.unit);
+                    return (
+                      <div key={m.f} style={{ background:th.sect, borderRadius:10, padding:"12px 8px", textAlign:"center" }}>
+                        <div className="bebas" style={{ fontSize:22, color:th.accentFg, lineHeight:1 }}>
+                          {val != null ? val + m.unit : "—"}
                         </div>
-                      );
-                    })}
-                  </div>
-                  {/* Trend charts — weight, muscle %, body fat % */}
-                  {(() => {
-                    const trendFields = [
-                      {
-                        f: "weight",
-                        label: "WEIGHT TREND",
-                        unit: "kg",
-                        barColor: th.accentBg,
-                      },
-                      {
-                        f: "muscle",
-                        label: "MUSCLE TREND",
-                        unit: "%",
-                        barColor: "#4ecdc4",
-                      },
-                      {
-                        f: "fat",
-                        label: "BODY FAT TREND",
-                        unit: "%",
-                        barColor: "#ff6b6b",
-                      },
-                    ];
-                    return trendFields.map(({ f, label, unit, barColor }) => {
-                      const pts = measurements
-                        .filter((m) => m[f] != null)
-                        .slice(0, 6)
-                        .reverse();
-                      if (pts.length < 2) return null;
-                      const vals = pts.map((p) => p[f]);
-                      const mn = Math.min(...vals);
-                      const mx = Math.max(...vals);
-                      // Anchor to a proportional floor so bars reflect real values,
-                      // not just the min→max delta (which exaggerates tiny changes).
-                      const floor = mn * 0.93;
-                      const ceiling = mx * 1.04;
-                      const range = ceiling - floor || 1;
-                      return (
-                        <div key={f} style={{ marginTop: 18 }}>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: th.sub,
-                              letterSpacing: "1.5px",
-                              fontWeight: 700,
-                              marginBottom: 14,
-                            }}
-                          >
-                            {label}
+                        <div style={{ fontSize:11, color:th.dim, letterSpacing:"1.5px", marginTop:2 }}>{m.l}</div>
+                        {d && (
+                          <div style={{ fontSize:12, color:d.col, fontWeight:700, marginTop:3 }}>
+                            {d.sign}{d.d}{m.unit}
                           </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-end",
-                              gap: 4,
-                              height: 56,
-                            }}
-                          >
-                            {pts.map((p, i) => {
-                              const h = Math.max(
-                                4,
-                                ((p[f] - floor) / range) * 48
-                              );
-                              const isLatest = i === pts.length - 1;
-                              return (
-                                <div
-                                  key={i}
-                                  style={{
-                                    flex: 1,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                    gap: 2,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      width: "100%",
-                                      height: h,
-                                      background: isLatest
-                                        ? barColor
-                                        : barColor + "55",
-                                      borderRadius: "3px 3px 0 0",
-                                      transition: "height .3s",
-                                    }}
-                                  />
-                                  <div
-                                    style={{
-                                      fontSize: 12,
-                                      color: th.dim,
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    {p[f]}
-                                    {unit}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               );
             })()}
           </div>
         )}
+        </div>
+
+        <div style={{ order: enabledDashboards.indexOf("bodytrends") }}>
+        {isDashEnabled("bodytrends") && measurements && measurements.length > 0 && (
+          <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+            <div style={{ ...S.label, marginBottom: 12 }}>BODY TRENDS</div>
+            <BodyTrendChart measurements={measurements} />
+          </div>
+        )}
+        </div>
+
+        <div style={{ order: enabledDashboards.indexOf("recovery") }}>
+        {isDashEnabled("recovery") ? sessions.length > 0 && (() => {
+          const now = Date.now();
+          // For each muscle, scan all sessions and find: last trained time, total volume (sets×reps) in last 72h
+          const muscleData = {};
+          ALL_MUSCLES.forEach(m => { muscleData[m] = { lastMs: 0, vol72h: 0 }; });
+
+          sessions.forEach(s => {
+            const sTime = s.startTime || 0;
+            const hoursAgo = (now - sTime) / 3600000;
+            (s.exercises || []).forEach(ex => {
+              if (!ex.muscle || !muscleData[ex.muscle]) return;
+              const md = muscleData[ex.muscle];
+              if (sTime > md.lastMs) md.lastMs = sTime;
+              // Volume in last 72h: sets × reps × weight (or just sets×reps for bodyweight)
+              if (hoursAgo <= 72) {
+                (ex.sets || []).filter(st => st.done).forEach(st => {
+                  md.vol72h += (st.reps || 0) * Math.max(st.weight || 1, 1);
+                });
+              }
+            });
+          });
+
+          // Score each muscle: 0=fresh, 1=fatigued
+          // Recovery rate: ~72h full recovery. Score based on recency + volume.
+          const maxVol = Math.max(...Object.values(muscleData).map(d => d.vol72h), 1);
+          const scored = ALL_MUSCLES.map(m => {
+            const { lastMs, vol72h } = muscleData[m];
+            if (!lastMs) return { m, score: 0 }; // never trained
+            const hoursAgo = (now - lastMs) / 3600000;
+            // Recency score (0=fresh/72+h, 1=just trained)
+            const recencyScore = Math.max(0, 1 - hoursAgo / 72);
+            // Volume score (normalized)
+            const volScore = vol72h / maxVol;
+            // Combined: 60% recency, 40% volume
+            const score = Math.min(1, recencyScore * 0.6 + volScore * 0.4);
+            return { m, score, hoursAgo };
+          });
+
+          const trained = scored.filter(s => s.hoursAgo != null);
+          if (!trained.length) return null;
+
+          const getColor = (score) => {
+            if (score >= 0.7)  return { bg: "#ff6b6b22", border: "#ff6b6b", text: "#ff6b6b", label: "HIGH" };
+            if (score >= 0.35) return { bg: "#fd964422", border: "#fd9644", text: "#fd9644", label: "MED" };
+            if (score > 0)     return { bg: `${th.accentBg}18`, border: th.accentBg, text: th.accentFg, label: "LOW" };
+            return { bg: "transparent", border: "transparent", text: "#555", label: "" };
+          };
+
+          return (
+            <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ ...S.label }}>MUSCLE RECOVERY</div>
+                <div style={{ fontSize: 11, color: th.dim }}>72h window</div>
+              </div>
+              <div style={{ fontSize: 11, color: th.muted, marginBottom: 12 }}>
+                Based on sets, reps & days since last trained
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                {scored.map(({ m, score, hoursAgo }) => {
+                  const c = getColor(score);
+                  // Rested: plain gray text, no border
+                  if (!hoursAgo || score === 0) return (
+                    <div key={m} style={{ padding: "3px 7px", borderRadius: 6, fontSize: 11, fontWeight: 400,
+                      border: "none", color: th.dim, background: "transparent" }}>{m}</div>
+                  );
+                  return (
+                    <div key={m}
+                      style={{ padding: "3px 7px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                        border: `1px solid ${c.border}`, color: c.text, background: c.bg,
+                        cursor: "default", userSelect: "none" }}>
+                      {m}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
+                {[
+                  { label: "High fatigue", col: "#ff6b6b" },
+                  { label: "Recovering",   col: "#fd9644" },
+                  { label: "Low fatigue",  col: th.accentBg },
+                  { label: "Rested",       col: th.dim },
+                ].map(({ label, col }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: col }} />
+                    <span style={{ fontSize: 10, color: th.dim }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })() : null}
+        </div>
+
+        <div style={{ order: enabledDashboards.indexOf("efficiency") }}>
+        {isDashEnabled("efficiency") ? sessions.length > 0 && (() => {
+          const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000; // last 30 days
+          const recent = sessions.filter(s => (s.startTime || 0) >= cutoff && (s.duration || 0) > 0);
+          if (!recent.length) return null;
+
+          // Efficiency = volume (kg) / duration (min)  → kg per minute
+          const withEff = recent.map(s => {
+            const vol = sessionVol(s);
+            const eff = s.duration > 0 ? vol / s.duration : 0;
+            return { ...s, vol, eff };
+          }).filter(s => s.vol > 0).reverse(); // oldest first for chart
+
+          if (!withEff.length) return null;
+
+          const effVals = withEff.map(s => s.eff);
+          const avgEff  = effVals.reduce((a,v) => a+v, 0) / effVals.length;
+          const maxEff  = Math.max(...effVals, 1);
+          const minEff  = Math.min(...effVals, 0);
+          const range   = maxEff - minEff || 1;
+          const latest  = withEff[withEff.length - 1];
+          const trend   = withEff.length >= 2
+            ? (latest.eff > withEff[withEff.length - 2].eff ? "↑" : latest.eff < withEff[withEff.length - 2].eff ? "↓" : null)
+            : null;
+          const trendCol = trend === "↑" ? "#1db954" : "#ff6b6b";
+
+          // SVG line chart
+          const W = 280, H = 52, R = 3;
+          const xs = withEff.map((_, i) => (i / Math.max(withEff.length - 1, 1)) * W);
+          const ys = withEff.map(s => H - ((s.eff - minEff) / range) * (H - R*2) - R);
+          const linePath = xs.map((x, i) => (i === 0 ? `M${x},${ys[i]}` : `L${x},${ys[i]}`)).join(" ");
+          const areaPath = `${linePath} L${xs[xs.length-1]},${H+4} L0,${H+4} Z`;
+          // Average line Y
+          const avgY = H - ((avgEff - minEff) / range) * (H - R*2) - R;
+
+          const effColor = (e) => e >= avgEff * 1.2 ? th.accentBg : e >= avgEff * 0.8 ? "#fd9644" : "#ff6b6b";
+
+          return (
+            <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div>
+                  <div style={{ ...S.label }}>TRAINING EFFICIENCY</div>
+
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 3, justifyContent: "flex-end" }}>
+                    {trend && <span style={{ fontSize: 16, color: trendCol, fontWeight: 700, lineHeight: 1 }}>{trend}</span>}
+                    <span className="bebas" style={{ fontSize: 28, color: effColor(latest.eff), lineHeight: 1 }}>{latest.eff.toFixed(1)}</span>
+                  </div>
+                  <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1px" }}>KG/MIN LATEST</div>
+                </div>
+              </div>
+              <svg viewBox={`0 0 ${W} ${H + 22}`} width="100%" style={{ overflow: "visible", marginTop: 8 }}>
+                {/* Area */}
+                <path d={areaPath} fill={th.accentBg} opacity="0.06" />
+                {/* Avg line (dashed) */}
+                <line x1="0" y1={avgY} x2={W} y2={avgY} stroke={th.inputB} strokeWidth="1" strokeDasharray="4 3" />
+
+                {/* Line */}
+                <path d={linePath} fill="none" stroke={th.accentBg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Dots */}
+                {withEff.map((s, i) => (
+                  <circle key={i} cx={xs[i]} cy={ys[i]} r={i === withEff.length-1 ? R+1 : R}
+                    fill={i === withEff.length-1 ? effColor(s.eff) : th.card}
+                    stroke={effColor(s.eff)} strokeWidth="1.5" />
+                ))}
+                {/* Edge value labels */}
+                <text x={xs[0]} y={H+16} textAnchor="start" fontSize="10" fill="#666" fontFamily="Outfit,sans-serif">{withEff[0].eff.toFixed(1)}</text>
+                <text x={xs[xs.length-1]} y={H+16} textAnchor="end" fontSize="10" fill={th.accentFg} fontFamily="Outfit,sans-serif" fontWeight="700">{latest.eff.toFixed(1)}</text>
+              </svg>
+              <div style={{ display: "flex", gap: 14, marginTop: 4, flexWrap: "wrap" }}>
+                {[
+                  { label: "High efficiency", col: th.accentBg },
+                  { label: "Average",         col: "#fd9644" },
+                  { label: "Low efficiency",  col: "#ff6b6b" },
+                ].map(({ label, col }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: col }} />
+                    <span style={{ fontSize: 10, color: th.dim }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })() : null}
+        </div>
+
+        <div style={{ order: enabledDashboards.indexOf("strength") }}>{isDashEnabled("strength") && sessions.length > 0 && <StrengthProgression sessions={sessions} />}</div>
+
+        <div style={{ order: enabledDashboards.indexOf("prs") }}>
+        {isDashEnabled("prs") ? sessions.length > 0 && (() => {
+          const prMap = {};
+          sessions.forEach(s => {
+            (s.exercises||[]).forEach(ex => {
+              const exId = ex.id || ex.exId;
+              if (!exId) return;
+              (ex.sets||[]).filter(st => st.done && (st.weight||0) > 0).forEach(st => {
+                if (!prMap[exId] || st.weight > prMap[exId].w) {
+                  const dbEx = DB.find(d => d.id === exId);
+                  prMap[exId] = { w: st.weight, reps: st.reps, name: dbEx?.name || ex.name || exId, t: s.startTime||0, muscle: dbEx?.muscle };
+                }
+              });
+            });
+          });
+          const allPrs = Object.values(prMap).sort((a,b) => b.w - a.w);
+          if (!allPrs.length) return null;
+          return <PRsDashboard allPrs={allPrs} />;
+        })() : null}
+        </div>
+
+        <div style={{ order: enabledDashboards.indexOf("volume") }}>
+        {isDashEnabled("volume") ? sessions.length > 0 && (() => {
+          // Build last 4 weeks, label with date ranges
+          const now = Date.now();
+          const weeks = Array.from({ length: 5 }, (_, i) => {
+            const end   = now - i * 7 * 24 * 60 * 60 * 1000;
+            const start = end - 7 * 24 * 60 * 60 * 1000;
+            const startD = new Date(start); const endD = new Date(end - 1);
+            const fmt = d => d.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+            const label = `${fmt(startD)}–${fmt(endD)}`;
+            return { start, end, label };
+          }).reverse();
+          const weekVols = weeks.map(w => {
+            const wSess = sessions.filter(s => (s.startTime||0) >= w.start && (s.startTime||0) < w.end);
+            return wSess.reduce((a,s) => a + sessionVol(s), 0);
+          });
+          const maxVol = Math.max(...weekVols, 1);
+          const totalRecent = weekVols[weekVols.length-1];
+          const totalPrev   = weekVols[weekVols.length-2] || 0;
+          const delta = totalRecent - totalPrev;
+          const trendCol = delta > 0 ? "#1db954" : "#ff6b6b";
+          const trend = delta > 0 ? "↑" : delta < 0 ? "↓" : null;
+          const fmtV = v => v >= 1000 ? `${(v/1000).toFixed(1)}t` : `${Math.round(v)}kg`;
+          if (weekVols.every(v => v === 0)) return null;
+          return (
+            <div style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 10, textAlign:"left" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                <div style={{ ...S.label }}>WEEKLY VOLUME</div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
+                    {trend && <span style={{ fontSize:16, color:trendCol, fontWeight:700, lineHeight:1 }}>{trend}</span>}
+                    <span className="bebas" style={{ fontSize:28, color:th.accentFg, lineHeight:1 }}>{fmtV(totalRecent)}</span>
+                  </div>
+                  <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px" }}>THIS WEEK</div>
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:5, alignItems:"flex-end" }}>
+                {weeks.map((w, i) => {
+                  const v = weekVols[i];
+                  const h = v > 0 ? Math.max(8, (v/maxVol)*72) : 4;
+                  const isCurrent = i === weeks.length-1;
+                  const col = isCurrent ? th.accentBg : v > weekVols[i-1||0]*1.1 ? `${th.accentBg}99` : `${th.accentBg}55`;
+                  return (
+                    <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:0 }}>
+                      <div style={{ fontSize:10, color: isCurrent ? th.accentFg : th.dim, fontWeight: isCurrent ? 700 : 400, marginBottom:2, lineHeight:1 }}>
+                        {v > 0 ? fmtV(v) : ""}
+                      </div>
+                      <div style={{ width:"100%", height:h, background:col, borderRadius:"3px 3px 0 0" }} />
+                      <div style={{ fontSize:8, color:th.dim, marginTop:3, textAlign:"center", lineHeight:1.2, whiteSpace:"nowrap" }}>{w.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })() : null}
+        </div>
+        </div>{/* end dashboards flex column */}
 
         {/* Shortcuts */}
         <div
@@ -4213,7 +4983,7 @@ import "./styles.css";
               fontWeight: 700,
             }}
           >
-            {editShortcuts ? "DONE ✓" : "EDIT ✎"}
+            {editShortcuts ? "DONE" : "EDIT ✎"}
           </button>
         </div>
 
@@ -4253,14 +5023,14 @@ import "./styles.css";
                       top: 7,
                       right: 7,
                       zIndex: 5,
-                      background: "transparent",
-                      border: "none",
-                      borderRadius: "50%",
+                      background: "rgba(220,50,50,0.15)",
+                      border: "1px solid rgba(220,50,50,0.3)",
+                      borderRadius: 7,
                       width: 22,
                       height: 22,
                       cursor: "pointer",
-                      color: th.text,
-                      fontSize: 13,
+                      color: th.delText,
+                      fontSize: 12,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -4384,14 +5154,12 @@ import "./styles.css";
                 .map((p) => (
                   <div
                     key={p.id}
-                    onClick={() => addToHome(p.id)}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
                       padding: "10px 0",
                       borderBottom: `1px solid ${th.border}`,
-                      cursor: "pointer",
                     }}
                   >
                     <ProgramIcon name={p.name} size={32} />
@@ -4406,156 +5174,30 @@ import "./styles.css";
                     >
                       {p.name}
                     </span>
-                    <span
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addToHome(p.id); }}
                       style={{
-                        color: th.accentFg,
-                        fontSize: 28,
+                        background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        border: "none",
+                        borderRadius: 9,
+                        color: th.accentT,
+                        padding: "6px 14px",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontFamily: "'Outfit',sans-serif",
                         fontWeight: 700,
+                        flexShrink: 0,
                       }}
-                    >
-                      +
-                    </span>
+                    >+ Add</button>
                   </div>
                 ))
             )}
           </div>
         )}
 
-        {sessions.length > 0 && (
-          <>
-            <div style={{ ...S.label, marginBottom: 12, textAlign: "left", }}>RECENT SESSIONS</div>
-            {sessions.slice(0, 3).map((s) => (
-              <div
-                key={s.id}
-                onClick={() => onViewSession(s)}
-                style={{
-                  ...S.card,
-                  padding: "14px 16px",
-                  marginBottom: 8,
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "border-color .2s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = th.accentBg)
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = th.border)
-                }
-              >
-                {/* Top row: name + intensity */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    marginBottom: 8,
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 15,
-                        color: th.text,
-                        marginBottom: 2,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {s.name}
-                    </div>
-                    <div style={{ fontSize: 12, color: th.muted }}>
-                      {fmtDate(s.startTime)}
-                    </div>
-                  </div>
-                  {s.intensity != null && (
-                    <div
-                      className="bebas"
-                      style={{
-                        fontSize: 28,
-                        color: intColor(s.intensity, th),
-                        lineHeight: 1,
-                        flexShrink: 0,
-                        marginLeft: 12,
-                        textAlign: "center",
-                      }}
-                    >
-                      {s.intensity}
-                      <span
-                        style={{
-                          fontSize: 8,
-                          color: th.dim,
-                          display: "block",
-                          letterSpacing: "1px",
-                        }}
-                      >
-                        INT
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {/* Bottom row: stat chips */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    flexWrap: "wrap",
-                    marginBottom: 6,
-                  }}
-                >
-                  {s.duration != null && (
-                    <span
-                      style={{
-                        background: th.input,
-                        borderRadius: 7,
-                        padding: "4px 10px",
-                        fontSize: 11,
-                        color: th.muted,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {s.duration}min
-                    </span>
-                  )}
-                  {s.calories != null && s.calories > 0 && (
-                    <span
-                      style={{
-                        background: th.accentBg + "22",
-                        border: `1px solid ${th.accentBg}44`,
-                        borderRadius: 7,
-                        padding: "4px 10px",
-                        fontSize: 11,
-                        color: th.accentFg,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {s.calories} kcal
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      background: th.input,
-                      borderRadius: 7,
-                      padding: "4px 10px",
-                      fontSize: 11,
-                      color: th.muted,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {s.doneSets || 0} sets
-                  </span>
-                </div>
-                <div
-                  style={{ fontSize: 11, color: th.accentFg, fontWeight: 600 }}
-                >
-                  tap for details →
-                </div>
-              </div>
-            ))}
-          </>
-        )}
+
       </div>
     );
   }
@@ -5803,10 +6445,10 @@ import "./styles.css";
                 <button
                   onClick={() => removeEx(eIdx)}
                   style={{
-                    background: "none",
-                    border: `1px solid ${th.inputB}`,
+                    background: "rgba(220,50,50,0.12)",
+                    border: "1px solid rgba(220,50,50,0.3)",
                     borderRadius: 7,
-                    color: th.dim,
+                    color: th.delText,
                     cursor: "pointer",
                     fontSize: 10,
                     padding: "4px 9px",
@@ -5938,9 +6580,10 @@ import "./styles.css";
                           onClick={() => removeSet(eIdx, sIdx)}
                           title="Remove set"
                           style={{
-                            background: "none",
-                            border: "none",
-                            color: th.dim,
+                            background: "rgba(220,50,50,0.12)",
+                            border: "1px solid rgba(220,50,50,0.3)",
+                            borderRadius: 6,
+                            color: th.delText,
                             cursor: "pointer",
                             fontSize: 16,
                             lineHeight: 1,
@@ -6339,8 +6982,8 @@ import "./styles.css";
             })}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 10, color: th.dim }}>Easy</span>
-            <span style={{ fontSize: 10, color: th.dim }}>Max</span>
+            <span style={{ fontSize: 12, color: th.dim }}>Easy</span>
+            <span style={{ fontSize: 12, color: th.dim }}>Max</span>
           </div>
         </div>
         {!allCardio ? (
@@ -6564,15 +7207,15 @@ import "./styles.css";
                         setConfirmDelete(isPendingDelete ? null : s.id);
                       }}
                       style={{
-                        background: "none",
-                        border: "none",
-                        color: th.dim,
+                        background: "rgba(220,50,50,0.12)",
+                        border: "1px solid rgba(220,50,50,0.3)",
+                        borderRadius: 7,
+                        color: th.delText,
                         cursor: "pointer",
-                        padding: "5px 8px",
-                        fontSize: 15,
+                        padding: "5px 9px",
+                        fontSize: 13,
                         lineHeight: 1,
                         fontWeight: 700,
-                        opacity: 0.7,
                       }}
                     >
                       ✕
@@ -7556,65 +8199,6 @@ import "./styles.css";
             </div>
           </ProfileSection>
         </div>{/* end profile card */}
-        {!editMode && (
-          <>
-            <div style={{ ...S.card, padding: 16, marginBottom: 12 }}>
-              <div style={{ ...S.label, marginBottom: 14, textAlign: "left", }}>
-                {new Date().getFullYear()} STATS
-              </div>
-              {(() => {
-                const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
-                const yrSess = sessions.filter((s) => (s.startTime || 0) >= yearStart);
-                const yrVol = yrSess.reduce((a, s) => a + sessionVol(s), 0);
-                const yrSets = yrSess.reduce((a, s) => a + (s.doneSets || 0), 0);
-                const yrAvgInt = yrSess.length
-                  ? (yrSess.reduce((a, s) => a + (s.intensity || 0), 0) / yrSess.length).toFixed(1)
-                  : "—";
-                const yrAvgDur = yrSess.length
-                  ? Math.round(yrSess.reduce((a, s) => a + (s.duration || 0), 0) / yrSess.length) + "min"
-                  : "—";
-                const yrVolDisplay = yrVol >= 1000
-                  ? `${(yrVol / 1000).toFixed(1)}t`
-                  : `${Math.round(yrVol).toLocaleString()}kg`;
-                const sessWithCals = yrSess.filter((s) => (s.calories || 0) > 0);
-                const totalCals = sessWithCals.reduce((a, s) => a + (s.calories || 0), 0);
-                const avgCalsPerDay = sessWithCals.length > 0
-                  ? Math.round(totalCals / sessWithCals.length).toLocaleString() + " kcal"
-                  : "—";
-                const tiles = [
-                  { v: yrSess.length, l: "SESSIONS" },
-                  { v: yrSets.toLocaleString(), l: "TOTAL SETS" },
-                  { v: yrAvgInt + "/10", l: "AVG INTENSITY" },
-                  { v: yrVolDisplay, l: "VOLUME" },
-                  { v: yrAvgDur, l: "AVG DURATION" },
-                  { v: avgCalsPerDay, l: "AVG CALS/SESSION" },
-                ];
-                return (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 7 }}>
-                    {tiles.map((s) => (
-                      <div
-                        key={s.l}
-                        style={{
-                          background: th.sect,
-                          borderRadius: 10,
-                          padding: "12px 8px",
-                          textAlign: "center",
-                        }}
-                      >
-                        <div className="bebas" style={{ fontSize: 22, color: th.accentFg, lineHeight: 1 }}>
-                          {s.v}
-                        </div>
-                        <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1.5px", marginTop: 3 }}>
-                          {s.l}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          </>
-        )}
         {/* Body measurements card */}
         <div
           style={{ ...S.card, padding: 0, marginBottom: 12, overflow: "hidden", textAlign: "left", }}
@@ -7683,7 +8267,7 @@ import "./styles.css";
                   fontWeight: 700,
                 }}
               >
-                {showMeasure ? "Cancel" : "Log"}
+                {showMeasure ? "Cancel" : "Edit"}
               </button>
             </div>
           </div>
@@ -7871,8 +8455,8 @@ import "./styles.css";
               </Btn>
             </div>
           </ProfileSection>
-          {/* History — last 5 entries */}
-          {measurements.length > 0 && !showMeasure && (
+          {/* History — visible when form is open */}
+          {measurements.length > 0 && showMeasure && (
             <div
               style={{ borderTop: `1px solid ${th.border}`, padding: "4px 0" }}
             >
@@ -8027,7 +8611,7 @@ import "./styles.css";
                   }}
                 >
                   Currently auto —{" "}
-                  {theme === "dark" ? "dark until 06:00" : "light until 20:00"}
+                  {theme === "dark" ? "dark until 06:00" : "light until 19:00"}
                 </div>
               )}
             </div>
@@ -8594,7 +9178,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.4.4 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.0 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -9588,8 +10172,10 @@ import "./styles.css";
                   <button
                     onClick={handleAbandon}
                     style={{
-                      background: "none",
-                      border: `1px solid ${th.inputB}`,
+                      background: "rgba(220, 50, 50, 0.15)",
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
+                      border: "1px solid rgba(220, 50, 50, 0.3)",
                       borderRadius: 9,
                       color: th.delText,
                       fontSize: 10,
@@ -9821,41 +10407,7 @@ import "./styles.css";
                     : ""}
                 </div>
                 {/* Date — only shown on Home tab, top-right of header */}
-                {view === "home" && (
-                  <div
-                    onClick={() => { setCalOffset(0); setShowCal(true); setCalClosing(false); }}
-                    style={{ textAlign: "right", flexShrink: 0, marginLeft: 20, cursor: "pointer" }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 15,
-                        color: th.muted,
-                        fontWeight: 700,
-                        letterSpacing: "1px",
-                        lineHeight: 1,
-                      }}
-                    >
-                      {new Date()
-                        .toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                        .toUpperCase()}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: th.dim,
-                        letterSpacing: "1px",
-                        marginTop: 2,
-                      }}
-                    >
-                      {new Date()
-                        .toLocaleDateString("en-US", { weekday: "short" })
-                        .toUpperCase()}
-                    </div>
-                  </div>
-                )}
+
 
 
               </div>
@@ -9894,6 +10446,10 @@ import "./styles.css";
             @keyframes shortcutBtnIn {
               from { opacity: 0; transform: scale(0.88); }
               to   { opacity: 1; transform: scale(1); }
+            }
+            @keyframes dashClose {
+              from { opacity: 1; transform: translateY(0); }
+              to   { opacity: 0; transform: translateY(-6px); }
             }
             @keyframes shortcutListIn {
               from { opacity: 0; transform: translateY(-8px) scale(0.97); }
