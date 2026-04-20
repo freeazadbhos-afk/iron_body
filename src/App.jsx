@@ -3166,7 +3166,7 @@ import "./styles.css";
           isGuest: true,
         });
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"] });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false });
       } catch (e) {
         setErr(friendlyError(e.code));
       } finally {
@@ -3201,7 +3201,7 @@ import "./styles.css";
         });
         // 3. Seed default programs, but keep shortcuts empty so home tab is clean
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"] });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false });
         // 4. Reload Firebase user so displayName is fresh on next auth state change
         await cred.user.reload();
         // 5. Belt-and-suspenders: if auth state already fired with empty name, patch it directly
@@ -4173,9 +4173,8 @@ import "./styles.css";
     const [streakOff, setStreakOff] = useState(0); // months offset; 0=current
     const [streakDir, setStreakDir] = useState(1);
     const [editingDashboards, setEditingDashboards] = useState(false);
-    const [showDashOnboarding, setShowDashOnboarding] = useState(!settings.hasDashOnboarded);
+    // Derived directly from persisted settings — no local state needed
     const dismissDashOnboarding = () => {
-      setShowDashOnboarding(false);
       onUpdateSettings({ ...settings, hasDashOnboarded: true });
     };
     const enabledDashboards = settings.homeDashboards || ["streak","intensity","strength","volume"];
@@ -4268,7 +4267,7 @@ import "./styles.css";
         )}
 
         {/* ── Dashboard onboarding card ── */}
-        {showDashOnboarding && <DashboardOnboarding onDismiss={dismissDashOnboarding} />}
+        {!settings.hasDashOnboarded && <DashboardOnboarding onDismiss={dismissDashOnboarding} />}
 
         {/* ── Dashboard editor panel ── */}
         {editingDashboards && (
@@ -4392,7 +4391,7 @@ import "./styles.css";
                 {[{ label:"Resistance",col:th.accentBg },{ label:"Cardio",col:"#4ecdc4" },{ label:"Mix",col:"#fd9644" }].map(({label,col})=>(
                   <div key={label} style={{ display:"flex",alignItems:"center",gap:4 }}>
                     <div style={{ width:8,height:8,borderRadius:"50%",background:col }} />
-                    <span style={{ fontSize:9,color:th.dim }}>{label}</span>
+                    <span style={{ fontSize:10,color:th.dim }}>{label}</span>
                   </div>
                 ))}
               </div>
@@ -5346,16 +5345,14 @@ import "./styles.css";
   }) {
     const th = useTheme();
     const S = useS();
-    const [showProgramOnboarding, setShowProgramOnboarding] = useState(!settings?.hasProgramOnboarded);
     const dismissProgramOnboarding = () => {
-      setShowProgramOnboarding(false);
       onUpdateSettings && onUpdateSettings({ ...settings, hasProgramOnboarded: true });
     };
     return (
       <div className="slide-up" style={{ paddingBottom: 90 }}>
 
         <div style={{ marginBottom: 12, marginTop: 4 }} />
-        {showProgramOnboarding && <ProgramOnboarding onDismiss={dismissProgramOnboarding} />}
+        {!settings?.hasProgramOnboarded && <ProgramOnboarding onDismiss={dismissProgramOnboarding} />}
         {programs.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 18px" }}>
             <div className="bebas" style={{ fontSize: 44, color: th.border }}>
