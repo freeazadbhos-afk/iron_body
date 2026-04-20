@@ -1349,7 +1349,7 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false };
   const ALL_DASHBOARDS = [
     { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
     { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
@@ -4013,13 +4013,13 @@ import "./styles.css";
               ))}
             </div>
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={onDismiss} style={{
-                background: "none", border: "none",
-                color: th.dim, fontSize: 12, cursor: "pointer",
-                fontFamily: "'Outfit',sans-serif", fontWeight: 600, padding: "6px 0",
-              }}>
-                {isLast ? "Done" : "Skip"}
-              </button>
+              {!isLast && (
+                <button onClick={onDismiss} style={{
+                  background: "none", border: "none",
+                  color: th.dim, fontSize: 12, cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 600, padding: "6px 0",
+                }}>Skip</button>
+              )}
               {!isLast ? (
                 <button onClick={() => goTo(step + 1)} style={{
                   background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
@@ -5205,6 +5205,133 @@ import "./styles.css";
   /* ═══════════════════════════════════════════════════════════════════════════════
     PROGRAMS VIEW
   ═══════════════════════════════════════════════════════════════════════════════ */
+  /* ─── Program Onboarding — workout cycle guide, shown once ─────────────────── */
+  function ProgramOnboarding({ onDismiss }) {
+    const th = useTheme();
+    const S = useS();
+    const [step, setStep] = useState(0);
+    const [leaving, setLeaving] = useState(false);
+    const [dir, setDir] = useState(1);
+
+    const STEPS = [
+      {
+        icon: "≡",
+        title: "Your Workout Programs",
+        body: "Programs are your saved workout templates — a list of exercises, sets, and reps ready to go whenever you are.",
+      },
+      {
+        icon: "▶",
+        title: "Start a Workout",
+        body: "Tap the START button on any program card to kick off a live session. The timer starts automatically.",
+      },
+      {
+        icon: "✓",
+        title: "Log Sets as You Go",
+        body: "Tap the circle next to each set to mark it done. Adjust weight and reps on the fly — the session saves your actual numbers.",
+      },
+      {
+        icon: "⚡",
+        title: "Rate Your Intensity",
+        body: "After finishing, rate how hard you pushed (1–10). This feeds your Intensity dashboard and helps you spot patterns over time.",
+      },
+      {
+        icon: "✦",
+        title: "Review & Save",
+        body: "The summary screen shows your total sets, duration, and volume lifted. Hit SAVE to lock it into your history.",
+      },
+    ];
+
+    const goTo = (next) => {
+      setDir(next > step ? 1 : -1);
+      setLeaving(true);
+      setTimeout(() => { setStep(next); setLeaving(false); }, 160);
+    };
+
+    const isLast = step === STEPS.length - 1;
+    const s = STEPS[step];
+
+    return (
+      <div style={{
+        ...S.card, padding: 0, marginBottom: 12, overflow: "hidden",
+        border: `1px solid ${th.accentBg}44`,
+        animation: "shortcutListIn 0.3s cubic-bezier(0,0,0.2,1) forwards",
+      }}>
+        <style>{`
+          @keyframes obSlideIn  { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideInR { from{opacity:0;transform:translateX(-22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-18px)} }
+          @keyframes obSlideOutR{ from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(18px)} }
+        `}</style>
+        {/* Accent top bar */}
+        <div style={{ height: 3, background: th.accentBg }} />
+        <div style={{ padding: "16px 16px 14px" }}>
+          {/* Step content */}
+          <div
+            key={step}
+            style={{
+              animation: leaving
+                ? (dir > 0 ? "obSlideOut 0.16s ease-in forwards" : "obSlideOutR 0.16s ease-in forwards")
+                : (dir > 0 ? "obSlideIn 0.22s cubic-bezier(0,0,0.2,1) forwards" : "obSlideInR 0.22s cubic-bezier(0,0,0.2,1) forwards"),
+              minHeight: 84,
+            }}
+          >
+            <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                background: `color-mix(in srgb, ${th.accentBg} 15%, ${th.sect})`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize: 18, color: th.accentFg, fontWeight: 700,
+              }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 13, textAlign: "left", fontWeight: 700, color: th.text, marginBottom: 5 }}>{s.title}</div>
+                <div style={{ fontSize: 12, textAlign: "left", color: th.muted, lineHeight: 1.5 }}>{s.body}</div>
+              </div>
+            </div>
+          </div>
+          {/* Footer: dots + navigation */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop: 14 }}>
+            <div style={{ display:"flex", gap:5 }}>
+              {STEPS.map((_,i) => (
+                <div key={i} onClick={() => goTo(i)} style={{
+                  width: i === step ? 18 : 6, height: 6, borderRadius: 3,
+                  background: i === step ? th.accentBg : th.inputB,
+                  cursor: "pointer",
+                  transition: "width 0.2s, background 0.2s",
+                }} />
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              {!isLast && (
+                <button onClick={onDismiss} style={{
+                  background: "none", border: "none",
+                  color: th.dim, fontSize: 12, cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 600, padding: "6px 0",
+                }}>Skip</button>
+              )}
+              {!isLast ? (
+                <button onClick={() => goTo(step + 1)} style={{
+                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                  border: "none", borderRadius: 9, color: th.accentT,
+                  padding: "6px 16px", cursor: "pointer", fontSize: 12,
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 700,
+                }}>Next →</button>
+              ) : (
+                <button onClick={onDismiss} style={{
+                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                  border: "none", borderRadius: 9, color: th.accentT,
+                  padding: "6px 16px", cursor: "pointer", fontSize: 12,
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 700,
+                }}>Got it ✓</button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function ProgramsView({
     programs,
     active,
@@ -5214,13 +5341,21 @@ import "./styles.css";
     onDelete,
     onGoWorkout,
     onStart,
+    settings,
+    onUpdateSettings,
   }) {
     const th = useTheme();
     const S = useS();
+    const [showProgramOnboarding, setShowProgramOnboarding] = useState(!settings?.hasProgramOnboarded);
+    const dismissProgramOnboarding = () => {
+      setShowProgramOnboarding(false);
+      onUpdateSettings && onUpdateSettings({ ...settings, hasProgramOnboarded: true });
+    };
     return (
       <div className="slide-up" style={{ paddingBottom: 90 }}>
 
         <div style={{ marginBottom: 12, marginTop: 4 }} />
+        {showProgramOnboarding && <ProgramOnboarding onDismiss={dismissProgramOnboarding} />}
         {programs.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 18px" }}>
             <div className="bebas" style={{ fontSize: 44, color: th.border }}>
@@ -10563,6 +10698,8 @@ import "./styles.css";
                 }
                 onGoWorkout={() => setView("workout")}
                 onStart={handleTemplate}
+                settings={settings}
+                onUpdateSettings={saveSettings}
               />
             )}
             {view === "editProgram" && (
