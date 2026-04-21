@@ -3738,7 +3738,7 @@ import "./styles.css";
   function PRsDashboard({ allPrs }) {
     const th = useTheme();
     const S = useS();
-    const PAGE = 3;
+    const PAGE = 5;
     const [page, setPage] = useState(0);
     const [dir, setDir] = useState(1); // 1=right, -1=left
     const totalPages = Math.ceil(allPrs.length / PAGE);
@@ -3758,11 +3758,11 @@ import "./styles.css";
           {totalPages > 1 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <button onClick={() => goTo(Math.max(0, page-1))} disabled={page===0}
-                style={{ background:"none", border:"none", color: page===0 ? th.inputB : th.muted,
-                  fontSize:26, cursor: page===0 ? "default" : "pointer", padding:"0 6px", lineHeight:1 }}>‹</button>
+                style={{ background:"none", border:"none", color: page===0 ? th.inputB : th.accentFg,
+                  fontSize:30, cursor: page===0 ? "default" : "pointer", padding:"0 6px", lineHeight:1 }}>‹</button>
               <button onClick={() => goTo(Math.min(totalPages-1, page+1))} disabled={page===totalPages-1}
-                style={{ background:"none", border:"none", color: page===totalPages-1 ? th.inputB : th.muted,
-                  fontSize:26, cursor: page===totalPages-1 ? "default" : "pointer", padding:"0 6px", lineHeight:1 }}>›</button>
+                style={{ background:"none", border:"none", color: page===totalPages-1 ? th.inputB : th.accentFg,
+                  fontSize:30, cursor: page===totalPages-1 ? "default" : "pointer", padding:"0 6px", lineHeight:1 }}>›</button>
             </div>
           )}
         </div>
@@ -3859,11 +3859,11 @@ import "./styles.css";
             {totalPages > 1 && (
               <>
                 <button onClick={() => goTo(Math.max(0, page-1))} disabled={page===0}
-                  style={{ background:"none", border:"none", color: page===0 ? th.inputB : th.muted,
-                    fontSize:22, cursor: page===0 ? "default" : "pointer", padding:"0 4px", lineHeight:1 }}>‹</button>
+                  style={{ background:"none", border:"none", color: page===0 ? th.inputB : th.accentFg,
+                    fontSize:30, cursor: page===0 ? "default" : "pointer", padding:"0 4px", lineHeight:1 }}>‹</button>
                 <button onClick={() => goTo(Math.min(totalPages-1, page+1))} disabled={page===totalPages-1}
-                  style={{ background:"none", border:"none", color: page===totalPages-1 ? th.inputB : th.muted,
-                    fontSize:22, cursor: page===totalPages-1 ? "default" : "pointer", padding:"0 4px", lineHeight:1 }}>›</button>
+                  style={{ background:"none", border:"none", color: page===totalPages-1 ? th.inputB : th.accentFg,
+                    fontSize:30, cursor: page===totalPages-1 ? "default" : "pointer", padding:"0 4px", lineHeight:1 }}>›</button>
               </>
             )}
           </div>
@@ -4579,7 +4579,7 @@ import "./styles.css";
           <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
             <div style={{ ...S.label }}>MUSCLES TRAINED</div>
-            <div style={{ fontSize:11, color:th.dim, letterSpacing:"0.5px" }}>LAST 7 DAYS</div>
+            <div style={{ fontSize:10, color:th.dim, letterSpacing:"0.5px" }}>LAST 7 DAYS</div>
           </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {ALL_MUSCLES.map((m) => {
@@ -4645,10 +4645,10 @@ import "./styles.css";
               {/* Month nav */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <button onClick={() => { if (!canBack) return; setStreakDir(-1); setStreakOff(o => o-1); }}
-                  style={{ background:"none",border:"none",color:canBack?th.text:th.inputB,fontSize:22,cursor:canBack?"pointer":"default",padding:"0 2px",lineHeight:1 }}>‹</button>
+                  style={{ background:"none",border:"none",color:canBack?th.accentFg:th.inputB,fontSize:30,cursor:canBack?"pointer":"default",padding:"0 2px",lineHeight:1 }}>‹</button>
                 <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", color: th.sub }}>{monthName}</div>
                 <button onClick={() => { if (!canFwd) return; setStreakDir(1); setStreakOff(o => o+1); }}
-                  style={{ background:"none",border:"none",color:canFwd?th.text:th.inputB,fontSize:22,cursor:canFwd?"pointer":"default",padding:"0 2px",lineHeight:1 }}>›</button>
+                  style={{ background:"none",border:"none",color:canFwd?th.accentFg:th.inputB,fontSize:30,cursor:canFwd?"pointer":"default",padding:"0 2px",lineHeight:1 }}>›</button>
               </div>
               {/* DOW headers */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1, marginBottom: 1 }}>
