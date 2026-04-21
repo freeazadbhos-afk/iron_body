@@ -4365,7 +4365,7 @@ import "./styles.css";
         </div>
 
         {/* Top — added dashboards (drag to reorder) */}
-        <div style={{ fontSize:10, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ON HOME SCREEN</div>
+        <div style={{ fontSize:12, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ON HOME SCREEN</div>
         <div ref={listRef} style={{ marginBottom: availableItems.length > 0 ? 12 : 0 }}>
           {addedItems.length === 0 && (
             <div style={{ fontSize:12, color:th.muted, padding:"10px 0" }}>No dashboards added yet.</div>
@@ -4415,7 +4415,7 @@ import "./styles.css";
 
         {/* Bottom — available (not on home) */}
         <div style={{ borderTop:`1px solid ${th.border}`, paddingTop:10, marginTop: addedItems.length > 0 ? 8 : 0 }}>
-          <div style={{ fontSize:10, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ADD TO HOME</div>
+          <div style={{ fontSize:12, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ADD TO HOME</div>
           {availableItems.length === 0 ? (
             <div style={{ fontSize:12, color:th.muted, padding:"8px 0" }}>All dashboards are added.</div>
           ) : (
