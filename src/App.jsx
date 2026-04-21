@@ -3268,7 +3268,7 @@ import "./styles.css";
             style={{
               fontSize: 85,
               textAlign: "left",
-              color: th.accentFg,
+              color: "rgba(200,240,48,0.4)",
               lineHeight: 0.85,
               marginBottom: 8,
             }}
@@ -3519,7 +3519,7 @@ import "./styles.css";
             style={{
               marginTop: 48,
               textAlign: "center",
-              color: th.accentFg,
+              color: "rgba(200,240,48,0.4)",
               fontSize: 11,
               letterSpacing: "1.5px",
             }}
