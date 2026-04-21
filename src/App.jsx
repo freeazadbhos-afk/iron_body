@@ -8654,7 +8654,7 @@ import "./styles.css";
               </div>
               {latest && (
                 <div style={{ fontSize: 12, color: th.muted, marginTop: 2 }}>
-                  Last: {fmtDate(latest.date)}
+                  Last Record: {fmtDate(latest.date)}
                 </div>
               )}
             </div>
@@ -9372,7 +9372,7 @@ import "./styles.css";
                   <Btn
                     onClick={handleSaveChangelog}
                     disabled={changelogSending || !changelogText.trim()}
-                    style={{ width: "100%", fontSize: 14, padding: "12px" }}
+                    style={{ width: "100%", fontSize: 14, fontFamily: "'Outfit',sans-serif", padding: "12px" }}
                   >
                     {changelogSending ? "POSTING..." : "POST UPDATE"}
                   </Btn>
@@ -9615,7 +9615,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.2 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
