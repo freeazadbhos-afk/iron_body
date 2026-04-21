@@ -35,6 +35,7 @@ import "./styles.css";
     collection,
     getDocs,
     deleteDoc,
+    onSnapshot,
   } from "firebase/firestore";
 
   const firebaseConfig = {
@@ -80,9 +81,9 @@ import "./styles.css";
     doneText: "#7aaa20",
     del: "#1a0a0a",
     delB: "#2a1515",
-    delText: "#ff6b6b",
+    delText: "#CC1F42",
     pause: "#1e1800",
-    pauseB: "#fd9644",
+    pauseB: "#E8612C",
   };
   const LIGHT = {
     bg: "#f0efea",
@@ -99,15 +100,15 @@ import "./styles.css";
     navB: "#e0dfd8",
     navInactive: "#555555",
     sect: "#f5f4ef",
-    accentBg: "#96c015",
+    accentBg: "#0D9E8E",
     accentT: "#ffffff",
-    accentFg: "#96c015",
-    done: "#eaf5d0",
-    doneB: "#b8d860",
-    doneText: "#2e5200",
+    accentFg: "#0D9E8E",
+    done: "#cff0ec",
+    doneB: "#7dd4cc",
+    doneText: "#005048",
     del: "#fff0f0",
     delB: "#ffd0d0",
-    delText: "#cc3333",
+    delText: "#CC1F42",
     pause: "#fff8e0",
     pauseB: "#e8a800",
   };
@@ -1309,10 +1310,10 @@ import "./styles.css";
     125.0, 127.5, 130.0, 132.5, 135.0, 137.5, 140.0,
   ]; // ruler: 0–140 in 2.5kg steps
   const GC = {
-    Chest: "#ff6b6b",
-    Back: "#4ecdc4",
+    Chest: "#CC1F42",
+    Back: "#5B9CF6",
     Shoulders: "#a29bfe",
-    Arms: "#fd9644",
+    Arms: "#E8612C",
     Legs: "#55efc4",
     Cardio: "#74b9ff",
   };
@@ -1362,6 +1363,8 @@ import "./styles.css";
     { id: "strength",   label: "Strength Progression",  icon: "🏋️" },
     { id: "prs",        label: "Personal Records",      icon: "🏆" },
     { id: "volume",     label: "Weekly Volume",         icon: "📊" },
+    { id: "setsbygroup", label: "Sets by Muscle Group", icon: "📋" },
+    { id: "acwr",        label: "Workload Ratio",        icon: "⚠️" },
   ];
   // Measurements: array of {date, weight, muscle, fat} entries
   function getMeasurements(uid) {
@@ -1400,7 +1403,7 @@ import "./styles.css";
   }
   function intColor(n, th) {
     const hi = th ? th.accentFg : "#c8f030";
-    return n >= 8 ? hi : n >= 5 ? "#fd9644" : "#ff6b6b";
+    return n >= 8 ? hi : n >= 5 ? "#E8612C" : "#CC1F42";
   }
   function sessionVol(s) {
     return s.exercises.reduce(
@@ -1627,10 +1630,10 @@ import "./styles.css";
       .join("");
   }
   const PROG_COLORS = [
-    "#ff6b6b",
-    "#4ecdc4",
+    "#CC1F42",
+    "#5B9CF6",
     "#a29bfe",
-    "#fd9644",
+    "#E8612C",
     "#55efc4",
     "#74b9ff",
     "#e17055",
@@ -2913,9 +2916,9 @@ import "./styles.css";
                         const d = DIFFICULTY[e.id];
                         if (!d) return null;
                         const cfg = d === "H"
-                          ? { label: "HARD", bg: "rgba(255,107,107,0.15)", color: "#ff6b6b" }
+                          ? { label: "HARD", bg: "rgba(255,107,107,0.15)", color: "#CC1F42" }
                           : d === "M"
-                          ? { label: "MED",  bg: "rgba(253,150,68,0.15)",  color: "#fd9644" }
+                          ? { label: "MED",  bg: "rgba(253,150,68,0.15)",  color: "#E8612C" }
                           : { label: "EASY", bg: "rgba(34,168,85,0.15)",   color: "#2db55d" };
                         return (
                           <span style={{
@@ -3439,7 +3442,7 @@ import "./styles.css";
             </div>
           )}
           {err && (
-            <div style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 10 }}>
+            <div style={{ color: "#CC1F42", fontSize: 12, marginBottom: 10 }}>
               {err}
             </div>
           )}
@@ -3612,9 +3615,9 @@ import "./styles.css";
     const loadsDisplay = totalKg >= 1000 ? `${(totalKg/1000).toFixed(1)}t` : `${Math.round(totalKg)}kg`;
     const tiles = [
       { v: resistSess.length, l: "RESISTANCE", col: th.accentFg },
-      { v: cardioSess.length, l: "CARDIO",     col: "#4ecdc4"   },
+      { v: cardioSess.length, l: "CARDIO",     col: "#5B9CF6"   },
       { v: hrsDisplay,        l: "HOURS TRAINED", col: th.accentFg },
-      { v: totalCals ? totalCals.toLocaleString() + " kcal" : "—", l: "CALS BURNED", col: "#fd9644" },
+      { v: totalCals ? totalCals.toLocaleString() + " kcal" : "—", l: "CALS BURNED", col: "#E8612C" },
       { v: avgInt !== "—" ? avgInt + "/10" : "—", l: "AVG INTENSITY", col: th.accentFg },
       { v: loadsDisplay,      l: "LOADS LIFTED", col: th.accentFg },
     ];
@@ -3662,8 +3665,8 @@ import "./styles.css";
     const th = useTheme();
     const TABS = [
       { f: "weight", label: "WEIGHT", unit: "kg", color: th.accentBg },
-      { f: "muscle", label: "MUSCLE", unit: "%",  color: "#4ecdc4"   },
-      { f: "fat",    label: "FAT",    unit: "%",  color: "#ff6b6b"   },
+      { f: "muscle", label: "MUSCLE", unit: "%",  color: "#5B9CF6"   },
+      { f: "fat",    label: "FAT",    unit: "%",  color: "#CC1F42"   },
     ];
     const [selTab, setSelTab] = useState("weight");
     const tab = TABS.find(t => t.f === selTab) || TABS[0];
@@ -3686,8 +3689,8 @@ import "./styles.css";
     // Direction shows change; color shows improvement:
     // Fat ↑ = bad (red), Fat ↓ = good (green). All others: ↑ = good (green), ↓ = bad (red)
     const trendCol = tab.f === "fat"
-      ? (trendDir === "↑" ? "#ff6b6b" : "#1db954")
-      : (trendDir === "↑" ? "#1db954" : "#ff6b6b");
+      ? (trendDir === "↑" ? "#CC1F42" : "#1db954")
+      : (trendDir === "↑" ? "#1db954" : "#CC1F42");
     return (
       <div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
@@ -3790,6 +3793,297 @@ import "./styles.css";
     );
   }
 
+  /* ─── Sets by Muscle Group ─────────────────────────────────────────────────── */
+  function SetsByMuscleGroup({ sessions }) {
+    const th = useTheme();
+    const S = useS();
+    const PAGE = 5;
+    const [page, setPage] = useState(0);
+    const [dir, setDir] = useState(1);
+
+    const GROUPS = [
+      { label: "Chest",      muscles: ["Chest","Upper Chest","Lower Chest"],                           min: 10, max: 20 },
+      { label: "Back",       muscles: ["Lats","Mid Back","Upper Back","Full Back","Lower Back","Traps"], min: 10, max: 20 },
+      { label: "Shoulders",  muscles: ["Shoulders","Front Delts","Side Delts","Rear Delts"],            min: 12, max: 22 },
+      { label: "Biceps",     muscles: ["Biceps","Brachialis"],                                          min: 8,  max: 16 },
+      { label: "Triceps",    muscles: ["Triceps"],                                                      min: 8,  max: 16 },
+      { label: "Quads",      muscles: ["Quads"],                                                        min: 8,  max: 16 },
+      { label: "Hamstrings", muscles: ["Hamstrings"],                                                   min: 6,  max: 14 },
+      { label: "Glutes",     muscles: ["Glutes"],                                                       min: 6,  max: 14 },
+      { label: "Abs",        muscles: ["Abs","Core"],                                                   min: 6,  max: 14 },
+      { label: "Calves",     muscles: ["Calves"],                                                       min: 6,  max: 14 },
+    ];
+
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const weekSessions = sessions.filter(s => (s.startTime || 0) >= cutoff);
+
+    const doneSums = {};
+    weekSessions.forEach(s => {
+      (s.exercises || []).forEach(ex => {
+        if (!ex) return;
+        const exId = ex.id || ex.exId;
+        const dbEx = DB.find(d => d && d.id === exId);
+        const muscle = dbEx?.muscle || ex.muscle || "";
+        if (!muscle) return;
+        const done = (ex.sets || []).filter(st => st.done).length;
+        doneSums[muscle] = (doneSums[muscle] || 0) + done;
+      });
+    });
+
+    const rows = GROUPS.map(g => {
+      const actual = g.muscles.reduce((a, m) => a + (doneSums[m] || 0), 0);
+      return { ...g, actual };
+    });
+
+    const totalPages = Math.ceil(rows.length / PAGE);
+    const goTo = (next) => { setDir(next > page ? 1 : -1); setPage(next); };
+    const pageRows = rows.slice(page * PAGE, page * PAGE + PAGE);
+
+    // Fixed scale: always based on max possible (hard max across all groups × 1.3)
+    const FIXED_MAX = Math.max(...GROUPS.map(g => g.max)) * 1.5; // fixed at ~33 sets
+
+    const toP = (v) => Math.min((v / FIXED_MAX) * 100, 100);
+
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+        <style>{`
+          @keyframes sbSlideL { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes sbSlideR { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
+        `}</style>
+
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 14 }}>
+          <div style={{ ...S.label }}>SETS BY MUSCLE GROUP</div>
+          <div style={{ display:"flex", alignItems:"center", gap: 8 }}>
+            <span style={{ fontSize: 10, color: th.dim, letterSpacing:"0.5px" }}>LAST 7 DAYS</span>
+            {totalPages > 1 && (
+              <>
+                <button onClick={() => goTo(Math.max(0, page-1))} disabled={page===0}
+                  style={{ background:"none", border:"none", color: page===0 ? th.inputB : th.muted,
+                    fontSize:22, cursor: page===0 ? "default" : "pointer", padding:"0 4px", lineHeight:1 }}>‹</button>
+                <button onClick={() => goTo(Math.min(totalPages-1, page+1))} disabled={page===totalPages-1}
+                  style={{ background:"none", border:"none", color: page===totalPages-1 ? th.inputB : th.muted,
+                    fontSize:22, cursor: page===totalPages-1 ? "default" : "pointer", padding:"0 4px", lineHeight:1 }}>›</button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Fixed-height chart rows */}
+        <div key={page} style={{ animation: dir === 1 ? "sbSlideL 0.22s ease-out" : "sbSlideR 0.22s ease-out" }}>
+          {pageRows.map(({ label, actual, min, max }) => {
+            const isEmpty  = actual === 0;
+            const inTarget = !isEmpty && actual >= min && actual <= max;
+            const isUnder  = !isEmpty && actual < min;
+            const isOver   = !isEmpty && actual > max;
+
+            // Stacked segments: [below-min | min-to-max | above-max]
+            // Each segment is its own div positioned absolutely within the track
+            const minP  = toP(min);
+            const maxP  = toP(max);
+            const actP  = toP(actual);
+
+            // Portion of bar in each zone
+            const underP   = isEmpty ? 0 : toP(Math.min(actual, min));
+            const inZoneP  = isEmpty ? 0 : toP(Math.min(actual, max)) - toP(Math.min(actual, min));
+            const overP    = isEmpty ? 0 : (actual > max ? actP - maxP : 0);
+
+            const valCol = isOver ? th.delText : !isEmpty ? th.accentFg : th.dim;
+
+            return (
+              <div key={label} style={{ marginBottom: 14 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom: 5 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: isEmpty ? th.dim : th.text }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: valCol }}>
+                    {isEmpty ? "—" : actual}
+                  </span>
+                </div>
+
+                {/* Bar track — fixed height */}
+                <div style={{ position:"relative", height: 12, borderRadius: 6, background: th.sect, overflow:"visible" }}>
+                  {/* Target zone band (always visible as background) */}
+                  <div style={{
+                    position:"absolute", top: -2, bottom: -2,
+                    left:`${minP}%`, width:`${maxP - minP}%`,
+                    background: `${th.accentBg}18`,
+                    borderLeft: `2px solid ${th.accentBg}60`,
+                    borderRight: `2px solid ${th.accentBg}60`,
+                    borderRadius: 0,
+                    zIndex: 0,
+                  }} />
+
+                  {/* Stacked actual bar */}
+                  {!isEmpty && (
+                    <div style={{ position:"absolute", top:0, bottom:0, left:0, borderRadius:6, overflow:"hidden", width:`${actP}%`, zIndex:1 }}>
+                      {/* Under-target segment (orange) */}
+                      {underP > 0 && (
+                        <div style={{
+                          position:"absolute", top:0, bottom:0, left:0,
+                          width: `${(underP / actP) * 100}%`,
+                          background: `${th.accentBg}70`,
+                        }} />
+                      )}
+                      {/* In-target segment (green) */}
+                      {inZoneP > 0 && (
+                        <div style={{
+                          position:"absolute", top:0, bottom:0,
+                          left:`${(underP / actP) * 100}%`,
+                          width:`${(inZoneP / actP) * 100}%`,
+                          background: th.accentBg,
+                        }} />
+                      )}
+                      {/* Over-target segment (red) */}
+                      {overP > 0 && (
+                        <div style={{
+                          position:"absolute", top:0, bottom:0,
+                          left:`${((underP + inZoneP) / actP) * 100}%`,
+                          width:`${(overP / actP) * 100}%`,
+                          background: th.delText,
+                        }} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div style={{ display:"flex", gap: 12, marginTop: 4, flexWrap:"wrap", borderTop:`1px solid ${th.border}`, paddingTop: 10 }}>
+          {[
+            { render: () => <div style={{ width:18, height:10, borderRadius:2, background:`${th.accentBg}18`, border:`2px solid ${th.accentBg}60` }} />, label: "Target (10–20)" },
+            { render: () => <div style={{ width:10, height:10, borderRadius:2, background:th.accentBg }} />, label: "In range" },
+            { render: () => <div style={{ width:10, height:10, borderRadius:2, background:`${th.accentBg}70` }} />, label: "Below target" },
+            { render: () => <div style={{ width:10, height:10, borderRadius:2, background:th.delText }} />, label: "Exceeded" },
+          ].map(({ render, label }) => (
+            <div key={label} style={{ display:"flex", alignItems:"center", gap: 5 }}>
+              {render()}
+              <span style={{ fontSize: 12, color: th.dim }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── ACWR — Acute:Chronic Workload Ratio ──────────────────────────────────── */
+  function ACWRDashboard({ sessions, sessionVol }) {
+    const th = useTheme();
+    const S = useS();
+
+    const now = Date.now();
+    const W = 7 * 24 * 60 * 60 * 1000;
+
+    // Acute load = total tonnage last 7 days
+    const acuteSess = sessions.filter(s => (s.startTime || 0) >= now - W);
+    const acuteLoad = acuteSess.reduce((a, s) => a + sessionVol(s), 0);
+
+    // Chronic load = avg weekly tonnage over last 28 days
+    const chronicSess = sessions.filter(s => (s.startTime || 0) >= now - 4 * W);
+    const chronicLoad = chronicSess.reduce((a, s) => a + sessionVol(s), 0) / 4;
+
+    if (chronicLoad < 1) return null; // not enough history
+
+    const acwr = acuteLoad / chronicLoad;
+    const fmtR = r => r.toFixed(2);
+
+    // Status tiers
+    const APP_ORANGE = "#E8612C";
+    const APP_RED    = "#CC1F42";
+    const status =
+      acwr > 1.5  ? { label: "DELOAD RECOMMENDED", col: APP_RED,    desc: "Acute load is significantly above chronic baseline. Risk of overtraining is high." } :
+      acwr > 1.3  ? { label: "HIGH LOAD",           col: APP_ORANGE, desc: "Training load is elevated. Monitor recovery closely." } :
+      acwr >= 0.8 ? { label: "SWEET SPOT",          col: th.accentBg,desc: "Load is well-balanced. Ideal for progressive overload." } :
+      acwr >= 0.5 ? { label: "BELOW BASELINE",      col: th.accentFg,desc: "Acute load is lower than usual. Good week to ramp back up." } :
+                    { label: "VERY LOW",             col: th.muted,   desc: "Minimal training stimulus this week." };
+
+    // Build 4-week ACWR history for chart
+    const weeks = Array.from({ length: 5 }, (_, i) => {
+      const end   = now - i * W;
+      const start = end - W;
+      const acute  = sessions.filter(s => (s.startTime||0) >= start && (s.startTime||0) < end).reduce((a,s) => a + sessionVol(s), 0);
+      const chronW = sessions.filter(s => (s.startTime||0) >= end - 4*W && (s.startTime||0) < end).reduce((a,s) => a + sessionVol(s), 0) / 4;
+      return { ratio: chronW > 0 ? acute / chronW : 0 };
+    }).reverse();
+
+    const maxR = Math.max(...weeks.map(w => w.ratio), 1.6);
+    const H = 52, W_SVG = 280, R = 3;
+    const xs = weeks.map((_, i) => (i / (weeks.length - 1)) * W_SVG);
+    const yFromR = r => H - Math.min(r / (maxR * 1.1), 1) * (H - R * 2) - R;
+    const ys = weeks.map(w => yFromR(w.ratio));
+    const linePath = xs.map((x, i) => (i === 0 ? `M${x},${ys[i]}` : `L${x},${ys[i]}`)).join(" ");
+    const areaPath = `${linePath} L${xs[xs.length-1]},${H+4} L0,${H+4} Z`;
+
+    // Sweet spot band in SVG
+    const yBandTop    = yFromR(1.3);
+    const yBandBottom = yFromR(0.8);
+
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
+          <div style={{ ...S.label }}>WORKLOAD RATIO</div>
+          <div style={{ textAlign:"right" }}>
+            <span className="bebas" style={{ fontSize: 28, color: status.col, lineHeight: 1 }}>{fmtR(acwr)}</span>
+            <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1px" }}>ACWR</div>
+          </div>
+        </div>
+
+        {/* Status badge */}
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          background: `${status.col}18`,
+          border: `1px solid ${status.col}55`,
+          borderRadius: 8, padding: "5px 10px", marginBottom: 10,
+        }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: status.col, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: status.col, letterSpacing: "0.5px" }}>{status.label}</span>
+        </div>
+        <div style={{ fontSize: 11, color: th.muted, marginBottom: 12 }}>{status.desc}</div>
+
+        {/* Line chart with sweet spot band */}
+        <svg viewBox={`0 0 ${W_SVG} ${H + 20}`} width="100%" style={{ overflow: "visible" }}>
+          {/* Sweet spot band */}
+          <rect x="0" y={yBandTop} width={W_SVG} height={yBandBottom - yBandTop}
+            fill={`${th.accentBg}18`} />
+          <line x1="0" y1={yBandTop}    x2={W_SVG} y2={yBandTop}    stroke={`${th.accentBg}55`} strokeWidth="1" strokeDasharray="3 3" />
+          <line x1="0" y1={yBandBottom} x2={W_SVG} y2={yBandBottom} stroke={`${th.accentBg}55`} strokeWidth="1" strokeDasharray="3 3" />
+          <text x={W_SVG - 2} y={yBandTop - 3}    textAnchor="end" fontSize="8" fill={`${th.accentBg}99`} fontFamily="Outfit,sans-serif">1.3</text>
+          <text x={W_SVG - 2} y={yBandBottom + 9}  textAnchor="end" fontSize="8" fill={`${th.accentBg}99`} fontFamily="Outfit,sans-serif">0.8</text>
+          {/* Area fill */}
+          <path d={areaPath} fill={status.col} opacity="0.07" />
+          {/* Line */}
+          <path d={linePath} fill="none" stroke={status.col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Dots */}
+          {weeks.map((w, i) => (
+            <circle key={i} cx={xs[i]} cy={ys[i]}
+              r={i === weeks.length - 1 ? R + 1 : R}
+              fill={i === weeks.length - 1 ? status.col : th.card}
+              stroke={w.ratio > 1.5 ? APP_RED : w.ratio > 1.3 ? APP_ORANGE : w.ratio >= 0.8 ? th.accentBg : th.accentFg}
+              strokeWidth="1.5" />
+          ))}
+          {/* Edge labels */}
+          <text x={xs[0]}             y={H + 14} textAnchor="start" fontSize="9" fill={th.dim} fontFamily="Outfit,sans-serif">{fmtR(weeks[0].ratio)}</text>
+          <text x={xs[xs.length - 1]} y={H + 14} textAnchor="end"   fontSize="9" fill={status.col} fontFamily="Outfit,sans-serif" fontWeight="700">{fmtR(acwr)}</text>
+        </svg>
+
+        {/* Legend */}
+        <div style={{ display:"flex", gap: 14, marginTop: 6, flexWrap: "wrap" }}>
+          {[
+            { col: th.accentBg, label: "Sweet spot  0.8–1.3" },
+            { col: APP_ORANGE, label: "High  1.3–1.5" },
+            { col: APP_RED,    label: "Deload  >1.5" },
+          ].map(({ col, label }) => (
+            <div key={label} style={{ display:"flex", alignItems:"center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: col }} />
+              <span style={{ fontSize: 12, color: th.dim }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   function StrengthProgression({ sessions }) {
     const th = useTheme();
     const S = useS();
@@ -3802,8 +4096,8 @@ import "./styles.css";
     };
     const GROUPS = [
       { key: "Push", label: "Push", col: th.accentBg },
-      { key: "Pull", label: "Pull", col: "#4ecdc4"   },
-      { key: "Legs", label: "Legs", col: "#fd9644"   },
+      { key: "Pull", label: "Pull", col: "#5B9CF6"   },
+      { key: "Legs", label: "Legs", col: "#E8612C"   },
       { key: "Arms", label: "Arms", col: "#ff7675"   },
     ];
     const [selGroup, setSelGroup] = useState("Push");
@@ -3843,7 +4137,7 @@ import "./styles.css";
           {lift && (() => {
             const allPts = lift.pts;
             const delta = allPts.length >= 2 ? allPts[allPts.length-1].w - allPts[0].w : 0;
-            const trendCol = delta > 0 ? "#1db954" : "#ff6b6b";
+            const trendCol = delta > 0 ? "#1db954" : "#CC1F42";
             const trend = delta > 0 ? "↑" : delta < 0 ? "↓" : null;
             return (
               <div style={{ textAlign:"right" }}>
@@ -3877,9 +4171,9 @@ import "./styles.css";
               return (
                 <button key={l.id} onClick={() => setSelId(l.id)} style={{
                   padding:"3px 9px", borderRadius:20, fontSize:10, fontWeight:600,
-                  border:`1px solid ${isActive ? "#4ecdc4" : th.inputB}`,
-                  background: isActive ? "#4ecdc418" : "transparent",
-                  color: isActive ? "#4ecdc4" : th.dim,
+                  border:`1px solid ${isActive ? "#5B9CF6" : th.inputB}`,
+                  background: isActive ? "#5B9CF618" : "transparent",
+                  color: isActive ? "#5B9CF6" : th.dim,
                   cursor:"pointer", fontFamily:"'Outfit',sans-serif",
                   whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120,
                   transition:"all .18s",
@@ -4372,8 +4666,8 @@ import "./styles.css";
                   const hasResist = daySess.some(s => (s.exercises||[]).some(e => e.type !== "cardio"));
                   const hasCardio = daySess.some(s => (s.exercises||[]).some(e => e.type === "cardio"));
                   const bg = !active ? "transparent"
-                    : hasResist && hasCardio ? "#fd9644"
-                    : hasCardio ? "#4ecdc4" : th.accentBg;
+                    : hasResist && hasCardio ? "#E8612C"
+                    : hasCardio ? "#5B9CF6" : th.accentBg;
                   return (
                     <div key={ci} style={{ aspectRatio:"1", display:"flex", alignItems:"center", justifyContent:"center" }}>
                       <div style={{
@@ -4388,7 +4682,7 @@ import "./styles.css";
                 })}
               </div>
               <div style={{ display:"flex", gap:10, marginTop:8, justifyContent:"center" }}>
-                {[{ label:"Resistance",col:th.accentBg },{ label:"Cardio",col:"#4ecdc4" },{ label:"Mix",col:"#fd9644" }].map(({label,col})=>(
+                {[{ label:"Resistance",col:th.accentBg },{ label:"Cardio",col:"#5B9CF6" },{ label:"Mix",col:"#E8612C" }].map(({label,col})=>(
                   <div key={label} style={{ display:"flex",alignItems:"center",gap:4 }}>
                     <div style={{ width:8,height:8,borderRadius:"50%",background:col }} />
                     <span style={{ fontSize:10,color:th.dim }}>{label}</span>
@@ -4424,7 +4718,7 @@ import "./styles.css";
                   const prev7 = sessions.filter(s => (s.startTime||0) >= cut14 && (s.startTime||0) < cut7 && (s.intensity||0) > 0);
                   const prevAvgI = prev7.length ? (prev7.reduce((a,s)=>a+(s.intensity||0),0)/prev7.length) : null;
                   const intArrow = prevAvgI != null ? (parseFloat(avgI) > prevAvgI ? "↑" : parseFloat(avgI) < prevAvgI ? "↓" : null) : null;
-                  const intArrowCol = intArrow === "↑" ? "#1db954" : "#ff6b6b";
+                  const intArrowCol = intArrow === "↑" ? "#1db954" : "#CC1F42";
                   return (
                     <div style={{ textAlign:"right" }}>
                       <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
@@ -4480,9 +4774,9 @@ import "./styles.css";
                       const hasCardio = daySessions.some(s => (s.exercises||[]).some(e => e.type === "cardio"));
                       const h = hasData ? Math.max(8, (n / 10) * 80) : 6;
                       const barBg = hasData
-                        ? (hasResist && hasCardio ? "#fd9644" : hasCardio ? "#4ecdc4" : th.accentBg)
+                        ? (hasResist && hasCardio ? "#E8612C" : hasCardio ? "#5B9CF6" : th.accentBg)
                         : th.inputB;
-                      const col = hasData ? (hasCardio && !hasResist ? "#4ecdc4" : th.accentFg) : th.inputB;
+                      const col = hasData ? (hasCardio && !hasResist ? "#5B9CF6" : th.accentFg) : th.inputB;
                       const dateLabel = d.toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
@@ -4539,8 +4833,8 @@ import "./styles.css";
               <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", flexWrap: "wrap" }}>
                 {[
                   { label: "Resistance", swatch: th.accentBg },
-                  { label: "Cardio", swatch: "#4ecdc4" },
-                  { label: "Mix", swatch: "#fd9644" },
+                  { label: "Cardio", swatch: "#5B9CF6" },
+                  { label: "Mix", swatch: "#E8612C" },
                 ].map(({ label, swatch }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <div style={{ width: 22, height: 8, borderRadius: 2, background: swatch }} />
@@ -4562,7 +4856,7 @@ import "./styles.css";
                   const prev7c = sessions.filter(s => (s.startTime||0) >= cut14c && (s.startTime||0) < cut7 && (s.calories||0) > 0);
                   const prevAvgC = prev7c.length ? Math.round(prev7c.reduce((a,s)=>a+(s.calories||0),0)/prev7c.length) : null;
                   const calArrow = prevAvgC != null ? (avgC > prevAvgC ? "↑" : avgC < prevAvgC ? "↓" : null) : null;
-                  const calArrowCol = calArrow === "↑" ? "#1db954" : "#ff6b6b";
+                  const calArrowCol = calArrow === "↑" ? "#1db954" : "#CC1F42";
                   return (
                     <div style={{ textAlign:"right" }}>
                       <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
@@ -4604,9 +4898,9 @@ import "./styles.css";
                       const hasData = total > 0;
                       const h = hasData ? Math.max(8, (total / maxCal) * 80) : 6;
                       const barBg = hasData
-                        ? (hasResist && hasCardio ? "#fd9644" : hasCardio ? "#4ecdc4" : th.accentBg)
+                        ? (hasResist && hasCardio ? "#E8612C" : hasCardio ? "#5B9CF6" : th.accentBg)
                         : th.inputB;
-                      const col = hasData ? (hasCardio && !hasResist ? "#4ecdc4" : th.accentFg) : th.inputB;
+                      const col = hasData ? (hasCardio && !hasResist ? "#5B9CF6" : th.accentFg) : th.inputB;
                       const dateLabel = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                       return (
                         <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
@@ -4626,8 +4920,8 @@ import "./styles.css";
               <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "center", flexWrap: "wrap" }}>
                 {[
                   { label: "Resistance", swatch: th.accentBg },
-                  { label: "Cardio", swatch: "#4ecdc4" },
-                  { label: "Mix", swatch: "#fd9644" },
+                  { label: "Cardio", swatch: "#5B9CF6" },
+                  { label: "Mix", swatch: "#E8612C" },
                 ].map(({ label, swatch }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <div style={{ width: 22, height: 8, borderRadius: 2, background: swatch }} />
@@ -4651,7 +4945,7 @@ import "./styles.css";
                 const d = (latest[f] - prev[f]).toFixed(1);
                 return {
                   d, sign: d > 0 ? "+" : "",
-                  col: f === "fat" ? (d < 0 ? "#1db954" : "#ff6b6b") : (d > 0 ? "#1db954" : "#ff6b6b"),
+                  col: f === "fat" ? (d < 0 ? "#1db954" : "#CC1F42") : (d > 0 ? "#1db954" : "#CC1F42"),
                 };
               };
               return (
@@ -4736,8 +5030,8 @@ import "./styles.css";
           if (!trained.length) return null;
 
           const getColor = (score) => {
-            if (score >= 0.7)  return { bg: "#ff6b6b22", border: "#ff6b6b", text: "#ff6b6b", label: "HIGH" };
-            if (score >= 0.35) return { bg: "#fd964422", border: "#fd9644", text: "#fd9644", label: "MED" };
+            if (score >= 0.7)  return { bg: "#CC1F4222", border: "#CC1F42", text: "#CC1F42", label: "HIGH" };
+            if (score >= 0.35) return { bg: "#E8612C22", border: "#E8612C", text: "#E8612C", label: "MED" };
             if (score > 0)     return { bg: `${th.accentBg}18`, border: th.accentBg, text: th.accentFg, label: "LOW" };
             return { bg: "transparent", border: "transparent", text: "#555", label: "" };
           };
@@ -4771,8 +5065,8 @@ import "./styles.css";
               </div>
               <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
                 {[
-                  { label: "High fatigue", col: "#ff6b6b" },
-                  { label: "Recovering",   col: "#fd9644" },
+                  { label: "High fatigue", col: "#CC1F42" },
+                  { label: "Recovering",   col: "#E8612C" },
                   { label: "Low fatigue",  col: th.accentBg },
                   { label: "Rested",       col: th.dim },
                 ].map(({ label, col }) => (
@@ -4811,7 +5105,7 @@ import "./styles.css";
           const trend   = withEff.length >= 2
             ? (latest.eff > withEff[withEff.length - 2].eff ? "↑" : latest.eff < withEff[withEff.length - 2].eff ? "↓" : null)
             : null;
-          const trendCol = trend === "↑" ? "#1db954" : "#ff6b6b";
+          const trendCol = trend === "↑" ? "#1db954" : "#CC1F42";
 
           // SVG line chart
           const W = 280, H = 52, R = 3;
@@ -4822,7 +5116,7 @@ import "./styles.css";
           // Average line Y
           const avgY = H - ((avgEff - minEff) / range) * (H - R*2) - R;
 
-          const effColor = (e) => e >= avgEff * 1.2 ? th.accentBg : e >= avgEff * 0.8 ? "#fd9644" : "#ff6b6b";
+          const effColor = (e) => e >= avgEff * 1.2 ? th.accentBg : e >= avgEff * 0.8 ? "#E8612C" : "#CC1F42";
 
           return (
             <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
@@ -4860,8 +5154,8 @@ import "./styles.css";
               <div style={{ display: "flex", gap: 14, marginTop: 4, flexWrap: "wrap" }}>
                 {[
                   { label: "High efficiency", col: th.accentBg },
-                  { label: "Average",         col: "#fd9644" },
-                  { label: "Low efficiency",  col: "#ff6b6b" },
+                  { label: "Average",         col: "#E8612C" },
+                  { label: "Low efficiency",  col: "#CC1F42" },
                 ].map(({ label, col }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: col }} />
@@ -4917,7 +5211,7 @@ import "./styles.css";
           const totalRecent = weekVols[weekVols.length-1];
           const totalPrev   = weekVols[weekVols.length-2] || 0;
           const delta = totalRecent - totalPrev;
-          const trendCol = delta > 0 ? "#1db954" : "#ff6b6b";
+          const trendCol = delta > 0 ? "#1db954" : "#CC1F42";
           const trend = delta > 0 ? "↑" : delta < 0 ? "↓" : null;
           const fmtV = v => v >= 1000 ? `${(v/1000).toFixed(1)}t` : `${Math.round(v)}kg`;
           if (weekVols.every(v => v === 0)) return null;
@@ -4954,6 +5248,17 @@ import "./styles.css";
           );
         })() : null}
         </div>
+
+        {/* ── Sets by Muscle Group ── */}
+        <div style={{ order: enabledDashboards.indexOf("setsbygroup") }}>
+        {isDashEnabled("setsbygroup") && sessions.length > 0 && <SetsByMuscleGroup sessions={sessions} />}
+        </div>
+
+        {/* ── ACWR ── */}
+        <div style={{ order: enabledDashboards.indexOf("acwr") }}>
+        {isDashEnabled("acwr") && sessions.length > 0 && <ACWRDashboard sessions={sessions} sessionVol={sessionVol} />}
+        </div>
+
         </div>{/* end dashboards flex column */}
 
         {/* Shortcuts */}
@@ -6540,7 +6845,7 @@ import "./styles.css";
                         background: allDone
                           ? th.accentBg
                           : someDone
-                          ? "#fd9644"
+                          ? "#E8612C"
                           : th.row,
                         transition: "background .3s",
                       }}
@@ -6909,7 +7214,7 @@ import "./styles.css";
             },
             solid: {
               emoji: "💪",
-              color: "#fd9644",
+              color: "#E8612C",
               bg: "rgba(253,150,68,0.09)",
               border: "rgba(253,150,68,0.22)",
               msgs: [
@@ -6922,7 +7227,7 @@ import "./styles.css";
             },
             meh: {
               emoji: "😐",
-              color: "#fd9644",
+              color: "#E8612C",
               bg: "rgba(253,150,68,0.07)",
               border: "rgba(253,150,68,0.18)",
               msgs: [
@@ -6935,7 +7240,7 @@ import "./styles.css";
             },
             rough: {
               emoji: "🫠",
-              color: "#ff6b6b",
+              color: "#CC1F42",
               bg: "rgba(255,107,107,0.07)",
               border: "rgba(255,107,107,0.18)",
               msgs: [
@@ -6948,7 +7253,7 @@ import "./styles.css";
             },
             ghost: {
               emoji: "💀",
-              color: "#ff6b6b",
+              color: "#CC1F42",
               bg: "rgba(255,107,107,0.07)",
               border: "rgba(255,107,107,0.2)",
               msgs: [
@@ -7091,7 +7396,7 @@ import "./styles.css";
           )}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-              const col = n <= 3 ? "#ff6b6b" : n <= 6 ? "#fd9644" : th.accentFg;
+              const col = n <= 3 ? "#CC1F42" : n <= 6 ? "#E8612C" : th.accentFg;
               return (
                 <button
                   key={n}
@@ -7976,7 +8281,7 @@ import "./styles.css";
                 />
                 {upgErr && (
                   <div
-                    style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 8 }}
+                    style={{ color: "#CC1F42", fontSize: 12, marginBottom: 8 }}
                   >
                     {upgErr}
                   </div>
@@ -8229,7 +8534,7 @@ import "./styles.css";
                   <div style={{ ...S.label, marginBottom: 6 }}>
                     CURRENT PASSWORD{" "}
                     <span
-                      style={{ color: "#ff6b6b", fontSize: 9, letterSpacing: 0 }}
+                      style={{ color: "#CC1F42", fontSize: 9, letterSpacing: 0 }}
                     >
                       *required
                     </span>
@@ -8244,7 +8549,7 @@ import "./styles.css";
                 </>
               )}
               {editErr && (
-                <div style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 10 }}>
+                <div style={{ color: "#CC1F42", fontSize: 12, marginBottom: 10 }}>
                   {editErr}
                 </div>
               )}
@@ -9155,9 +9460,9 @@ import "./styles.css";
                                 }}
                                 style={{
                                   background: "none",
-                                  border: "1px solid #ff6b6b",
+                                  border: "1px solid #CC1F42",
                                   borderRadius: 7,
-                                  color: "#ff6b6b",
+                                  color: "#CC1F42",
                                   fontSize: 11,
                                   padding: "3px 10px",
                                   cursor: "pointer",
@@ -9310,7 +9615,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.0 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.1 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -9794,6 +10099,35 @@ import "./styles.css";
       lsSet(uKey(user.id, "settings"), s);
       fsSaveSettings(user.id, s);
     };
+    // Real-time settings listener — syncs dashboard changes across devices
+    useEffect(() => {
+      if (!user?.id) return;
+      const unsub = onSnapshot(
+        doc(fbDb, "users", user.id, "data", "settings"),
+        (snap) => {
+          if (snap.exists()) {
+            const remote = snap.data();
+            setSettings(prev => {
+              // Only update if remote has different homeDashboards or homePrograms
+              // to avoid overwriting local optimistic updates
+              const merged = { ...DEFAULT_SETTINGS, ...remote };
+              if (
+                JSON.stringify(merged.homeDashboards) !== JSON.stringify(prev.homeDashboards) ||
+                JSON.stringify(merged.homePrograms) !== JSON.stringify(prev.homePrograms) ||
+                merged.hasDashOnboarded !== prev.hasDashOnboarded ||
+                merged.hasProgramOnboarded !== prev.hasProgramOnboarded
+              ) {
+                lsSet(uKey(user.id, "settings"), merged);
+                return merged;
+              }
+              return prev;
+            });
+          }
+        },
+        (err) => console.warn("settings onSnapshot:", err.code)
+      );
+      return () => unsub();
+    }, [user?.id]);
     const saveActive = (a) => {
       setActive(a);
       lsSet(uKey(user.id, "active"), a);
@@ -10145,7 +10479,7 @@ import "./styles.css";
                   width: 8,
                   height: 8,
                   borderRadius: "50%",
-                  background: "#ff6b6b",
+                  background: "#CC1F42",
                   animation: "pulse 1.5s ease-in-out infinite",
                 }}
               />
@@ -10263,7 +10597,7 @@ import "./styles.css";
                     </span>
                     <span
                       style={{
-                        color: paused ? "#fd9644" : th.accentFg,
+                        color: paused ? "#E8612C" : th.accentFg,
                         fontWeight: 700,
                         fontSize: 18,
                         fontFamily: "'Bebas Neue',sans-serif",
@@ -10291,7 +10625,7 @@ import "./styles.css";
                       background: paused ? th.pause : "transparent",
                       border: `1px solid ${paused ? th.pauseB : th.inputB}`,
                       borderRadius: 9,
-                      color: paused ? "#fd9644" : th.muted,
+                      color: paused ? "#E8612C" : th.muted,
                       fontSize: 10,
                       padding: "6px 10px",
                       cursor: "pointer",
@@ -10997,8 +11331,8 @@ import "./styles.css";
                 for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
                 const STRENGTH_COL = th.accentBg;
-                const CARDIO_COL   = "#4ecdc4";
-                const BOTH_COL     = "#fd9644";
+                const CARDIO_COL   = "#5B9CF6";
+                const BOTH_COL     = "#E8612C";
 
                 return (
                   <>
