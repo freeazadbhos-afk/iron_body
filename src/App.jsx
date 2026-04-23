@@ -1040,6 +1040,55 @@ import "./styles.css";
     c8:"E", c9:"E", c10:"E", c11:"E", c12:"E", c13:"E",
   };
 
+  // ── Secondary muscles (synergists) ──────────────────────────────────────────
+  const SECONDARY = {
+    // Chest
+    e1:"Triceps · Front Delts", e2:"Triceps · Front Delts", e4:"Triceps · Front Delts",
+    e5:"Triceps · Front Delts", e7:"Triceps · Front Delts", e8:"Triceps · Core",
+    e51:"Triceps · Front Delts · Core", e52:"Triceps · Front Delts",
+    e55:"Triceps · Front Delts",
+    // Back
+    e15:"Biceps · Rear Delts", e16:"Biceps · Rear Delts", e17:"Biceps · Rear Delts",
+    e18:"Biceps · Rear Delts", e19:"Biceps · Rear Delts", e20:"Biceps · Lower Back",
+    e59:"Glutes · Hamstrings", e60:"Glutes · Hamstrings", e61:"Glutes",
+    e62:"Biceps · Rear Delts", e63:"Biceps · Core", e64:"Biceps · Core",
+    e67:"Glutes", e68:"Glutes · Hamstrings",
+    // Shoulders
+    e28:"Triceps · Upper Chest", e29:"Triceps · Upper Chest",
+    e30:"Upper Traps", e31:"Upper Traps", e32:"Upper Traps", e33:"Upper Traps",
+    e84:"Upper Traps", e85:"Mid Back", e86:"Mid Back", e87:"Mid Back",
+    e90:"Triceps · Upper Chest",
+    // Arms
+    e9:"Biceps", e13:"Biceps", e27:"Lats · Chest",
+    e70:"Forearms", e71:"Forearms", e73:"Biceps",
+    e23:"Triceps", e24:"Chest · Lats", e25:"Chest",
+    e76:"Chest · Lats", e77:"Chest · Lats", e78:"Lats · Chest",
+    // Legs
+    e92:"Glutes · Hamstrings · Core", e93:"Glutes · Hamstrings · Core",
+    e94:"Glutes · Core", e95:"Hamstrings", e96:"Quads",
+    e42:"Hamstrings · Glutes", e43:"Quads", e44:"Hamstrings",
+    e47:"Glutes · Hamstrings", e100:"Glutes · Hamstrings",
+    e101:"Quads · Hamstrings", e102:"Quads",
+  };
+
+  // ── Difficulty badge helper ──────────────────────────────────────────────────
+  function DiffBadge({ id }) {
+    const d = DIFFICULTY[id];
+    if (!d) return null;
+    const cfg = d === "H"
+      ? { label: "HARD", bg: "rgba(204,31,66,0.14)",  color: "#CC1F42" }
+      : d === "M"
+      ? { label: "MED",  bg: "rgba(232,97,44,0.14)",  color: "#E8612C" }
+      : { label: "EASY", bg: "rgba(13,158,142,0.14)", color: "#0D9E8E" };
+    return (
+      <span style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: "0.8px",
+        padding: "2px 6px", borderRadius: 4,
+        background: cfg.bg, color: cfg.color, flexShrink: 0,
+      }}>{cfg.label}</span>
+    );
+  }
+
   /* ─── Exercise picker muscle filter chips ─────────────────────────────────────
     Each entry: label shown in UI + filter function against a DB entry
   ─────────────────────────────────────────────────────────────────────────────── */
@@ -2479,29 +2528,32 @@ import "./styles.css";
                 <GripIcon />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: th.text }}>
-                  {db?.name || ex.id}
+                {/* Row 1: name + difficulty */}
+                <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: th.text }}>
+                    {db?.name || ex.id}
+                  </span>
+                  <DiffBadge id={ex.id} />
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    marginTop: 3,
-                  }}
-                >
+                {/* Row 2: primary + secondary muscle tags */}
+                <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:4, flexWrap:"wrap" }}>
                   {db && (
                     <span style={S.tag(db.group)}>
                       {(db.muscle || "").toUpperCase()}
                     </span>
                   )}
-                  <span style={{ fontSize: 11, color: th.muted }}>
-                    {isCardio
-                      ? "Cardio"
-                      : `${sets.length} sets · ${sets[0]?.reps ?? "?"}reps · ${
-                          sets[0]?.weight ?? "?"
-                        }kg`}
-                  </span>
+                  {SECONDARY[ex.id] && SECONDARY[ex.id].split(" · ").map(m => {
+                    const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
+                    return (
+                      <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:10, padding:"2px 7px" }}>
+                        {m.toUpperCase()}
+                      </span>
+                    );
+                  })}
+                </div>
+                {/* Row 3: sets info */}
+                <div style={{ fontSize:11, color:th.muted, marginTop:4 }}>
+                  {isCardio ? "Cardio" : `${sets.length} sets · ${sets[0]?.reps ?? "?"}reps · ${sets[0]?.weight ?? "?"}kg`}
                 </div>
               </div>
             </div>
@@ -2516,10 +2568,11 @@ import "./styles.css";
                 borderRadius: 7,
                 color: th.delText,
                 cursor: "pointer",
-                fontSize: 12,
-                padding: "2px 8px",
+                fontSize: 13,
+                padding: "4px 9px",
                 flexShrink: 0,
                 marginLeft: 8,
+                alignSelf: "flex-start",
               }}
             >
               ✕
@@ -2759,9 +2812,9 @@ import "./styles.css";
         `}</style>
         <div
           style={{
-            background: `color-mix(in srgb, ${th.card} 85%, transparent)`,
-            backdropFilter: "blur(5px)",
-            WebkitBackdropFilter: "blur(10px)",
+            background: `color-mix(in srgb, ${th.card} 88%, transparent)`,
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
             borderRadius: "20px 20px 0 0",
             borderTop: `1px solid ${th.border}`,
             marginTop: 50,
@@ -2901,36 +2954,30 @@ import "./styles.css";
                   <div>
                     <div
                       style={{
+                        display: "flex",      // Added for alignment
+                        alignItems: "center", // Added for alignment
+                        gap: 8,               // Added for spacing (adjust as needed)
                         fontWeight: 500,
                         fontSize: 14,
                         color: isAdded ? th.dim : th.text,
                       }}
                     >
                       {e.name}
+                      <DiffBadge id={e.id} />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 11, color: gc(e.group), fontWeight: 600 }}>
                         {e.muscle.toUpperCase()}
-                      </span>
-                      {(() => {
-                        const d = DIFFICULTY[e.id];
-                        if (!d) return null;
-                        const cfg = d === "H"
-                          ? { label: "HARD", bg: "rgba(255,107,107,0.15)", color: "#CC1F42" }
-                          : d === "M"
-                          ? { label: "MED",  bg: "rgba(253,150,68,0.15)",  color: "#E8612C" }
-                          : { label: "EASY", bg: "rgba(34,168,85,0.15)",   color: "#2db55d" };
-                        return (
-                          <span style={{
-                            fontSize: 9, fontWeight: 700, letterSpacing: "0.8px",
-                            padding: "2px 6px", borderRadius: 4,
-                            background: cfg.bg, color: cfg.color,
-                          }}>
-                            {cfg.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
+                        </span>
+                        {SECONDARY[e.id] && SECONDARY[e.id].split(" · ").map(m => {
+                          const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
+                          return (
+                          <span key={m} style={{ ...S.tag(grp), opacity: 0.55, fontSize: 9, padding: "2px 6px" }}>
+                            {m.toUpperCase()}
+                            </span>
+                            );
+                            })}
+                            </div>
                   </div>
                   <div
                     style={{
@@ -2981,9 +3028,10 @@ import "./styles.css";
                   borderRadius: 13,
                   padding: "14px",
                   cursor: "pointer",
-                  fontFamily: "'Bebas Neue',sans-serif",
-                  fontSize: 18,
-                  letterSpacing: 2,
+                  fontFamily: "'Outfit',sans-serif",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
                   color: th.accentT,
                 }}
               >
@@ -4048,23 +4096,36 @@ import "./styles.css";
             fill={`${th.accentBg}18`} />
           <line x1="0" y1={yBandTop}    x2={W_SVG} y2={yBandTop}    stroke={`${th.accentBg}55`} strokeWidth="1" strokeDasharray="3 3" />
           <line x1="0" y1={yBandBottom} x2={W_SVG} y2={yBandBottom} stroke={`${th.accentBg}55`} strokeWidth="1" strokeDasharray="3 3" />
-          <text x={W_SVG - 2} y={yBandTop - 3}    textAnchor="end" fontSize="8" fill={`${th.accentBg}99`} fontFamily="Outfit,sans-serif">1.3</text>
-          <text x={W_SVG - 2} y={yBandBottom + 9}  textAnchor="end" fontSize="8" fill={`${th.accentBg}99`} fontFamily="Outfit,sans-serif">0.8</text>
+          {/* Sweet spot labels on left — never obscured by chart */}
+          <text x="3" y={yBandTop - 3}   textAnchor="start" fontSize="8" fill={`${th.accentBg}99`} fontFamily="Outfit,sans-serif">1.3 max</text>
+          <text x="3" y={yBandBottom + 9} textAnchor="start" fontSize="8" fill={`${th.accentBg}99`} fontFamily="Outfit,sans-serif">0.8 min</text>
           {/* Area fill */}
           <path d={areaPath} fill={status.col} opacity="0.07" />
           {/* Line */}
           <path d={linePath} fill="none" stroke={status.col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          {/* Dots */}
-          {weeks.map((w, i) => (
-            <circle key={i} cx={xs[i]} cy={ys[i]}
-              r={i === weeks.length - 1 ? R + 1 : R}
-              fill={i === weeks.length - 1 ? status.col : th.card}
-              stroke={w.ratio > 1.5 ? APP_RED : w.ratio > 1.3 ? APP_ORANGE : w.ratio >= 0.8 ? th.accentBg : th.accentFg}
-              strokeWidth="1.5" />
-          ))}
-          {/* Edge labels */}
-          <text x={xs[0]}             y={H + 14} textAnchor="start" fontSize="9" fill={th.dim} fontFamily="Outfit,sans-serif">{fmtR(weeks[0].ratio)}</text>
-          <text x={xs[xs.length - 1]} y={H + 14} textAnchor="end"   fontSize="9" fill={status.col} fontFamily="Outfit,sans-serif" fontWeight="700">{fmtR(acwr)}</text>
+          {/* Dots + value labels above each dot */}
+          {weeks.map((w, i) => {
+            const dotCol = w.ratio > 1.5 ? APP_RED : w.ratio > 1.3 ? APP_ORANGE : w.ratio >= 0.8 ? th.accentBg : th.accentFg;
+            const isLast = i === weeks.length - 1;
+            return (
+              <g key={i}>
+                {w.ratio > 0 && (
+                  <text x={xs[i]} y={ys[i] - 6}
+                    textAnchor={i === 0 ? "start" : i === weeks.length - 1 ? "end" : "middle"}
+                    fontSize="9" fill={dotCol}
+                    fontFamily="Outfit,sans-serif"
+                    fontWeight={isLast ? "700" : "400"}>
+                    {fmtR(w.ratio)}
+                  </text>
+                )}
+                <circle cx={xs[i]} cy={ys[i]}
+                  r={isLast ? R + 1 : R}
+                  fill={isLast ? dotCol : th.card}
+                  stroke={dotCol}
+                  strokeWidth="1.5" />
+              </g>
+            );
+          })}
         </svg>
 
         {/* Legend */}
@@ -6223,33 +6284,32 @@ import "./styles.css";
                     }}
                     onClick={() => setExpandedEx(isOpen ? null : ex.uid)}
                   >
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{ fontWeight: 600, fontSize: 14, color: th.text }}
-                      >
-                        {ex.name}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {/* Row 1: name + difficulty */}
+                      <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: th.text }}>
+                          {ex.name}
+                        </span>
+                        <DiffBadge id={ex.id} />
                       </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 7,
-                          marginTop: 4,
-                        }}
-                      >
+                      {/* Row 2: primary + secondary muscle tags */}
+                      <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:4, flexWrap:"wrap" }}>
                         <span style={S.tag(ex.group)}>
                           {ex.muscle.toUpperCase()}
                         </span>
-                        {isCardio ? (
-                          <span style={{ fontSize: 11, color: th.muted }}>
-                            Cardio — log from wearable
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: 11, color: th.muted }}>
-                            {ex.sets.length} sets · {ex.sets[0]?.reps} reps ·{" "}
-                            {ex.sets[0]?.weight}kg
-                          </span>
-                        )}
+                        {SECONDARY[ex.id] && SECONDARY[ex.id].split(" · ").map(m => {
+                          const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
+                          return (
+                            <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:10, padding:"2px 7px" }}>
+                              {m.toUpperCase()}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {/* Row 3: sets info */}
+                      <div style={{ fontSize:11, color:th.muted, marginTop:4 }}>
+                        {isCardio ? "Cardio — log from wearable"
+                          : `${ex.sets.length} sets · ${ex.sets[0]?.reps} reps · ${ex.sets[0]?.weight}kg`}
                       </div>
                     </div>
                     <div
@@ -6686,12 +6746,41 @@ import "./styles.css";
     const S = useS();
     const [exercises, setExercises] = useState(session.exercises);
     const [showExPicker, setShowExPicker] = useState(false);
+    const [milestoneMsg, setMilestoneMsg] = useState(null);
+    const [milestoneExIdx, setMilestoneExIdx] = useState(null);
+    const lastMilestoneRef = useRef(0);
+    const lastToggledExIdxRef = useRef(0);
+    const MILESTONES = [
+      { pct: 0.2, msgs: ["20% done — keep moving!", "Great start, stay focused."] },
+      { pct: 0.4, msgs: ["40% in — you're building momentum.", "Keep that pace up!"] },
+      { pct: 0.6, msgs: ["Over halfway — the hardest part is behind you.", "60% done. Don't stop now."] },
+      { pct: 0.8, msgs: ["80%! Almost there — finish strong.", "The last stretch separates the dedicated."] },
+      { pct: 1.0, msgs: ["100%! Every rep counted.", "Full program complete — respect."] },
+    ];
+
+    // Compute live done/total from local exercises state
+    const liveDone  = exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
+    const liveTotal = exercises.reduce((a, ex) => a + ex.sets.length, 0);
+    const livePct   = liveTotal > 0 ? liveDone / liveTotal : 0;
+
+    useEffect(() => {
+      if (liveTotal === 0) return;
+      const milestone = MILESTONES.slice().reverse().find(m => livePct >= m.pct);
+      if (!milestone) return;
+      if (milestone.pct <= lastMilestoneRef.current) return;
+      lastMilestoneRef.current = milestone.pct;
+      const msg = milestone.msgs[Math.floor(Math.random() * milestone.msgs.length)];
+      setMilestoneMsg(msg);
+      setMilestoneExIdx(lastToggledExIdxRef.current);
+      setTimeout(() => { setMilestoneMsg(null); setMilestoneExIdx(null); }, 2400);
+    }, [liveDone]);
 
     const upd = (newExs) => {
       setExercises(newExs);
       onSaveActive({ ...session, exercises: newExs });
     };
-    const toggleSet = (eIdx, sIdx) =>
+    const toggleSet = (eIdx, sIdx) => {
+      lastToggledExIdxRef.current = eIdx;
       upd(
         exercises.map((ex, i) =>
           i !== eIdx
@@ -6704,6 +6793,7 @@ import "./styles.css";
               }
         )
       );
+    };
     const updSetVal = (eIdx, sIdx, f, val) =>
       upd(
         exercises.map((ex, i) =>
@@ -6806,18 +6896,59 @@ import "./styles.css";
         {exercises.map((ex, eIdx) => {
           const allDone = ex.sets.every((s) => s.done);
           const someDone = ex.sets.some((s) => s.done);
+          const showMilestone = milestoneMsg && milestoneExIdx === eIdx;
           return (
             <div
               key={ex.uid}
               style={{
                 ...S.card,
                 marginBottom: 9,
+                position: "relative",
+                overflow: "hidden",
                 borderColor: allDone ? th.doneB : th.border,
                 transition: "border-color .15s",
                 animation: removingExIdx === eIdx ? "removeSlide 0.32s ease-in forwards" : undefined,
                 overflow: "hidden",
               }}
             >
+              {/* Milestone smash overlay — inside this card */}
+              {showMilestone && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  zIndex: 10, pointerEvents: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <style>{`
+                    @keyframes milestoneSmash {
+                      0%   { transform: scale(0.25) rotate(-6deg); opacity: 0; }
+                      55%  { transform: scale(1.15) rotate(1deg);  opacity: 1; }
+                      75%  { transform: scale(0.97) rotate(0deg);  opacity: 1; }
+                      100% { transform: scale(1)    rotate(0deg);  opacity: 1; }
+                    }
+                    @keyframes milestoneFade {
+                      0%   { opacity: 1; transform: scale(1); }
+                      70%  { opacity: 1; transform: scale(1); }
+                      100% { opacity: 0; transform: scale(1.1); }
+                    }
+                  `}</style>
+                  <div
+                    key={milestoneMsg}
+                    className="bebas"
+                    style={{
+                      fontSize: 32,
+                      lineHeight: 1.2,
+                      textAlign: "center",
+                      padding: "0 20px",
+                      color: th.accentBg,
+                      letterSpacing: "1px",
+                      textShadow: `0 0 30px ${th.accentBg}99, 0 2px 8px rgba(0,0,0,0.6)`,
+                      animation: "milestoneSmash 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards, milestoneFade 2.4s ease-out forwards",
+                    }}
+                  >
+                    {milestoneMsg}
+                  </div>
+                </div>
+              )}
               {/* Exercise header */}
               <div
                 style={{
@@ -7649,10 +7780,11 @@ import "./styles.css";
                         borderRadius: 7,
                         color: th.delText,
                         cursor: "pointer",
-                        padding: "5px 9px",
+                        padding: "4px 9px",
                         fontSize: 13,
                         lineHeight: 1,
                         fontWeight: 700,
+                        alignSelf: "flex-start",
                       }}
                     >
                       ✕
@@ -8460,7 +8592,7 @@ import "./styles.css";
                   )}
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: th.text }}>
+                  <div style={{ fontSize: 13, textAlign: "left", fontWeight: 700, color: th.text }}>
                     {ePhoto ? "Change photo" : "Upload from camera roll"}
                   </div>
                   <div style={{ fontSize: 11, color: th.muted, marginTop: 2 }}>
@@ -9615,7 +9747,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.2 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -10916,6 +11048,10 @@ import "./styles.css";
             @keyframes dashClose {
               from { opacity: 1; transform: translateY(0); }
               to   { opacity: 0; transform: translateY(-6px); }
+            }
+            @keyframes milestoneIn {
+              from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+              to   { opacity: 1; transform: translateY(0) scale(1); }
             }
             @keyframes shortcutListIn {
               from { opacity: 0; transform: translateY(-8px) scale(0.97); }
