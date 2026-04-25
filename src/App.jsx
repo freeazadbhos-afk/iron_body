@@ -1357,7 +1357,7 @@ import "./styles.css";
     65.0, 67.5, 70.0, 72.5, 75.0, 77.5, 80.0, 82.5, 85.0, 87.5, 90.0, 92.5, 95.0,
     97.5, 100.0, 102.5, 105.0, 107.5, 110.0, 112.5, 115.0, 117.5, 120.0, 122.5,
     125.0, 127.5, 130.0, 132.5, 135.0, 137.5, 140.0,
-  ]; // ruler: 0–140 in 2.5kg steps
+  ]; // ruler: 0-140 in 2.5kg steps
   const GC = {
     Chest: "#CC1F42",
     Back: "#5B9CF6",
@@ -1408,12 +1408,14 @@ import "./styles.css";
     { id: "bodycomp",   label: "Body Composition",      icon: "⚖️" },
     { id: "bodytrends", label: "Body Trends",           icon: "📉" },
     { id: "recovery",   label: "Muscle Recovery",       icon: "🩺" },
-    { id: "efficiency", label: "Training Efficiency",   icon: "📈" },
+    { id: "efficiency", label: "Session Pace",           icon: "📈" },
     { id: "strength",   label: "Strength Progression",  icon: "🏋️" },
     { id: "prs",        label: "Personal Records",      icon: "🏆" },
     { id: "volume",     label: "Weekly Volume",         icon: "📊" },
     { id: "setsbygroup", label: "Sets by Muscle Group", icon: "📋" },
-    { id: "acwr",        label: "Workload Ratio",        icon: "⚠️" },
+    { id: "acwr",           label: "Workload Ratio",           icon: "⚠️" },
+    { id: "relstrength",    label: "Relative Strength",        icon: "🔢" },
+    { id: "trainingdensity",label: "Training Density",         icon: "⏱" },
   ];
   // Measurements: array of {date, weight, muscle, fat} entries
   function getMeasurements(uid) {
@@ -1468,46 +1470,36 @@ import "./styles.css";
   }
   /* ─── Drag-to-reorder (Todoist-style: card sticks to pointer) ───────────────── */
   function useDragSort(items, setItems) {
-    const [dragIdx, setDragIdx] = useState(null);
-    const [insertIdx, setInsertIdx] = useState(null);
+    const [dragIdx,    setDragIdx]    = useState(null);
+    const [insertIdx,  setInsertIdx]  = useState(null);
     const [droppedIdx, setDroppedIdx] = useState(null);
-    const [dropDir, setDropDir] = useState(null); // 'up' | 'down'
-    const itemRects = useRef([]);
-    const dragIdxRef = useRef(null);
+    const [dropDir,    setDropDir]    = useState(null);
+    const itemRects   = useRef([]);
+    const dragIdxRef  = useRef(null);
     const insertIdxRef = useRef(null);
 
     const start = (e, idx, containerRef) => {
       e.preventDefault();
       const startY = e.touches ? e.touches[0].clientY : e.clientY;
       let hasMoved = false;
-      // Cache all item rects at drag start (before dragged item fades)
       const children = containerRef.current
         ? Array.from(containerRef.current.querySelectorAll("[data-drag-item]"))
         : [];
-      itemRects.current = children.map((c) => c.getBoundingClientRect());
-      dragIdxRef.current = idx;
+      itemRects.current = children.map((el) => el.getBoundingClientRect());
+      dragIdxRef.current  = idx;
       insertIdxRef.current = idx;
       setDragIdx(idx);
       setInsertIdx(idx);
 
       const onMove = (ev) => {
-        if (
-          !hasMoved &&
-          Math.abs((ev.touches ? ev.touches[0].clientY : ev.clientY) - startY) > 4
-        ) {
-          hasMoved = true;
-        }
+        if (ev.cancelable) ev.preventDefault();
         const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        if (!hasMoved && Math.abs(clientY - startY) > 4) hasMoved = true;
         const rects = itemRects.current;
-        // Find which gap the pointer is in.
-        // Gap i is between item i-1 and item i (gap 0 = before first, gap n = after last).
         let insert = 0;
         for (let i = 0; i < rects.length; i++) {
-          if (clientY > rects[i].top + rects[i].height / 2) {
-            insert = i + 1;
-          }
+          if (clientY > rects[i].top + rects[i].height / 2) insert = i + 1;
         }
-        // Clamp
         insert = Math.max(0, Math.min(rects.length, insert));
         if (insert !== insertIdxRef.current) {
           insertIdxRef.current = insert;
@@ -1517,18 +1509,12 @@ import "./styles.css";
 
       const onEnd = () => {
         const from = dragIdxRef.current;
-        const to = insertIdxRef.current;
+        const to   = insertIdxRef.current;
         if (hasMoved) {
-          // Suppress the synthetic click that fires after pointerup
-          window.addEventListener("click", (ev) => ev.stopPropagation(), {
-            capture: true,
-            once: true,
-          });
+          window.addEventListener("click", (ev) => ev.stopPropagation(), { capture: true, once: true });
         }
-        // 'to' is an insert gap index. Convert to final array index.
-        // After removing item at 'from', insert at 'to' (adjusted for removal).
         if (from !== null && to !== null) {
-          const rawTo = to > from ? to - 1 : to; // adjust for splice
+          const rawTo = to > from ? to - 1 : to;
           if (rawTo !== from) {
             const next = [...items];
             const [moved] = next.splice(from, 1);
@@ -1539,21 +1525,20 @@ import "./styles.css";
             setTimeout(() => { setDroppedIdx(null); setDropDir(null); }, 480);
           }
         }
-        dragIdxRef.current = null;
+        dragIdxRef.current  = null;
         insertIdxRef.current = null;
         setDragIdx(null);
         setInsertIdx(null);
         window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onEnd);
-        window.removeEventListener("touchmove", onMove);
-        window.removeEventListener("touchend", onEnd);
+        window.removeEventListener("pointerup",   onEnd);
+        window.removeEventListener("touchmove",   onMove);
+        window.removeEventListener("touchend",    onEnd);
       };
 
-      // Attach to window so drag works even if pointer leaves the grip
       window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onEnd);
-      window.addEventListener("touchmove", onMove, { passive: false });
-      window.addEventListener("touchend", onEnd);
+      window.addEventListener("pointerup",   onEnd);
+      window.addEventListener("touchmove",   onMove, { passive: false });
+      window.addEventListener("touchend",    onEnd);
     };
 
     return { dragIdx, insertIdx, droppedIdx, dropDir, start };
@@ -1591,14 +1576,15 @@ import "./styles.css";
 
   /* ─── Drop line between cards ────────────────────────────────────────────────── */
   function DropLine() {
+    const th = useTheme();
     return (
       <div
         style={{
           height: 3,
-          background: "#c8f030",
+          background: th.accentBg,
           borderRadius: 2,
           margin: "2px 0",
-          boxShadow: "0 0 8px #c8f030",
+          boxShadow: `0 0 8px ${th.accentBg}`,
         }}
       />
     );
@@ -1846,7 +1832,7 @@ import "./styles.css";
   }
   async function fsSaveSettings(uid, settings) {
     try {
-      await setDoc(doc(fbDb, "users", uid, "data", "settings"), strip(settings));
+      await setDoc(doc(fbDb, "users", uid, "data", "settings"), strip(settings), { merge: true });
     } catch (e) {
       console.error("fsSaveSettings:", e.code, e.message);
     }
@@ -2407,7 +2393,7 @@ import "./styles.css";
                   }}
                 />
               </div>
-              {/* Quick-tap: all presets (0–140 in 10kg steps) */}
+              {/* Quick-tap: all presets (0-140 in 10kg steps) */}
               <div
                 style={{
                   display: "flex",
@@ -3597,7 +3583,7 @@ import "./styles.css";
           background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
-          padding: "10px 16px",
+          padding: 16,
           marginBottom: 12,
           borderRadius: 13,
           cursor: "pointer",
@@ -3677,7 +3663,10 @@ import "./styles.css";
     return (
       <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <div style={{ ...S.label }}>YOUR HIGHLIGHTS</div>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>YOUR HIGHLIGHTS</div>
+              <DashInfoBtn title="Your Highlights" text="A summary of your key training stats for the selected time period — sessions, volume, calories, and more." />
+            </div>
           <div style={{ display:"flex", gap:4 }}>
             {RANGES.map(r => (
               <button key={r.key} onClick={() => setRange(r.key)} style={{
@@ -3802,7 +3791,10 @@ import "./styles.css";
           @keyframes prSlideR { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
         `}</style>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-          <div style={{ ...S.label }}>PERSONAL RECORDS</div>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>PERSONAL RECORDS</div>
+              <DashInfoBtn title="Personal Records" text="Your all-time personal records — the heaviest estimated 1RM (One-Rep Max) achieved per exercise, ranked by weight." />
+            </div>
           {totalPages > 1 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <button onClick={() => goTo(Math.max(0, page-1))} disabled={page===0}
@@ -3815,33 +3807,94 @@ import "./styles.css";
           )}
         </div>
         <div key={page} style={{ animation: dir === 1 ? "prSlideL 0.22s ease-out" : "prSlideR 0.22s ease-out" }}>
-          {prs.map((pr, i) => (
-            <div key={pr.name} style={{
-              display:"flex", alignItems:"center", gap:10,
-              padding:"8px 0",
-              borderBottom: i < prs.length-1 ? `1px solid ${th.border}` : "none",
-            }}>
-              <div className="bebas" style={{ fontSize:14, color:th.dim, width:22, flexShrink:0, textAlign:"right" }}>
-                #{page*PAGE+i+1}
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:th.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{pr.name}</div>
-                <div style={{ fontSize:10, color:th.muted, marginTop:1 }}>
-                  {pr.muscle}{pr.reps ? ` · ${pr.reps} reps` : ""} · {new Date(pr.t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
+          {Array.from({ length: PAGE }).map((_, i) => {
+            const pr = prs[i];
+            return pr ? (
+              <div key={pr.name} style={{
+                display:"flex", alignItems:"center", gap:10,
+                padding:"8px 0",
+                borderBottom: i < PAGE-1 ? `1px solid ${th.border}` : "none",
+              }}>
+                <div className="bebas" style={{ fontSize:14, color:th.dim, width:22, flexShrink:0, textAlign:"right" }}>
+                  #{page*PAGE+i+1}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:th.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{pr.name}</div>
+                  <div style={{ fontSize:10, color:th.muted, marginTop:1 }}>
+                    {pr.muscle}{pr.reps ? ` · ${pr.reps} reps` : ""} · {new Date(pr.t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right", flexShrink:0 }}>
+                  <span className="bebas" style={{ fontSize:22, color:th.accentFg, lineHeight:1 }}>{pr.w}</span>
+                  <span style={{ fontSize:10, color:th.dim }}> kg</span>
                 </div>
               </div>
-              <div style={{ textAlign:"right", flexShrink:0 }}>
-                <span className="bebas" style={{ fontSize:22, color:th.accentFg, lineHeight:1 }}>{pr.w}</span>
-                <span style={{ fontSize:10, color:th.dim }}> kg</span>
+            ) : (
+              /* Invisible placeholder row — keeps card height fixed across pages */
+              <div key={`ph-${i}`} style={{
+                display:"flex", alignItems:"center", gap:10,
+                padding:"8px 0",
+                borderBottom: i < PAGE-1 ? `1px solid ${th.border}` : "none",
+                visibility:"hidden",
+              }}>
+                <div style={{ fontSize:13, height:18, width:"100%" }} />
+                <div style={{ fontSize:10, height:14, width:"60%" }} />
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
   }
 
   /* ─── Sets by Muscle Group ─────────────────────────────────────────────────── */
+  /* ─── Dashboard info button ────────────────────────────────────────────────── */
+  function DashInfoBtn({ text, title }) {
+    const th = useTheme();
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button
+          onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+          style={{
+            background:"none", border:"none", cursor:"pointer",
+            fontSize:13, lineHeight:1, padding:"0 2px",
+            color: open ? th.accentFg : th.dim, opacity: open ? 1 : 0.55,
+            fontWeight:700, flexShrink:0,
+          }}>ⓘ</button>
+        {open && createPortal(
+          <div
+            onClick={() => setOpen(false)}
+            style={{
+              position:"fixed", inset:0, zIndex:9999,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              padding:"0 28px",
+              background:"rgba(0,0,0,0.35)",
+            }}>
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background:th.card, border:`1px solid ${th.border}`,
+                borderRadius:14, padding:"18px 16px",
+                maxWidth:360, width:"100%",
+                boxShadow:"0 8px 32px rgba(0,0,0,0.35)",
+                fontSize:13, color:th.muted, lineHeight:1.6,
+                animation:"shortcutListIn 0.22s cubic-bezier(0,0,0.2,1)",
+              }}>
+              {title && <div style={{ fontWeight:700, color:th.text, fontSize:13, marginBottom:8 }}>{title}</div>}
+              {text}
+              <button onClick={() => setOpen(false)} style={{
+                display:"block", marginTop:12, background:"none", border:"none",
+                cursor:"pointer", fontSize:12, color:th.accentFg, fontWeight:700, padding:0,
+              }}>Got it ✓</button>
+            </div>
+          </div>,
+          document.body
+        )}
+      </>
+    );
+  }
+
   function SetsByMuscleGroup({ sessions }) {
     const th = useTheme();
     const S = useS();
@@ -3900,8 +3953,11 @@ import "./styles.css";
         `}</style>
 
         {/* Header */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 14 }}>
-          <div style={{ ...S.label }}>SETS BY MUSCLE GROUP</div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>SETS BY MUSCLE GROUP</div>
+              <DashInfoBtn title="Sets By Muscle Group" text="Weekly set volume per muscle group compared to evidence-based hypertrophy targets (10-20 sets/week). Bars show actual sets done, colored zones show where you stand." />
+            </div>
           <div style={{ display:"flex", alignItems:"center", gap: 8 }}>
             <span style={{ fontSize: 10, color: th.dim, letterSpacing:"0.5px" }}>LAST 7 DAYS</span>
             {totalPages > 1 && (
@@ -3949,15 +4005,28 @@ import "./styles.css";
 
                 {/* Bar track — fixed height */}
                 <div style={{ position:"relative", height: 12, borderRadius: 6, background: th.sect, overflow:"visible" }}>
-                  {/* Target zone band (always visible as background) */}
+                  {/* Zone 0: Maintenance 0-min (gray) */}
                   <div style={{
-                    position:"absolute", top: -2, bottom: -2,
+                    position:"absolute", top:-2, bottom:-2,
+                    left:0, width:`${minP}%`,
+                    background:"rgba(128,128,128,0.12)",
+                    zIndex:0,
+                  }} />
+                  {/* Zone 1: Optimal min-max (teal tint) */}
+                  <div style={{
+                    position:"absolute", top:-2, bottom:-2,
                     left:`${minP}%`, width:`${maxP - minP}%`,
-                    background: `${th.accentBg}18`,
-                    borderLeft: `2px solid ${th.accentBg}60`,
-                    borderRight: `2px solid ${th.accentBg}60`,
-                    borderRadius: 0,
-                    zIndex: 0,
+                    background:`${th.accentBg}1A`,
+                    borderLeft:`2px solid ${th.accentBg}50`,
+                    borderRight:`2px solid ${th.accentBg}50`,
+                    zIndex:0,
+                  }} />
+                  {/* Zone 2: Excess max+ (red tint) */}
+                  <div style={{
+                    position:"absolute", top:-2, bottom:-2,
+                    left:`${maxP}%`, right:0,
+                    background:`${th.delText}14`,
+                    zIndex:0,
                   }} />
 
                   {/* Stacked actual bar */}
@@ -3992,24 +4061,30 @@ import "./styles.css";
                     </div>
                   )}
                 </div>
+                {/* Milestone labels below bar */}
+                <div style={{ position:"relative", height:14, marginTop:2 }}>
+                  <span style={{ position:"absolute", left:`${minP}%`, transform:"translateX(-50%)", fontSize:11, fontWeight:600, color:th.muted, whiteSpace:"nowrap" }}>{min}</span>
+                  <span style={{ position:"absolute", left:`${maxP}%`, transform:"translateX(-50%)", fontSize:11, fontWeight:700, color:th.accentFg, whiteSpace:"nowrap" }}>{max}</span>
+                </div>
               </div>
             );
           })}
         </div>
 
         {/* Legend */}
-        <div style={{ display:"flex", gap: 12, marginTop: 4, flexWrap:"wrap", borderTop:`1px solid ${th.border}`, paddingTop: 10 }}>
-          {[
-            { render: () => <div style={{ width:18, height:10, borderRadius:2, background:`${th.accentBg}18`, border:`2px solid ${th.accentBg}60` }} />, label: "Target (10–20)" },
-            { render: () => <div style={{ width:10, height:10, borderRadius:2, background:th.accentBg }} />, label: "In range" },
-            { render: () => <div style={{ width:10, height:10, borderRadius:2, background:`${th.accentBg}70` }} />, label: "Below target" },
-            { render: () => <div style={{ width:10, height:10, borderRadius:2, background:th.delText }} />, label: "Exceeded" },
-          ].map(({ render, label }) => (
-            <div key={label} style={{ display:"flex", alignItems:"center", gap: 5 }}>
-              {render()}
-              <span style={{ fontSize: 12, color: th.dim }}>{label}</span>
-            </div>
-          ))}
+        <div style={{ display:"flex", gap:10, marginTop:6, flexWrap:"wrap", borderTop:`1px solid ${th.border}`, paddingTop:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            <div style={{ width:14, height:10, borderRadius:2, background:"rgba(128,128,128,0.15)" }} />
+            <span style={{ fontSize:11, color:th.dim }}>Maintenance</span>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            <div style={{ width:14, height:10, borderRadius:2, background:`${th.accentBg}20`, border:`1px solid ${th.accentBg}55` }} />
+            <span style={{ fontSize:11, color:th.dim }}>Optimal</span>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            <div style={{ width:14, height:10, borderRadius:2, background:`${th.delText}22` }} />
+            <span style={{ fontSize:11, color:th.dim }}>Excess</span>
+          </div>
         </div>
       </div>
     );
@@ -4070,7 +4145,10 @@ import "./styles.css";
     return (
       <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
-          <div style={{ ...S.label }}>WORKLOAD RATIO</div>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>WORKLOAD RATIO</div>
+              <DashInfoBtn title="Workload Ratio" text="Acute-to-Chronic Workload Ratio (ACWR) divides your last 7 days of total tonnage by your 4-week average. Values between 0.8-1.3 indicate a safe training load." />
+            </div>
           <div style={{ textAlign:"right" }}>
             <span className="bebas" style={{ fontSize: 28, color: status.col, lineHeight: 1 }}>{fmtR(acwr)}</span>
             <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1px" }}>ACWR</div>
@@ -4131,8 +4209,8 @@ import "./styles.css";
         {/* Legend */}
         <div style={{ display:"flex", gap: 14, marginTop: 6, flexWrap: "wrap" }}>
           {[
-            { col: th.accentBg, label: "Sweet spot  0.8–1.3" },
-            { col: APP_ORANGE, label: "High  1.3–1.5" },
+            { col: th.accentBg, label: "Sweet spot  0.8-1.3" },
+            { col: APP_ORANGE, label: "High  1.3-1.5" },
             { col: APP_RED,    label: "Deload  >1.5" },
           ].map(({ col, label }) => (
             <div key={label} style={{ display:"flex", alignItems:"center", gap: 5 }}>
@@ -4140,6 +4218,275 @@ import "./styles.css";
               <span style={{ fontSize: 12, color: th.dim }}>{label}</span>
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Volume & Intensity Dual-Axis Chart ───────────────────────────────────── */
+  function VolumeIntensityChart({ sessions, sessionVol }) {
+    const th = useTheme();
+    const S = useS();
+    const now = Date.now();
+    const W7 = 7 * 24 * 60 * 60 * 1000;
+    const weeks = Array.from({ length: 6 }, (_, i) => {
+      const end = now - i * W7; const start = end - W7;
+      const startD = new Date(start);
+      const fmt = d => d.toLocaleDateString("en-GB", { day:"numeric", month:"short" });
+      return { start, end, label: i === 0 ? "Now" : fmt(startD) };
+    }).reverse();
+
+    const weekVols = weeks.map(w =>
+      sessions.filter(s => (s.startTime||0) >= w.start && (s.startTime||0) < w.end)
+        .reduce((a,s) => a + sessionVol(s), 0)
+    );
+    const weekInts = weeks.map(w => {
+      const ws = sessions.filter(s => (s.startTime||0) >= w.start && (s.startTime||0) < w.end && (s.intensity||0) > 0);
+      return ws.length ? ws.reduce((a,s) => a + (s.intensity||0), 0) / ws.length : null;
+    });
+
+    const maxVol = Math.max(...weekVols, 1);
+    const hasData = weekVols.some(v => v > 0);
+    if (!hasData) return null;
+
+    const BAR_H = 64;
+    const W = 280; const H = 50; const R = 3;
+    // Line chart for intensity — only non-null points
+    const intPts = weeks.map((w, i) => ({ i, v: weekInts[i] })).filter(p => p.v != null);
+    const intMin = Math.min(...intPts.map(p => p.v), 0);
+    const intMax = Math.max(...intPts.map(p => p.v), 10);
+    const iRange = intMax - intMin || 1;
+    const ix = (i) => (i / (weeks.length - 1)) * W;
+    const iy = (v) => H - ((v - intMin) / iRange) * (H - R * 2) - R;
+    const linePath = intPts.length >= 2
+      ? intPts.map((p, j) => `${j === 0 ? "M" : "L"}${ix(p.i)},${iy(p.v)}`).join(" ")
+      : null;
+
+    const latestVol = weekVols[weekVols.length - 1];
+    const prevVol   = weekVols[weekVols.length - 2] || 0;
+    const volDelta  = latestVol - prevVol;
+    const volArrow  = volDelta > 0 ? "↑" : volDelta < 0 ? "↓" : null;
+    const volCol    = volDelta > 0 ? "#1db954" : "#CC1F42";
+    const fmtV = v => v >= 1000 ? `${(v/1000).toFixed(1)}t` : `${Math.round(v)}kg`;
+
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ ...S.label }}>VOLUME & INTENSITY</div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
+              {volArrow && <span style={{ fontSize:14, color:volCol, fontWeight:700 }}>{volArrow}</span>}
+              <span className="bebas" style={{ fontSize:26, color:th.accentFg, lineHeight:1 }}>{fmtV(latestVol)}</span>
+            </div>
+            <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px" }}>THIS WEEK</div>
+          </div>
+        </div>
+
+        {/* Bars (volume) + SVG line (intensity) overlaid */}
+        <div style={{ position:"relative" }}>
+          {/* Volume bars */}
+          <div style={{ display:"flex", gap:5, alignItems:"flex-end", height: BAR_H }}>
+            {weeks.map((w, i) => {
+              const v = weekVols[i];
+              const h = v > 0 ? Math.max(6, (v / maxVol) * BAR_H) : 3;
+              const isCur = i === weeks.length - 1;
+              return (
+                <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", height:"100%" }}>
+                  <div style={{
+                    width:"100%", height: h,
+                    background: isCur ? th.accentBg : `${th.accentBg}55`,
+                    borderRadius:"3px 3px 0 0",
+                  }} />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Intensity line overlay */}
+          {linePath && (
+            <svg viewBox={`0 0 ${W} ${H}`} width="100%"
+              style={{ position:"absolute", top:0, left:0, overflow:"visible", height: BAR_H, pointerEvents:"none" }}>
+              <path d={linePath} fill="none" stroke="#5B9CF6" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round" />
+              {intPts.map((p) => (
+                <circle key={p.i} cx={ix(p.i)} cy={iy(p.v)} r={p.i === weeks.length-1 ? R+1 : R}
+                  fill={p.i === weeks.length-1 ? "#5B9CF6" : th.card} stroke="#5B9CF6" strokeWidth="1.5" />
+              ))}
+            </svg>
+          )}
+        </div>
+
+        {/* X-axis labels */}
+        <div style={{ display:"flex", gap:5, marginTop:3 }}>
+          {weeks.map((w,i) => (
+            <div key={i} style={{ flex:1, fontSize:7, color: i===weeks.length-1?th.accentFg:th.dim,
+              textAlign:"center", lineHeight:1.2, whiteSpace:"nowrap", overflow:"hidden" }}>{w.label}</div>
+          ))}
+        </div>
+
+        {/* Legend */}
+        <div style={{ display:"flex", gap:12, marginTop:8 }}>
+          {[{ col:th.accentBg, label:"Volume" }, { col:"#5B9CF6", label:"Avg intensity /10" }].map(({col,label}) => (
+            <div key={label} style={{ display:"flex", alignItems:"center", gap:5 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:col }} />
+              <span style={{ fontSize:12, color:th.dim }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Relative Strength Multiplier ─────────────────────────────────────────── */
+  function RelativeStrengthDashboard({ sessions, measurements }) {
+    const th = useTheme();
+    const S = useS();
+
+    const bw = measurements?.[0]?.weight || null;
+    if (!bw) return null;
+
+    const KEY_LIFTS = [
+      { ids: ["e92","e93","lg1"], label: "Back Squat",          target: 1.5 },
+      { ids: ["e1","e2","e51"],   label: "Bench Press",         target: 1.25 },
+      { ids: ["e59","e60"],       label: "Deadlift",            target: 2.0 },
+      { ids: ["e28","e29","e90"], label: "Overhead Press",      target: 0.75 },
+    ];
+
+    const pr = {};
+    sessions.forEach(s => {
+      (s.exercises||[]).forEach(ex => {
+        if (!ex) return;
+        const id = ex.id || ex.exId;
+        const bestRm = Math.max(...(ex.sets||[]).filter(st=>st.done&&(st.weight||0)>0)
+          .map(st => st.weight * (1 + (st.reps||1)/30)), 0);
+        if (bestRm > 0 && (!pr[id] || bestRm > pr[id])) pr[id] = bestRm;
+      });
+    });
+
+    const rows = KEY_LIFTS.map(lift => {
+      const best = Math.max(...lift.ids.map(id => pr[id] || 0));
+      if (best === 0) return null;
+      const mult = best / bw;
+      return { ...lift, best, mult };
+    }).filter(Boolean);
+
+    if (!rows.length) return null;
+
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>RELATIVE STRENGTH</div>
+              <DashInfoBtn title="Relative Strength" text="Estimated 1RM (One-Rep Max) relative to your body weight for key lifts. A squat of 1.5x Bodyweight means you squat 1.5 times your own weight — a meaningful standard regardless of body size." />
+            </div>
+          <div style={{ fontSize:10, color:th.dim }}>Bodyweight: {bw}kg</div>
+        </div>
+        {rows.map(({ label, mult, target, best }) => {
+          const pct = Math.min((mult / (target * 1.5)) * 100, 100);
+          const targetPct = (target / (target * 1.5)) * 100;
+          const hit = mult >= target;
+          return (
+            <div key={label} style={{ marginBottom:14 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
+                <div>
+                  <span style={{ fontSize:13, fontWeight:600, color:th.text }}>{label}</span>
+                  <span style={{ fontSize:10, color:th.dim, marginLeft:6 }}>target {target}x</span>
+                </div>
+                <span className="bebas" style={{ fontSize:24, color: hit ? th.accentFg : th.muted, lineHeight:1 }}>
+                  {mult.toFixed(2)}x
+                </span>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ flex:1, position:"relative", height:10, borderRadius:5, background:th.sect }}>
+                  <div style={{
+                    position:"absolute", top:-3, bottom:-3,
+                    left:`${targetPct}%`,
+                    width:2, background:th.accentBg, borderRadius:1,
+                  }} />
+                  <div style={{
+                    position:"absolute", top:0, bottom:0, left:0,
+                    width:`${pct}%`,
+                    background: hit ? th.accentBg : `${th.accentBg}60`,
+                    borderRadius:5, transition:"width 0.5s ease",
+                  }} />
+                </div>
+                <span style={{ fontSize:11, fontWeight:700, color: hit ? th.accentFg : th.muted, minWidth:42, textAlign:"right", flexShrink:0 }}>
+                  {Math.round(best)}kg
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  /* ─── Training Density (Tonnage per Minute) ─────────────────────────────────── */
+  function TrainingDensityDashboard({ sessions, sessionVol }) {
+    const th = useTheme();
+    const S = useS();
+    const now = Date.now();
+    const W7 = 7 * 24 * 60 * 60 * 1000;
+
+    const weeks = Array.from({ length: 5 }, (_, i) => {
+      const end = now - i * W7; const start = end - W7;
+      const fmtShort = d => d.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+      const startD = new Date(start); const endD = new Date(end - 1);
+      const fmtDay = d => `${d.getDate()} ${d.toLocaleDateString("en-GB",{month:"short"})}`;
+      const label = `${fmtDay(startD)} - ${fmtDay(endD)}`;
+      return { start, end, label };
+    }).reverse();
+
+    const densities = weeks.map(w => {
+      const ws = sessions.filter(s => (s.startTime||0) >= w.start && (s.startTime||0) < w.end && (s.duration||0) > 0);
+      if (!ws.length) return 0;
+      const totalVol = ws.reduce((a,s) => a + sessionVol(s), 0);
+      const totalMins = ws.reduce((a,s) => a + (s.duration||0), 0);
+      return totalMins > 0 ? totalVol / totalMins : 0;
+    });
+
+    if (densities.every(d => d === 0)) return null;
+
+    const latest = densities[densities.length-1];
+    const prev = densities.slice(0,-1).reverse().find(d => d > 0);
+    const delta = latest > 0 && prev ? latest - prev : null;
+    const arrow = delta != null ? (delta > 0 ? "↑" : delta < 0 ? "↓" : null) : null;
+    const arrowCol = delta > 0 ? "#1db954" : "#CC1F42";
+    const maxD = Math.max(...densities, 1);
+    const fmtD = d => d >= 100 ? Math.round(d) : d.toFixed(1);
+
+    return (
+      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>TRAINING DENSITY</div>
+              <DashInfoBtn title="Training Density" text="Weekly tonnage divided by total session time for that week (kg/min). Tracks whether you're doing more work per hour across 5-week periods." />
+            </div>
+          {latest > 0 && (
+            <div style={{ textAlign:"right" }}>
+              <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
+                {arrow && <span style={{ fontSize:14, color:arrowCol, fontWeight:700 }}>{arrow}</span>}
+                <span className="bebas" style={{ fontSize:28, color:th.accentFg, lineHeight:1 }}>{fmtD(latest)}</span>
+              </div>
+              <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px" }}>KG/MIN (WEEKLY)</div>
+            </div>
+          )}
+        </div>
+        <div style={{ display:"flex", gap:5, alignItems:"flex-end", height:64 }}>
+          {weeks.map((w, i) => {
+            const d = densities[i];
+            const h = d > 0 ? Math.max(6, (d / maxD) * 64) : 3;
+            const isCur = i === weeks.length - 1;
+            return (
+              <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", height:"100%" }}>
+                <div style={{ fontSize:10, color: isCur ? th.accentFg : th.dim, fontWeight: isCur ? 700 : 400, marginBottom:2, lineHeight:1, textAlign:"center" }}>
+                  {d > 0 ? fmtD(d) : ""}
+                </div>
+                <div style={{ width:"100%", height:h, background: isCur ? th.accentBg : `${th.accentBg}55`, borderRadius:"3px 3px 0 0" }} />
+                <div style={{ fontSize:7, color:th.dim, marginTop:3, textAlign:"center", lineHeight:1.2 }}>{w.label}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -4194,7 +4541,10 @@ import "./styles.css";
       <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
         {/* Group selector */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <div style={{ ...S.label }}>STRENGTH PROGRESSION</div>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>STRENGTH PROGRESSION</div>
+              <DashInfoBtn title="Strength Progression" text="Estimated one-rep max (1RM) trend for push, pull, leg, and arm movements. Calculated from your actual sets and reps using the Epley formula." />
+            </div>
           {lift && (() => {
             const allPts = lift.pts;
             const delta = allPts.length >= 2 ? allPts[allPts.length-1].w - allPts[0].w : 0;
@@ -4416,7 +4766,6 @@ import "./styles.css";
 
     return (
       <div style={{ ...S.card, padding: 14, marginBottom: 10, animation: closing ? "dashClose 0.2s ease-out forwards" : "shortcutListIn 0.28s cubic-bezier(0,0,0.2,1) forwards" }}>
-        {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <div style={{ ...S.label, textAlign:"left" }}>DASHBOARDS</div>
           <div style={{ display:"flex", gap:6 }}>
@@ -4425,9 +4774,8 @@ import "./styles.css";
           </div>
         </div>
 
-        {/* Top — added dashboards (drag to reorder) */}
-        <div style={{ fontSize:12, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ON HOME SCREEN</div>
-        <div ref={listRef} style={{ marginBottom: availableItems.length > 0 ? 12 : 0 }}>
+        <div style={{ fontSize:10, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign:"left" }}>ON HOME SCREEN</div>
+        <div ref={listRef}>
           {addedItems.length === 0 && (
             <div style={{ fontSize:12, color:th.muted, padding:"10px 0" }}>No dashboards added yet.</div>
           )}
@@ -4451,21 +4799,18 @@ import "./styles.css";
                 <div style={{
                   display:"flex", alignItems:"center", gap:8,
                   padding:"9px 0",
-                  borderBottom: `1px solid ${th.border}`,
+                  borderBottom:`1px solid ${th.border}`,
                 }}>
-                  {/* Grip */}
                   <div
                     onPointerDown={(e) => { e.stopPropagation(); dragStart(e, exI, listRef); }}
                     style={{ cursor:"grab", flexShrink:0, touchAction:"none", userSelect:"none", padding:"2px 8px 2px 2px" }}
                   >
                     <GripIcon />
                   </div>
-                  {/* Label only */}
-                  <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign: "left" }}>{d.label}</span>
-                  {/* Remove ✕ */}
+                  <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign:"left" }}>{d.label}</span>
                   <button
                     onClick={() => removeItem(d.id)}
-                    style={{ background:"rgba(220,50,50,0.12)", border:"1px solid rgba(220, 50, 50, 0.3)", borderRadius:7, color:th.delText, cursor:"pointer", fontSize:14, padding:"2px 7px", lineHeight:1, flexShrink:0 }}
+                    style={{ background:"rgba(220,50,50,0.12)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:7, color:th.delText, cursor:"pointer", fontSize:14, padding:"2px 7px", lineHeight:1, flexShrink:0 }}
                   >✕</button>
                 </div>
               </div>
@@ -4474,9 +4819,8 @@ import "./styles.css";
           {insertIdx === addedItems.length && dragIdx !== null && <DropLine />}
         </div>
 
-        {/* Bottom — available (not on home) */}
         <div style={{ borderTop:`1px solid ${th.border}`, paddingTop:10, marginTop: addedItems.length > 0 ? 8 : 0 }}>
-          <div style={{ fontSize:12, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign: "left" }}>ADD TO HOME</div>
+          <div style={{ fontSize:10, color:th.accentFg, letterSpacing:"1.2px", marginBottom:6, fontWeight:700, textAlign:"left" }}>ADD TO HOME</div>
           {availableItems.length === 0 ? (
             <div style={{ fontSize:12, color:th.muted, padding:"8px 0" }}>All dashboards are added.</div>
           ) : (
@@ -4486,14 +4830,13 @@ import "./styles.css";
                 padding:"9px 0",
                 borderBottom: i < availableItems.length - 1 ? `1px solid ${th.border}` : "none",
               }}>
-                <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign: "left" }}>{d.label}</span>
+                <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign:"left" }}>{d.label}</span>
                 <button
                   onClick={() => addItem(d.id)}
                   style={{
                     background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
                     backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
-                    border:"none",
-                    borderRadius:9, color:th.accentT,
+                    border:"none", borderRadius:9, color:th.accentT,
                     padding:"6px 14px", cursor:"pointer", fontSize:12,
                     fontFamily:"'Outfit',sans-serif", fontWeight:700, flexShrink:0,
                   }}
@@ -4533,6 +4876,7 @@ import "./styles.css";
       onUpdateSettings({ ...settings, hasDashOnboarded: true });
     };
     const enabledDashboards = settings.homeDashboards || ["streak","intensity","strength","volume"];
+    const dashOrder = (id) => { const i = enabledDashboards.indexOf(id); return i >= 0 ? i : 999; };
     const isDashEnabled = (id) => enabledDashboards.includes(id);
     const cancelDashEdit = () => setEditingDashboards(false);
     const [removingShortcut, setRemovingShortcut] = useState(null);
@@ -4636,10 +4980,13 @@ import "./styles.css";
         {/* ── Dashboards ordered by enabledDashboards ── */}
         <div style={{ display:"flex", flexDirection:"column" }}>
         {isDashEnabled("muscles") && (
-          <div style={{ order: enabledDashboards.indexOf("muscles") }}>
+          <div style={{ order: dashOrder("muscles") }}>
           <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-            <div style={{ ...S.label }}>MUSCLES TRAINED</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>MUSCLES TRAINED</div>
+              <DashInfoBtn title="Muscles Trained" text="Muscles you have trained in the last 7 days, based on exercises logged in your workouts." />
+            </div>
             <div style={{ fontSize:10, color:th.dim, letterSpacing:"0.5px" }}>LAST 7 DAYS</div>
           </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -4659,7 +5006,7 @@ import "./styles.css";
           </div>
         </div>)}
 
-        <div style={{ order: enabledDashboards.indexOf("streak") }}>
+        <div style={{ order: dashOrder("streak") }}>
         {isDashEnabled("streak") ? sessions.length > 0 && (() => {
           const todayMs = new Date(); todayMs.setHours(0,0,0,0);
           const sessionDays = new Set(sessions.map(s => {
@@ -4690,14 +5037,17 @@ import "./styles.css";
           const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
           return (
-            <div style={{ ...S.card, padding: "12px 12px 10px", marginBottom: 10, textAlign: "left" }}>
+            <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
               <style>{`
                 @keyframes streakSlideL { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
                 @keyframes streakSlideR { from{opacity:0;transform:translateX(-18px)} to{opacity:1;transform:translateX(0)} }
               `}</style>
               {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div style={{ ...S.label }}>STREAK</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>STREAK</div>
+              <DashInfoBtn title="Streak" text="Your workout calendar showing training days. The streak counts consecutive days with at least one completed workout." />
+            </div>
                 <div style={{ textAlign: "right" }}>
                   <span className="bebas" style={{ fontSize: 28, color: th.accentFg, lineHeight: 1 }}>{streak}</span>
                   <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1px" }}>DAYS</div>
@@ -4758,8 +5108,8 @@ import "./styles.css";
         {/* Performance dashboards */}
         {sessions.length > 0 && (
           <>
-            {isDashEnabled("intensity") && <div style={{ order: enabledDashboards.indexOf("intensity") }}><div
-              style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 16 }}
+            {isDashEnabled("intensity") && <div style={{ order: dashOrder("intensity") }}><div
+              style={{ ...S.card, padding: 16, marginBottom: 16 }}
             >
               <div
                 style={{
@@ -4769,7 +5119,10 @@ import "./styles.css";
                   marginBottom: 10,
                 }}
               >
-                <div style={{ ...S.label }}>INTENSITY</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>INTENSITY</div>
+              <DashInfoBtn title="Intensity" text="Average self-reported intensity score (1-10) across all sessions in the last 7 days, compared to the previous 7-day period." />
+            </div>
                 {(() => {
                   const cut7 = Date.now() - 7*24*60*60*1000;
                   const r7 = sessions.filter(s => (s.startTime||0) >= cut7 && (s.intensity||0) > 0);
@@ -4905,9 +5258,12 @@ import "./styles.css";
               </div>
             </div></div>}
 
-            {isDashEnabled("calories") && <div style={{ order: enabledDashboards.indexOf("calories") }}><div style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 16 }}>
+            {isDashEnabled("calories") && <div style={{ order: dashOrder("calories") }}><div style={{ ...S.card, padding: 16, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div style={{ ...S.label }}>CALORIES BURNED</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>CALORIES BURNED</div>
+              <DashInfoBtn title="Calories Burned" text="Average estimated calories burned per session over the last 7 days, compared to the prior week." />
+            </div>
                 {(() => {
                   const cut7 = Date.now() - 7*24*60*60*1000;
                   const r7 = sessions.filter(s => (s.startTime||0) >= cut7 && (s.calories||0) > 0);
@@ -4994,10 +5350,14 @@ import "./styles.css";
           </>
         )}
 
-        <div style={{ order: enabledDashboards.indexOf("bodycomp") }}>
+        <div style={{ order: dashOrder("bodycomp") }}>
         {isDashEnabled("bodycomp") && measurements && measurements.length > 0 && (
           <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
-            <div style={{ ...S.label, marginBottom: 12 }}>BODY COMPOSITION</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>BODY COMPOSITION</div>
+              <DashInfoBtn title="Body Composition" text="Your most recently logged weight, muscle mass percentage, and body fat percentage from the measurements section." />
+            </div>
+            
             {(() => {
               const latest = measurements[0];
               const prev = measurements[1] || null;
@@ -5039,16 +5399,20 @@ import "./styles.css";
         )}
         </div>
 
-        <div style={{ order: enabledDashboards.indexOf("bodytrends") }}>
+        <div style={{ order: dashOrder("bodytrends") }}>
         {isDashEnabled("bodytrends") && measurements && measurements.length > 0 && (
           <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
-            <div style={{ ...S.label, marginBottom: 12 }}>BODY TRENDS</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>BODY TRENDS</div>
+              <DashInfoBtn title="Body Trends" text="Chart of your last 7 body measurements for weight, muscle %, or fat %. Switch tabs to view each metric's trend." />
+            </div>
+            
             <BodyTrendChart measurements={measurements} />
           </div>
         )}
         </div>
 
-        <div style={{ order: enabledDashboards.indexOf("recovery") }}>
+        <div style={{ order: dashOrder("recovery") }}>
         {isDashEnabled("recovery") ? sessions.length > 0 && (() => {
           const now = Date.now();
           // For each muscle, scan all sessions and find: last trained time, total volume (sets×reps) in last 72h
@@ -5100,7 +5464,10 @@ import "./styles.css";
           return (
             <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ ...S.label }}>MUSCLE RECOVERY</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>MUSCLE RECOVERY</div>
+              <DashInfoBtn title="Muscle Recovery" text="Estimated recovery status per muscle group based on how long ago it was last trained. Higher score means more recovered." />
+            </div>
                 <div style={{ fontSize: 11, color: th.dim }}>72h window</div>
               </div>
               <div style={{ fontSize: 11, color: th.muted, marginBottom: 12 }}>
@@ -5142,7 +5509,7 @@ import "./styles.css";
         })() : null}
         </div>
 
-        <div style={{ order: enabledDashboards.indexOf("efficiency") }}>
+        <div style={{ order: dashOrder("efficiency") }}>
         {isDashEnabled("efficiency") ? sessions.length > 0 && (() => {
           const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000; // last 30 days
           const recent = sessions.filter(s => (s.startTime || 0) >= cutoff && (s.duration || 0) > 0);
@@ -5183,7 +5550,10 @@ import "./styles.css";
             <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
-                  <div style={{ ...S.label }}>TRAINING EFFICIENCY</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>SESSION PACE</div>
+              <DashInfoBtn title="Session Pace" text="Tonnage lifted per minute for each individual session over the last 30 days. A rising trend means your sessions are becoming more productive over time." />
+            </div>
 
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -5191,7 +5561,7 @@ import "./styles.css";
                     {trend && <span style={{ fontSize: 16, color: trendCol, fontWeight: 700, lineHeight: 1 }}>{trend}</span>}
                     <span className="bebas" style={{ fontSize: 28, color: effColor(latest.eff), lineHeight: 1 }}>{latest.eff.toFixed(1)}</span>
                   </div>
-                  <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1px" }}>KG/MIN LATEST</div>
+                  <div style={{ fontSize: 9, color: th.dim, letterSpacing: "1px" }}>KG/MIN (SESSION)</div>
                 </div>
               </div>
               <svg viewBox={`0 0 ${W} ${H + 22}`} width="100%" style={{ overflow: "visible", marginTop: 8 }}>
@@ -5229,9 +5599,9 @@ import "./styles.css";
         })() : null}
         </div>
 
-        <div style={{ order: enabledDashboards.indexOf("strength") }}>{isDashEnabled("strength") && sessions.length > 0 && <StrengthProgression sessions={sessions} />}</div>
+        <div style={{ order: dashOrder("strength") }}>{isDashEnabled("strength") && sessions.length > 0 && <StrengthProgression sessions={sessions} />}</div>
 
-        <div style={{ order: enabledDashboards.indexOf("prs") }}>
+        <div style={{ order: dashOrder("prs") }}>
         {isDashEnabled("prs") ? sessions.length > 0 && (() => {
           const prMap = {};
           sessions.forEach(s => {
@@ -5252,7 +5622,7 @@ import "./styles.css";
         })() : null}
         </div>
 
-        <div style={{ order: enabledDashboards.indexOf("volume") }}>
+        <div style={{ order: dashOrder("volume") }}>
         {isDashEnabled("volume") ? sessions.length > 0 && (() => {
           // Build last 4 weeks, label with date ranges
           const now = Date.now();
@@ -5261,7 +5631,7 @@ import "./styles.css";
             const start = end - 7 * 24 * 60 * 60 * 1000;
             const startD = new Date(start); const endD = new Date(end - 1);
             const fmt = d => d.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
-            const label = `${fmt(startD)}–${fmt(endD)}`;
+            const label = `${fmt(startD)}-${fmt(endD)}`;
             return { start, end, label };
           }).reverse();
           const weekVols = weeks.map(w => {
@@ -5277,9 +5647,12 @@ import "./styles.css";
           const fmtV = v => v >= 1000 ? `${(v/1000).toFixed(1)}t` : `${Math.round(v)}kg`;
           if (weekVols.every(v => v === 0)) return null;
           return (
-            <div style={{ ...S.card, padding: "14px 14px 10px", marginBottom: 10, textAlign:"left" }}>
+            <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                <div style={{ ...S.label }}>WEEKLY VOLUME</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ ...S.label }}>WEEKLY VOLUME</div>
+              <DashInfoBtn title="Weekly Volume" text="Total tonnage (sets x reps x weight) lifted per week over the last 5 weeks. Tracks progressive overload and weekly load management." />
+            </div>
                 <div style={{ textAlign:"right" }}>
                   <div style={{ display:"flex", alignItems:"baseline", gap:3, justifyContent:"flex-end" }}>
                     {trend && <span style={{ fontSize:16, color:trendCol, fontWeight:700, lineHeight:1 }}>{trend}</span>}
@@ -5311,13 +5684,23 @@ import "./styles.css";
         </div>
 
         {/* ── Sets by Muscle Group ── */}
-        <div style={{ order: enabledDashboards.indexOf("setsbygroup") }}>
+        <div style={{ order: dashOrder("setsbygroup") }}>
         {isDashEnabled("setsbygroup") && sessions.length > 0 && <SetsByMuscleGroup sessions={sessions} />}
         </div>
 
         {/* ── ACWR ── */}
-        <div style={{ order: enabledDashboards.indexOf("acwr") }}>
+        <div style={{ order: dashOrder("acwr") }}>
         {isDashEnabled("acwr") && sessions.length > 0 && <ACWRDashboard sessions={sessions} sessionVol={sessionVol} />}
+        </div>
+
+        {/* ── Relative Strength ── */}
+        <div style={{ order: dashOrder("relstrength") }}>
+        {isDashEnabled("relstrength") && sessions.length > 0 && <RelativeStrengthDashboard sessions={sessions} measurements={measurements} />}
+        </div>
+
+        {/* ── Training Density ── */}
+        <div style={{ order: dashOrder("trainingdensity") }}>
+        {isDashEnabled("trainingdensity") && sessions.length > 0 && <TrainingDensityDashboard sessions={sessions} sessionVol={sessionVol} />}
         </div>
 
         </div>{/* end dashboards flex column */}
@@ -5597,7 +5980,7 @@ import "./styles.css";
       {
         icon: "⚡",
         title: "Rate Your Intensity",
-        body: "After finishing, rate how hard you pushed (1–10). This feeds your Intensity dashboard and helps you spot patterns over time.",
+        body: "After finishing, rate how hard you pushed (1-10). This feeds your Intensity dashboard and helps you spot patterns over time.",
       },
       {
         icon: "✦",
@@ -9117,7 +9500,7 @@ import "./styles.css";
                     Dark mode
                   </div>
                   <div style={{ fontSize: 11, color: th.muted, marginTop: 2, textAlign: "left", }}>
-                    Auto: dark 19:00–06:00
+                    Auto: dark 19:00-06:00
                   </div>
                 </div>
                 {/* Toggle pill */}
@@ -9747,7 +10130,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.2 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.3 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -10237,18 +10620,25 @@ import "./styles.css";
       const unsub = onSnapshot(
         doc(fbDb, "users", user.id, "data", "settings"),
         (snap) => {
+          // Skip snapshots caused by our own local writes — only apply confirmed server data
+          if (snap.metadata.hasPendingWrites) return;
           if (snap.exists()) {
             const remote = snap.data();
             setSettings(prev => {
-              // Only update if remote has different homeDashboards or homePrograms
-              // to avoid overwriting local optimistic updates
+              // Merge remote into defaults; never overwrite a valid array with null
               const merged = { ...DEFAULT_SETTINGS, ...remote };
-              if (
+              if (Array.isArray(prev.homeDashboards) && !Array.isArray(remote.homeDashboards)) {
+                merged.homeDashboards = prev.homeDashboards; // keep local if remote lost it
+              }
+              if (Array.isArray(prev.homePrograms) && !Array.isArray(remote.homePrograms)) {
+                merged.homePrograms = prev.homePrograms;
+              }
+              const changed =
                 JSON.stringify(merged.homeDashboards) !== JSON.stringify(prev.homeDashboards) ||
-                JSON.stringify(merged.homePrograms) !== JSON.stringify(prev.homePrograms) ||
-                merged.hasDashOnboarded !== prev.hasDashOnboarded ||
-                merged.hasProgramOnboarded !== prev.hasProgramOnboarded
-              ) {
+                JSON.stringify(merged.homePrograms)   !== JSON.stringify(prev.homePrograms)   ||
+                merged.hasDashOnboarded    !== prev.hasDashOnboarded    ||
+                merged.hasProgramOnboarded !== prev.hasProgramOnboarded;
+              if (changed) {
                 lsSet(uKey(user.id, "settings"), merged);
                 return merged;
               }
@@ -11485,7 +11875,7 @@ import "./styles.css";
                       >›</button>
                     </div>
                     <div key={calOffset} style={{ overflow: "hidden", animation: calDir < 0 ? "calSlideInRight 0.22s ease-out" : "calSlideInLeft 0.22s ease-out" }}>
-                    {/* Day-of-week headers Mon–Sun */}
+                    {/* Day-of-week headers Mon-Sun */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
                       {["M","T","W","T","F","S","S"].map((d, i) => (
                         <div key={i} style={{ textAlign: "center", fontSize: 13, color: th.dim, fontWeight: 700 }}>{d}</div>
