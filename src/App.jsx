@@ -1399,7 +1399,7 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false };
   const ALL_DASHBOARDS = [
     { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
     { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
@@ -3203,7 +3203,7 @@ import "./styles.css";
           isGuest: true,
         });
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false });
       } catch (e) {
         setErr(friendlyError(e.code));
       } finally {
@@ -3238,7 +3238,7 @@ import "./styles.css";
         });
         // 3. Seed default programs, but keep shortcuts empty so home tab is clean
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false });
         // 4. Reload Firebase user so displayName is fresh on next auth state change
         await cred.user.reload();
         // 5. Belt-and-suspenders: if auth state already fired with empty name, patch it directly
@@ -6229,6 +6229,129 @@ import "./styles.css";
   }
 
   /* ─── Create / Edit Program — with suggestions ───────────────────────────────── */
+  /* ─── Create Program Guide — inline, shown once inside new program ────────────── */
+  function CreateProgramGuide({ onDismiss }) {
+    const th = useTheme();
+    const S = useS();
+    const [step, setStep] = useState(0);
+    const [leaving, setLeaving] = useState(false);
+    const [dir, setDir] = useState(1);
+
+    const STEPS = [
+      {
+        icon: "✎",
+        title: "Name Your Program",
+        body: "Give your program a clear name like 'Push Day' or 'Full Body A'. You can create as many programs as you need.",
+      },
+      {
+        icon: "⊞",
+        title: "Add Exercises",
+        body: "Tap 'Add Exercise' to browse and select exercises. You can add multiple at once — they'll appear as cards below.",
+      },
+      {
+        icon: "⚙",
+        title: "Set Your Reps & Weight",
+        body: "Expand each exercise card to adjust sets, reps, and starting weight. These become your defaults when you start a workout.",
+      },
+      {
+        icon: "◈",
+        title: "Or Use a Suggested Program",
+        body: "Scroll down to find ready-made programs. Tap one to load it as a starting point — you can then edit it however you like.",
+      },
+      {
+        icon: "✓",
+        title: "Save & Go",
+        body: "Hit SAVE PROGRAM when done. It will appear on your Programs tab ready to start any time.",
+      },
+    ];
+
+    const goTo = (next) => {
+      setDir(next > step ? 1 : -1);
+      setLeaving(true);
+      setTimeout(() => { setStep(next); setLeaving(false); }, 160);
+    };
+
+    const isLast = step === STEPS.length - 1;
+    const s = STEPS[step];
+
+    return (
+      <div style={{
+        ...S.card, padding: 0, marginBottom: 12, overflow: "hidden",
+        border: `1px solid ${th.accentBg}44`,
+        animation: "shortcutListIn 0.3s cubic-bezier(0,0,0.2,1) forwards",
+      }}>
+        <div style={{ height: 3, background: th.accentBg }} />
+        <style>{`
+          @keyframes obSlideIn  { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideInR { from{opacity:0;transform:translateX(-22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-18px)} }
+          @keyframes obSlideOutR{ from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(18px)} }
+        `}</style>
+        <div style={{ padding: "16px 16px 14px" }}>
+          <div
+            key={step}
+            style={{
+              animation: leaving
+                ? (dir > 0 ? "obSlideOut 0.16s ease-in forwards" : "obSlideOutR 0.16s ease-in forwards")
+                : (dir > 0 ? "obSlideIn 0.22s cubic-bezier(0,0,0.2,1) forwards" : "obSlideInR 0.22s cubic-bezier(0,0,0.2,1) forwards"),
+              minHeight: 80,
+            }}
+          >
+            <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                background: `color-mix(in srgb, ${th.accentBg} 15%, ${th.sect})`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize: 18, color: th.accentFg, fontWeight: 700,
+              }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 13, textAlign:"left", fontWeight: 700, color: th.text, marginBottom: 5 }}>{s.title}</div>
+                <div style={{ fontSize: 12, textAlign:"left", color: th.muted, lineHeight: 1.5 }}>{s.body}</div>
+              </div>
+            </div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop: 14 }}>
+            <div style={{ display:"flex", gap:5 }}>
+              {STEPS.map((_,i) => (
+                <div key={i} onClick={() => goTo(i)} style={{
+                  width: i === step ? 18 : 6, height: 6, borderRadius: 3,
+                  background: i === step ? th.accentBg : th.inputB,
+                  cursor: "pointer", transition: "width 0.2s, background 0.2s",
+                }} />
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              {!isLast && (
+                <button onClick={onDismiss} style={{
+                  background:"none", border:"none",
+                  color:th.dim, fontSize:12, cursor:"pointer",
+                  fontFamily:"'Outfit',sans-serif", fontWeight:600, padding:"6px 0",
+                }}>Skip</button>
+              )}
+              {!isLast ? (
+                <button onClick={() => goTo(step + 1)} style={{
+                  background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+                  border:"none", borderRadius:9, color:th.accentT,
+                  padding:"6px 16px", cursor:"pointer", fontSize:12,
+                  fontFamily:"'Outfit',sans-serif", fontWeight:700,
+                }}>Next →</button>
+              ) : (
+                <button onClick={onDismiss} style={{
+                  background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+                  border:"none", borderRadius:9, color:th.accentT,
+                  padding:"6px 16px", cursor:"pointer", fontSize:12,
+                  fontFamily:"'Outfit',sans-serif", fontWeight:700,
+                }}>Got it ✓</button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function CreateProgramView({ program, onSave, onBack }) {
     const th = useTheme();
     const S = useS();
@@ -6251,6 +6374,7 @@ import "./styles.css";
     const [showPicker, setShowPicker] = useState(false);
     const [expandedEx, setExpandedEx] = useState(null);
     const [showSuggestions, setShowSuggestions] = useState(!editing);
+    const [showBuildGuide, setShowBuildGuide] = useState(!editing);
     const listRef = useRef(null);
     const { dragIdx, insertIdx, droppedIdx, dropDir, start: dragStart } = useDragSort(exs, setExs);
 
@@ -6519,6 +6643,11 @@ import "./styles.css";
             </span>{" "}
             Add Exercise
           </button>
+          {showBuildGuide && (
+            <div style={{ marginTop: 12 }}>
+              <CreateProgramGuide onDismiss={() => setShowBuildGuide(false)} />
+            </div>
+          )}
         </div>
         <div 
         style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
