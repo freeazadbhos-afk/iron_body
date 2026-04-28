@@ -13637,10 +13637,12 @@ import "./styles.css";
             style={{
               position: "absolute",
               bottom: 20, // Lifts it off the bottom edge
-              left: 24,   // Pulls it in from the left
-              right: 24,  // Pulls it in from the right
-              borderRadius: 200, // Creates the rounded pill shape
+              left: 24,
+              right: 24,
+              borderRadius: 200,
               display: "flex",
+              justifyContent: "space-evenly",
+              alignItems: "center",
               background: `color-mix(in srgb, ${th.nav} 30%, transparent)`, 
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
