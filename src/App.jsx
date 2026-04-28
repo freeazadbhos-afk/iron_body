@@ -12252,6 +12252,10 @@ import "./styles.css";
     const elRef = useRef(0);
     const [elapsed, setElapsed] = useState(0);
     const timerRef = useRef(null);
+    // Tracks which user.id has had its initial-mount workout-restore performed already.
+    // This prevents subsequent user state updates (profile sync, photo change, settings refresh)
+    // from snapping the view back to workout while the user is browsing other tabs in PiP mode.
+    const initialUserLoadRef = useRef(null);
 
     useEffect(() => {
       if (!user) return;
@@ -12351,7 +12355,16 @@ import "./styles.css";
         startTsRef.current = a.startTime;
         totalPausedRef.current = 0;
         pauseStartRef.current = null;
-        setView("workout");
+        // Only auto-jump to workout view on the FIRST mount of this user session.
+        // Subsequent user updates (profile sync, photo change, etc.) must NOT
+        // hijack navigation while the user is browsing other tabs in PiP mode.
+        if (initialUserLoadRef.current !== user.id) {
+          initialUserLoadRef.current = user.id;
+          setView("workout");
+        }
+      } else {
+        // No active workout — still mark this user as initialized
+        initialUserLoadRef.current = user.id;
       }
     }, [user]);
 
@@ -13666,9 +13679,8 @@ import "./styles.css";
             }}
             >
               {NAV.map((tab) => {
-                const isActive =
-                  view === tab.id || (view === "workout" && tab.id === "home");
-                  const col = isActive ? th.accentFg : th.navInactive;
+                const isActive = view === tab.id;
+                const col = isActive ? th.accentFg : th.navInactive;
                 return (
                   <button
                     key={tab.id}
@@ -13684,9 +13696,8 @@ import "./styles.css";
                         osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.04);
                         ctx.close();
                       } catch (_) {}
-                      if (tab.id === "home" && view === "workout")
-                        setView("home");
-                      else setView(tab.id);
+                      // Always navigate freely — workout state persists, PiP pill shows when active
+                      setView(tab.id);
                     }}
                     onPointerDown={e => { e.currentTarget.style.transform = "scale(0.88)"; e.currentTarget.style.opacity = "0.7"; }}
                     onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
