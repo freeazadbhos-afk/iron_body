@@ -3538,7 +3538,7 @@ import "./styles.css";
             style={{
               fontSize: 85,
               textAlign: "left",
-              color: "rgba(200,240,48,0.4)",
+              color: "#c8f030",
               lineHeight: 0.85,
               marginBottom: 8,
             }}
