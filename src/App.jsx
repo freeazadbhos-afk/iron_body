@@ -36,6 +36,11 @@ import "./styles.css";
     getDocs,
     deleteDoc,
     onSnapshot,
+    addDoc,
+    query,
+    where,
+    updateDoc,
+    serverTimestamp,
   } from "firebase/firestore";
 
   const firebaseConfig = {
@@ -58,6 +63,33 @@ import "./styles.css";
   }
 
   /* ─── Themes ────────────────────────────────────────────────────────────────── */
+  const LIGHT = {
+    bg: "#eeecea",
+    card: "#ffffff",
+    border: "#d0cfc8",
+    text: "#0a0a0a",
+    sub: "#1a1a1a",
+    muted: "#444",
+    dim: "#777",
+    input: "#f0efea",
+    inputB: "#c8c7c0",
+    row: "#e8e6df",
+    nav: "#f5f4f0",
+    navB: "#dddbd4",
+    navInactive: "#3a3a3a",
+    sect: "#eeece8",
+    accentBg: "#0D9E8E",
+    accentT: "#ffffff",
+    accentFg: "#0D9E8E",
+    done: "#cff0ec",
+    doneB: "#7dd4cc",
+    doneText: "#005048",
+    del: "#fff0f0",
+    delB: "#ffd0d0",
+    delText: "#CC1F42",
+    pause: "#fff8e0",
+    pauseB: "#e8a800",
+  };
   const DARK = {
     bg: "#080809",
     card: "#0f0f12",
@@ -84,33 +116,6 @@ import "./styles.css";
     delText: "#CC1F42",
     pause: "#1e1800",
     pauseB: "#E8612C",
-  };
-  const LIGHT = {
-    bg: "#f0efea",
-    card: "#ffffff",
-    border: "#d0cfc8",
-    text: "#0a0a0a",
-    sub: "#1a1a1a",
-    muted: "#333",
-    dim: "#555",
-    input: "#f5f4ef",
-    inputB: "#d0cfc8",
-    row: "#ece9e2",
-    nav: "#ffffff",
-    navB: "#e0dfd8",
-    navInactive: "#555555",
-    sect: "#f5f4ef",
-    accentBg: "#0D9E8E",
-    accentT: "#ffffff",
-    accentFg: "#0D9E8E",
-    done: "#cff0ec",
-    doneB: "#7dd4cc",
-    doneText: "#005048",
-    del: "#fff0f0",
-    delB: "#ffd0d0",
-    delText: "#CC1F42",
-    pause: "#fff8e0",
-    pauseB: "#e8a800",
   };
   const ThemeCtx = createContext(DARK);
   const useTheme = () => useContext(ThemeCtx);
@@ -1399,7 +1404,7 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false };
   const ALL_DASHBOARDS = [
     { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
     { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
@@ -1820,6 +1825,237 @@ import "./styles.css";
       console.error("fsDeleteSession FAILED:", e.code, e.message);
       return false;
     }
+  }
+
+  /* ─── Sharing / Invitations ─────────────────────────────────────────────────── */
+  async function fsSendInvitation(fromUid, fromName, fromEmail, toEmail, fromPhotoURL) {
+    try {
+      await addDoc(collection(fbDb, "invitations"), {
+        fromUid,
+        fromName,
+        fromEmail: fromEmail.toLowerCase().trim(),
+        fromPhotoURL: fromPhotoURL || null,
+        toEmail: toEmail.toLowerCase().trim(),
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+      return { ok: true };
+    } catch (e) {
+      console.error("fsSendInvitation:", e);
+      return { ok: false, error: e.message };
+    }
+  }
+  // Push a notification to a user's top-level notifications collection
+  async function fsPushNotification(toUid, notif) {
+    try {
+      await addDoc(collection(fbDb, "notifications"), {
+        toUid,
+        ...notif,
+        ts: Date.now(),
+        read: false,
+      });
+    } catch (e) { /* silently ignore */ }
+  }
+
+  async function fsAcceptInvitation(inviteId, invite, currentUser) {
+    try {
+      await updateDoc(doc(fbDb, "invitations", inviteId), { status: "accepted" });
+      const now = serverTimestamp();
+      await setDoc(doc(fbDb, "users", currentUser.id, "friends", invite.fromUid), {
+        uid: invite.fromUid, name: invite.fromName,
+        email: invite.fromEmail, photoURL: invite.fromPhotoURL || null, since: now,
+      });
+      await setDoc(doc(fbDb, "users", invite.fromUid, "friends", currentUser.id), {
+        uid: currentUser.id, name: currentUser.name,
+        email: currentUser.email, photoURL: currentUser.photoURL || null, since: now,
+      });
+      // Notify the original sender that their friend request was accepted
+      fsPushNotification(invite.fromUid, {
+        type: "friend_accepted",
+        fromUid: currentUser.id,
+        name: currentUser.name,
+        photoURL: currentUser.photoURL || null,
+        text: `${currentUser.name} accepted your friend request`,
+      });
+      return true;
+    } catch (e) {
+      console.error("fsAcceptInvitation:", e);
+      return false;
+    }
+  }
+  async function fsDeclineInvitation(inviteId) {
+    try {
+      await updateDoc(doc(fbDb, "invitations", inviteId), { status: "declined" });
+      return true;
+    } catch (e) {
+      console.error("fsDeclineInvitation:", e);
+      return false;
+    }
+  }
+  async function fsRemoveFriend(uid, friendUid) {
+    try {
+      await deleteDoc(doc(fbDb, "users", uid, "friends", friendUid));
+      return true;
+    } catch (e) {
+      console.error("fsRemoveFriend:", e);
+      return false;
+    }
+  }
+
+  /* ─── Competition invitations ────────────────────────────────────────────────── */
+  // Stored at: competitions/{id}
+  // status: "pending" → "active" (24h after accepted) → "finished"
+  async function fsSendCompeteInvite(fromUid, fromName, toUid, toName) {
+    try {
+      const ref = await addDoc(collection(fbDb, "competitions"), {
+        fromUid, fromName, toUid, toName,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        acceptedAt: null,
+        startAt: null,
+        endAt: null,
+      });
+      // Notify recipient of competition challenge
+      fsPushNotification(toUid, {
+        type: "compete_invite",
+        fromUid, name: fromName,
+        text: `${fromName} challenged you to a 7-day competition`,
+      });
+      return { ok: true, id: ref.id };
+    } catch (e) {
+      console.error("fsSendCompeteInvite:", e);
+      return { ok: false };
+    }
+  }
+  async function fsAcceptCompeteInvite(compId, acceptorName) {
+    try {
+      const compSnap = await getDoc(doc(fbDb, "competitions", compId));
+      const compData = compSnap.exists() ? compSnap.data() : null;
+      const now = Date.now();
+      const startAt = now;
+      const endAt   = startAt + 7 * 24 * 60 * 60 * 1000;
+      await updateDoc(doc(fbDb, "competitions", compId), {
+        status: "active",
+        acceptedAt: serverTimestamp(),
+        startAt,
+        endAt,
+      });
+      // Notify the challenger that their competition was accepted
+      if (compData?.fromUid) {
+        fsPushNotification(compData.fromUid, {
+          type: "compete_accepted",
+          fromUid: compData.toUid,
+          name: acceptorName || compData.toName || "Your friend",
+          text: `${acceptorName || compData.toName || "Your friend"} accepted your competition challenge`,
+        });
+      }
+      return true;
+    } catch (e) {
+      console.error("fsAcceptCompeteInvite:", e);
+      return false;
+    }
+  }
+  async function fsDeclineCompeteInvite(compId) {
+    try {
+      await updateDoc(doc(fbDb, "competitions", compId), { status: "declined" });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  async function fsWithdrawCompeteInvite(compId) {
+    try {
+      await deleteDoc(doc(fbDb, "competitions", compId));
+      return true;
+    } catch (e) {
+      console.error("fsWithdrawCompeteInvite:", e);
+      return false;
+    }
+  }
+  function fsListenCompetitions(uid, cb) {
+    // Listen for competitions where user is either challenger or challenged
+    const q1 = query(collection(fbDb, "competitions"), where("fromUid", "==", uid));
+    const q2 = query(collection(fbDb, "competitions"), where("toUid",   "==", uid));
+    let data1 = [], data2 = [];
+    const merge = () => cb([...data1, ...data2]);
+    const unsub1 = onSnapshot(q1, s => { data1 = s.docs.map(d=>({id:d.id,...d.data()})); merge(); });
+    const unsub2 = onSnapshot(q2, s => { data2 = s.docs.map(d=>({id:d.id,...d.data()})); merge(); });
+    return () => { unsub1(); unsub2(); };
+  }
+
+  /* ─── Session reactions (stars) ─────────────────────────────────────────────── */
+  // Stored at: users/{ownerUid}/sessions/{sessionId}/reactions/{reactorUid}
+  async function fsToggleStar(ownerUid, sessionId, reactorUid, reactorName, sessionName) {
+    const subRef = doc(fbDb, "users", ownerUid, "sessions", String(sessionId), "reactions", reactorUid);
+    const topRef = doc(fbDb, "reactions", `${ownerUid}_${sessionId}_${reactorUid}`);
+    try {
+      const snap = await getDoc(subRef);
+      if (snap.exists()) {
+        await deleteDoc(subRef);
+        await deleteDoc(topRef);
+        return false;
+      } else {
+        const payload = { uid: reactorUid, name: reactorName, ownerUid, sessionId: String(sessionId), sessionName: sessionName || "Workout", type: "star", ts: Date.now() };
+        await setDoc(subRef, payload);
+        await setDoc(topRef, payload);
+        return true;
+      }
+    } catch (e) {
+      console.error("fsToggleStar:", e);
+      return null;
+    }
+  }
+  async function fsGetReactions(ownerUid, sessionId) {
+    try {
+      const snap = await getDocs(collection(fbDb, "users", ownerUid, "sessions", String(sessionId), "reactions"));
+      return snap.docs.map(d => d.data());
+    } catch (e) {
+      return [];
+    }
+  }
+  async function fsGetFriendSessions(friendUid) {
+    try {
+      const snap = await getDocs(collection(fbDb, "users", friendUid, "sessions"));
+      const docs = snap.docs.map(d => d.data());
+      return docs.sort((a, b) => (b.startTime || 0) - (a.startTime || 0)).slice(0, 20);
+    } catch (e) {
+      return [];
+    }
+  }
+  function fsListenInvitationsReceived(userEmail, cb) {
+    const q = query(
+      collection(fbDb, "invitations"),
+      where("toEmail", "==", userEmail.toLowerCase().trim()),
+      where("status", "==", "pending")
+    );
+    return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  }
+  function fsListenInvitationsSent(userUid, cb) {
+    const q = query(
+      collection(fbDb, "invitations"),
+      where("fromUid", "==", userUid),
+      where("status", "==", "pending")
+    );
+    return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  }
+  async function fsPushProfileToFriends(uid, updates, friendUids) {
+    // Push name, photoURL (and any other public fields) to the user's entry
+    // in each friend's friend list. User has write access via the friends Firestore rule.
+    const payload = {};
+    if (updates.photoURL !== undefined) payload.photoURL = updates.photoURL || null;
+    if (updates.name)     payload.name     = updates.name;
+    if (!Object.keys(payload).length) return;
+    await Promise.all(
+      friendUids.map(friendUid =>
+        setDoc(doc(fbDb, "users", friendUid, "friends", uid), payload, { merge: true })
+          .catch(() => {})
+      )
+    );
+  }
+  function fsListenFriends(uid, cb) {
+    return onSnapshot(collection(fbDb, "users", uid, "friends"),
+      snap => cb(snap.docs.map(d => ({ ...d.data() })))
+    );
   }
   async function fsGetSettings(uid) {
     try {
@@ -4866,8 +5102,6 @@ import "./styles.css";
   }) {
     const th = useTheme();
     const S = useS();
-    const [editShortcuts, setEditShortcuts] = useState(false);
-    const [addingShortcut, setAddingShortcut] = useState(false);
     const [streakOff, setStreakOff] = useState(0); // months offset; 0=current
     const [streakDir, setStreakDir] = useState(1);
     const [editingDashboards, setEditingDashboards] = useState(false);
@@ -4879,11 +5113,6 @@ import "./styles.css";
     const dashOrder = (id) => { const i = enabledDashboards.indexOf(id); return i >= 0 ? i : 999; };
     const isDashEnabled = (id) => enabledDashboards.includes(id);
     const cancelDashEdit = () => setEditingDashboards(false);
-    const [removingShortcut, setRemovingShortcut] = useState(null);
-    const animatedRemoveFromHome = (pid) => {
-      setRemovingShortcut(pid);
-      setTimeout(() => { removeFromHome(pid); setRemovingShortcut(null); }, 310);
-    };
     const today = new Date();
     const dow = today
       .toLocaleDateString("en-US", {
@@ -5705,247 +5934,1467 @@ import "./styles.css";
 
         </div>{/* end dashboards flex column */}
 
-        {/* Shortcuts */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <div style={S.label}>MY SHORTCUTS</div>
-          <button
-            onClick={() => {
-              setEditShortcuts((e) => !e);
-              setAddingShortcut(false);
-              setEditingShortcutProg(null);
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              color: editShortcuts ? th.accentFg : th.dim,
-              fontSize: 12,
-              cursor: "pointer",
-              fontFamily: "'Outfit',sans-serif",
-              fontWeight: 700,
-            }}
-          >
-            {editShortcuts ? "DONE" : "EDIT ✎"}
-          </button>
-        </div>
 
-        {shownPrograms.length === 0 && !editShortcuts && (
-          <div
-            style={{
-              ...S.card,
-              padding: "22px 18px",
-              textAlign: "center",
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ color: th.sub, fontSize: 14 }}>No shortcuts yet.</div>
-            <div style={{ color: th.muted, fontSize: 12, marginTop: 5 }}>
-              Tap EDIT to pin programs here.
+
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+    SHARING VIEW
+  ═══════════════════════════════════════════════════════════════════════════════ */
+  /* ─── Standalone dashboard components (reused in both HomeView & FriendDashboardSheet) ── */
+
+  function StreakDashboard({ sessions }) {
+    const th = useTheme(); const S = useS();
+    const [off, setOff] = useState(0); const [dir, setDir] = useState(1);
+    if (!sessions.length) return null;
+    const todayMs = new Date(); todayMs.setHours(0,0,0,0);
+    const sessionDays = new Set(sessions.map(s => { const d=new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
+    let streak=0; for (let i=0;i<=365;i++) { const d=new Date(todayMs); d.setDate(d.getDate()-i); if (sessionDays.has(d.getTime())) streak++; else if (i>0) break; }
+    const base=new Date(); base.setDate(1); base.setMonth(base.getMonth()+off);
+    const year=base.getFullYear(); const month=base.getMonth();
+    const monthName=base.toLocaleDateString("en-US",{month:"long",year:"numeric"}).toUpperCase();
+    const rawDow=new Date(year,month,1).getDay(); const firstDow=rawDow===0?6:rawDow-1;
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const earliest=sessions.length?new Date(Math.min(...sessions.map(s=>s.startTime||Date.now()))):new Date();
+    const minOff=(earliest.getFullYear()-new Date().getFullYear())*12+earliest.getMonth()-new Date().getMonth();
+    const canBack=off>minOff; const canFwd=off<0;
+    const cells=[]; for(let i=0;i<firstDow;i++) cells.push(null); for(let d=1;d<=daysInMonth;d++) cells.push(d); while(cells.length<42)cells.push(null);
+    const DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    return (
+      <div style={{...S.card,padding:16,marginBottom:10,textAlign:"left"}}>
+        <style>{`@keyframes strSL{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}} @keyframes strSR{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}`}</style>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{...S.label}}>STREAK</div>
+          <div style={{textAlign:"right"}}><span className="bebas" style={{fontSize:28,color:th.accentFg,lineHeight:1}}>{streak}</span><div style={{fontSize:9,color:th.dim,letterSpacing:"1px"}}>DAYS</div></div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+          <button onClick={()=>{if(!canBack)return;setDir(-1);setOff(o=>o-1);}} style={{background:"none",border:"none",color:canBack?th.accentFg:th.inputB,fontSize:30,cursor:canBack?"pointer":"default",padding:"0 2px",lineHeight:1}}>‹</button>
+          <div style={{fontSize:13,fontWeight:700,letterSpacing:"0.5px",color:th.sub}}>{monthName}</div>
+          <button onClick={()=>{if(!canFwd)return;setDir(1);setOff(o=>o+1);}} style={{background:"none",border:"none",color:canFwd?th.accentFg:th.inputB,fontSize:30,cursor:canFwd?"pointer":"default",padding:"0 2px",lineHeight:1}}>›</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gap:1,marginBottom:1}}>{DOW.map((d,i)=><div key={i} style={{textAlign:"center",fontSize:12,color:th.sub,fontWeight:700}}>{d}</div>)}</div>
+        <div key={off} style={{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gridTemplateRows:"repeat(6, 1fr)",gap:1,animation:dir<0?"strSR 0.22s ease-out":"strSL 0.22s ease-out"}}>
+          {cells.map((day,ci)=>{
+            if(!day) return <div key={ci} style={{aspectRatio:"1"}}/>;
+            const dt=new Date(year,month,day); dt.setHours(0,0,0,0);
+            const isToday=dt.getTime()===todayMs.getTime();
+            const ds=sessions.filter(s=>{const sd=new Date(s.startTime||0);sd.setHours(0,0,0,0);return sd.getTime()===dt.getTime();});
+            const active=ds.length>0;
+            const hasR=ds.some(s=>(s.exercises||[]).some(e=>e.type!=="cardio")); const hasC=ds.some(s=>(s.exercises||[]).some(e=>e.type==="cardio"));
+            const bg=!active?"transparent":hasR&&hasC?"#E8612C":hasC?"#5B9CF6":th.accentBg;
+            return <div key={ci} style={{aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:"90%",height:"90%",borderRadius:"50%",background:bg,border:isToday&&!active?`1.5px solid ${th.inputB}`:"none",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:active?th.accentT:isToday?th.text:th.sub,fontWeight:active||isToday?700:400}}>{day}</div></div>;
+          })}
+        </div>
+        <div style={{display:"flex",gap:10,marginTop:8,justifyContent:"center"}}>
+          {[{l:"Resistance",c:th.accentBg},{l:"Cardio",c:"#5B9CF6"},{l:"Mix",c:"#E8612C"}].map(({l,c})=>(
+            <div key={l} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:10,color:th.dim}}>{l}</span></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function MusclesTrainedDashboard({ sessions }) {
+    const th = useTheme(); const S = useS();
+    const W7 = Date.now()-7*864e5;
+    const hit = new Set(sessions.filter(s=>(s.startTime||0)>=W7).flatMap(s=>(s.exercises||[]).map(e=>e.muscle).filter(Boolean)));
+    return (
+      <div style={{...S.card,padding:16,marginBottom:10,textAlign:"left"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{...S.label}}>MUSCLES TRAINED</div>
+          <div style={{fontSize:10,color:th.dim,letterSpacing:"0.5px"}}>LAST 7 DAYS</div>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+          {ALL_MUSCLES.map(m=>(
+            <div key={m} style={{padding:"3px 8px",borderRadius:6,fontSize:10,fontWeight:700,background:hit.has(m)?th.accentBg:"transparent",color:hit.has(m)?th.accentT:th.dim,border:`1px solid ${hit.has(m)?th.accentBg:th.inputB}`,transition:"all .2s"}}>{m}</div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function IntensityDashboard({ sessions, sessionVol: sv }) {
+    const th = useTheme(); const S = useS();
+    const cut7=Date.now()-7*864e5, cut14=Date.now()-14*864e5;
+    const r7=sessions.filter(s=>(s.startTime||0)>=cut7&&(s.intensity||0)>0);
+    if (!r7.length) return null;
+    const avgI=(r7.reduce((a,s)=>a+(s.intensity||0),0)/r7.length).toFixed(1);
+    const prev7=sessions.filter(s=>(s.startTime||0)>=cut14&&(s.startTime||0)<cut7&&(s.intensity||0)>0);
+    const prevAvg=prev7.length?(prev7.reduce((a,s)=>a+(s.intensity||0),0)/prev7.length):null;
+    const arrow=prevAvg!=null?(parseFloat(avgI)>prevAvg?"↑":parseFloat(avgI)<prevAvg?"↓":null):null;
+    const arrowCol=arrow==="↑"?"#1db954":"#CC1F42";
+    const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));d.setHours(0,0,0,0);return d;});
+    const byDate={}; sessions.forEach(s=>{if(!s.startTime)return;const k=new Date(s.startTime).toDateString();if(!byDate[k])byDate[k]=[];byDate[k].push(s);});
+    return (
+      <div style={{...S.card,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{...S.label}}>INTENSITY</div>
+          <div style={{textAlign:"right"}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:3,justifyContent:"flex-end"}}>
+              {arrow&&<span style={{fontSize:14,color:arrowCol,fontWeight:700}}>{arrow}</span>}
+              <span className="bebas" style={{fontSize:28,color:th.accentFg,lineHeight:1}}>{avgI}</span>
+            </div>
+            <div style={{fontSize:9,color:th.dim,letterSpacing:"1px"}}>AVG /10</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          {days.map((d,i)=>{
+            const ds=byDate[d.toDateString()]||[];
+            const hasData=ds.length>0; let n=0;
+            if(hasData){const vols=ds.map(s=>sv(s));const tot=vols.reduce((a,v)=>a+v,0);const useEq=tot===0;n=Math.round(ds.reduce((a,s,si)=>{const w=useEq?1/ds.length:vols[si]>0?vols[si]/tot:0.5/ds.length;return a+(s.intensity||0)*w;},0)*10)/10;}
+            const hasR=ds.some(s=>(s.exercises||[]).some(e=>e.type!=="cardio")); const hasC=ds.some(s=>(s.exercises||[]).some(e=>e.type==="cardio"));
+            const h=hasData?Math.max(8,(n/10)*80):6;
+            const bg=hasData?(hasR&&hasC?"#E8612C":hasC?"#5B9CF6":th.accentBg):th.inputB;
+            const col=hasData?(hasC&&!hasR?"#5B9CF6":th.accentFg):th.inputB;
+            return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center"}}>
+              <span style={{fontSize:13,fontWeight:700,color:hasData?col:"transparent",marginBottom:3,lineHeight:1}}>{hasData?n:"·"}</span>
+              <div style={{width:"100%",height:h,background:bg,borderRadius:"3px 3px 0 0",opacity:hasData?1:0.25}}/>
+              <span style={{fontSize:11,color:th.dim,marginTop:4,lineHeight:1,textAlign:"center",whiteSpace:"nowrap"}}>{d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>
+            </div>;
+          })}
+        </div>
+        <div style={{display:"flex",gap:12,marginTop:8,justifyContent:"center",flexWrap:"wrap"}}>
+          {[{l:"Resistance",c:th.accentBg},{l:"Cardio",c:"#5B9CF6"},{l:"Mix",c:"#E8612C"}].map(({l,c})=>(
+            <div key={l} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:22,height:8,borderRadius:2,background:c}}/><span style={{fontSize:10,color:th.dim}}>{l}</span></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function CaloriesDashboard({ sessions }) {
+    const th = useTheme(); const S = useS();
+    const cut7=Date.now()-7*864e5, cut14=Date.now()-14*864e5;
+    const r7=sessions.filter(s=>(s.startTime||0)>=cut7&&(s.calories||0)>0);
+    if (!r7.length) return null;
+    const avgC=Math.round(r7.reduce((a,s)=>a+(s.calories||0),0)/r7.length);
+    const prev7=sessions.filter(s=>(s.startTime||0)>=cut14&&(s.startTime||0)<cut7&&(s.calories||0)>0);
+    const prevAvg=prev7.length?Math.round(prev7.reduce((a,s)=>a+(s.calories||0),0)/prev7.length):null;
+    const arrow=prevAvg!=null?(avgC>prevAvg?"↑":avgC<prevAvg?"↓":null):null;
+    const arrowCol=arrow==="↑"?"#1db954":"#CC1F42";
+    const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));d.setHours(0,0,0,0);return d;});
+    const byDate={}; sessions.forEach(s=>{if(!s.startTime)return;const k=new Date(s.startTime).toDateString();if(!byDate[k])byDate[k]=[];byDate[k].push(s);});
+    const dayData=days.map(d=>{const ds=byDate[d.toDateString()]||[];const rCal=ds.filter(s=>(s.exercises||[]).some(e=>e.type!=="cardio")).reduce((a,s)=>a+(s.calories||0),0);const cCal=ds.filter(s=>(s.exercises||[]).every(e=>e.type==="cardio")&&s.exercises.length>0).reduce((a,s)=>a+(s.calories||0),0);const total=ds.reduce((a,s)=>a+(s.calories||0),0);return{total,hasR:rCal>0,hasC:cCal>0};});
+    const maxC=Math.max(...dayData.map(d=>d.total),1);
+    return (
+      <div style={{...S.card,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{...S.label}}>CALORIES BURNED</div>
+          <div style={{textAlign:"right"}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:3,justifyContent:"flex-end"}}>
+              {arrow&&<span style={{fontSize:14,color:arrowCol,fontWeight:700}}>{arrow}</span>}
+              <span className="bebas" style={{fontSize:28,color:th.accentFg,lineHeight:1}}>{avgC.toLocaleString()}</span>
+            </div>
+            <div style={{fontSize:9,color:th.dim,letterSpacing:"1px"}}>AVG KCAL</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          {days.map((d,i)=>{
+            const {total,hasR,hasC}=dayData[i]; const hasData=total>0;
+            const h=hasData?Math.max(8,(total/maxC)*80):6;
+            const bg=hasData?(hasR&&hasC?"#E8612C":hasC?"#5B9CF6":th.accentBg):th.inputB;
+            const col=hasData?(hasC&&!hasR?"#5B9CF6":th.accentFg):th.inputB;
+            return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center"}}>
+              <span style={{fontSize:11,fontWeight:700,color:hasData?col:"transparent",marginBottom:3,lineHeight:1}}>{hasData?total:"·"}</span>
+              <div style={{width:"100%",height:h,background:bg,borderRadius:"3px 3px 0 0",opacity:hasData?1:0.25}}/>
+              <span style={{fontSize:11,color:th.dim,marginTop:4,lineHeight:1,textAlign:"center",whiteSpace:"nowrap"}}>{d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</span>
+            </div>;
+          })}
+        </div>
+        <div style={{display:"flex",gap:12,marginTop:8,justifyContent:"center",flexWrap:"wrap"}}>
+          {[{l:"Resistance",c:th.accentBg},{l:"Cardio",c:"#5B9CF6"},{l:"Mix",c:"#E8612C"}].map(({l,c})=>(
+            <div key={l} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:22,height:8,borderRadius:2,background:c}}/><span style={{fontSize:10,color:th.dim}}>{l}</span></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function WeeklyVolumeDashboard({ sessions, sessionVol: sv }) {
+    const th = useTheme(); const S = useS();
+    if (!sessions.length) return null;
+    const now=Date.now();
+    const weeks=Array.from({length:5},(_,i)=>{const end=now-i*7*864e5;const start=end-7*864e5;const fmt=d=>d.toLocaleDateString("en-GB",{day:"numeric",month:"short"});return{start,end,label:`${fmt(new Date(start))}-${fmt(new Date(end-1))}`};}).reverse();
+    const weekVols=weeks.map(w=>sessions.filter(s=>(s.startTime||0)>=w.start&&(s.startTime||0)<w.end).reduce((a,s)=>a+sv(s),0));
+    if (weekVols.every(v=>v===0)) return null;
+    const maxVol=Math.max(...weekVols,1);
+    const totalRecent=weekVols[weekVols.length-1]; const totalPrev=weekVols[weekVols.length-2]||0;
+    const delta=totalRecent-totalPrev; const trendCol=delta>0?"#1db954":"#CC1F42"; const trend=delta>0?"↑":delta<0?"↓":null;
+    const fmtV=v=>v>=1000?`${(v/1000).toFixed(1)}t`:`${Math.round(v)}kg`;
+    return (
+      <div style={{...S.card,padding:16,marginBottom:10,textAlign:"left"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{...S.label}}>WEEKLY VOLUME</div>
+          <div style={{textAlign:"right"}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:3,justifyContent:"flex-end"}}>
+              {trend&&<span style={{fontSize:16,color:trendCol,fontWeight:700,lineHeight:1}}>{trend}</span>}
+              <span className="bebas" style={{fontSize:28,color:th.accentFg,lineHeight:1}}>{fmtV(totalRecent)}</span>
+            </div>
+            <div style={{fontSize:9,color:th.dim,letterSpacing:"1px"}}>THIS WEEK</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:5,alignItems:"flex-end"}}>
+          {weeks.map((w,i)=>{const v=weekVols[i];const h=v>0?Math.max(8,(v/maxVol)*72):4;const isCur=i===weeks.length-1;const col=isCur?th.accentBg:v>(weekVols[i-1]||0)*1.1?`${th.accentBg}99`:`${th.accentBg}55`;return(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
+              <div style={{fontSize:10,color:isCur?th.accentFg:th.dim,fontWeight:isCur?700:400,marginBottom:2,lineHeight:1}}>{v>0?fmtV(v):""}</div>
+              <div style={{width:"100%",height:h,background:col,borderRadius:"3px 3px 0 0"}}/>
+              <div style={{fontSize:8,color:th.dim,marginTop:3,textAlign:"center",lineHeight:1.2,whiteSpace:"nowrap"}}>{w.label}</div>
+            </div>
+          );})}
+        </div>
+      </div>
+    );
+  }
+
+  function SessionPaceDashboard({ sessions, sessionVol: sv }) {
+    const th = useTheme(); const S = useS();
+    const cutoff=Date.now()-30*864e5;
+    const withEff=sessions.filter(s=>(s.startTime||0)>=cutoff&&(s.duration||0)>0).map(s=>{const vol=sv(s);return{...s,vol,eff:s.duration>0?vol/s.duration:0};}).filter(s=>s.vol>0).reverse();
+    if (withEff.length<2) return null;
+    const effVals=withEff.map(s=>s.eff);
+    const avgEff=effVals.reduce((a,v)=>a+v,0)/effVals.length;
+    const maxEff=Math.max(...effVals,1); const minEff=Math.min(...effVals,0); const range=maxEff-minEff||1;
+    const latest=withEff[withEff.length-1];
+    const trend=withEff.length>=2?(latest.eff>withEff[withEff.length-2].eff?"↑":latest.eff<withEff[withEff.length-2].eff?"↓":null):null;
+    const trendCol=trend==="↑"?"#1db954":"#CC1F42";
+    const W=280,H=52,R=3;
+    const xs=withEff.map((_,i)=>(i/Math.max(withEff.length-1,1))*W);
+    const ys=withEff.map(s=>H-((s.eff-minEff)/range)*(H-R*2)-R);
+    const linePath=xs.map((x,i)=>(i===0?`M${x},${ys[i]}`:`L${x},${ys[i]}`)).join(" ");
+    const areaPath=`${linePath} L${xs[xs.length-1]},${H+4} L0,${H+4} Z`;
+    const avgY=H-((avgEff-minEff)/range)*(H-R*2)-R;
+    const effColor=e=>e>=avgEff*1.2?th.accentBg:e>=avgEff*0.8?"#E8612C":"#CC1F42";
+    return (
+      <div style={{...S.card,padding:16,marginBottom:10,textAlign:"left"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{...S.label}}>SESSION PACE</div>
+          <div style={{textAlign:"right"}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:3,justifyContent:"flex-end"}}>
+              {trend&&<span style={{fontSize:16,color:trendCol,fontWeight:700,lineHeight:1}}>{trend}</span>}
+              <span className="bebas" style={{fontSize:28,color:effColor(latest.eff),lineHeight:1}}>{latest.eff.toFixed(1)}</span>
+            </div>
+            <div style={{fontSize:9,color:th.dim,letterSpacing:"1px"}}>KG/MIN</div>
+          </div>
+        </div>
+        <svg viewBox={`0 0 ${W} ${H+22}`} width="100%" style={{overflow:"visible",marginTop:8}}>
+          <path d={areaPath} fill={th.accentBg} opacity="0.06"/>
+          <line x1="0" y1={avgY} x2={W} y2={avgY} stroke={th.inputB} strokeWidth="1" strokeDasharray="4 3"/>
+          <path d={linePath} fill="none" stroke={th.accentBg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          {withEff.map((s,i)=><circle key={i} cx={xs[i]} cy={ys[i]} r={i===withEff.length-1?R+1:R} fill={i===withEff.length-1?effColor(s.eff):th.card} stroke={effColor(s.eff)} strokeWidth="1.5"/>)}
+          <text x={xs[0]} y={H+16} textAnchor="start" fontSize="10" fill="#666" fontFamily="Outfit,sans-serif">{withEff[0].eff.toFixed(1)}</text>
+          <text x={xs[xs.length-1]} y={H+16} textAnchor="end" fontSize="10" fill={th.accentFg} fontFamily="Outfit,sans-serif" fontWeight="700">{latest.eff.toFixed(1)}</text>
+        </svg>
+        <div style={{display:"flex",gap:14,marginTop:4,flexWrap:"wrap"}}>
+          {[{l:"High efficiency",c:th.accentBg},{l:"Average",c:"#E8612C"},{l:"Low efficiency",c:"#CC1F42"}].map(({l,c})=>(
+            <div key={l} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:10,color:th.dim}}>{l}</span></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Friend Dashboard Sheet ─────────────────────────────────────────────────── */
+  function FriendDashboardSheet({ friend, user, competitions, onClose, onGetFriendSessions, onCompete }) {
+    const th = useTheme();
+    const S = useS();
+    const [sessions, setSessions] = useState(null);
+    const [loading, setLoading]   = useState(true);
+    const [closing, setClosing]   = useState(false);
+
+    useEffect(() => {
+      let cancelled = false;
+      onGetFriendSessions(friend.uid).then(s => {
+        if (!cancelled) { setSessions(s); setLoading(false); }
+      });
+      return () => { cancelled = true; };
+    }, [friend.uid]);
+
+    const close = () => { setClosing(true); setTimeout(onClose, 340); };
+    const initials = (friend.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+    return (
+      <>
+        <style>{`
+          @keyframes fdSheetIn  { from{transform:translateY(100%);opacity:.6} to{transform:translateY(0);opacity:1} }
+          @keyframes fdSheetOut { from{transform:translateY(0);opacity:1}     to{transform:translateY(100%);opacity:0} }
+          @keyframes fdBdIn  { from{opacity:0} to{opacity:1} }
+          @keyframes fdBdOut { from{opacity:1} to{opacity:0} }
+        `}</style>
+
+        {/* Backdrop */}
+        <div onClick={close} style={{
+          position:"fixed", inset:0, zIndex:70,
+          background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+          animation: closing ? "fdBdOut .34s ease forwards" : "fdBdIn .26s ease forwards",
+        }} />
+
+        {/* Sheet */}
+        <div style={{
+          position:"fixed", inset:0, zIndex:71,
+          display:"flex", flexDirection:"column",
+          maxWidth:480, margin:"0 auto", pointerEvents:"none",
+        }}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background:`color-mix(in srgb, ${th.card} 90%, transparent)`,
+            backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+            borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
+            marginTop:"calc(72px + env(safe-area-inset-top, 0px))",
+            display:"flex", flexDirection:"column", flex:1, overflow:"hidden",
+            pointerEvents:"auto",
+            animation: closing ? "fdSheetOut .34s cubic-bezier(0.4,0,1,1) forwards" : "fdSheetIn .42s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
+
+            {/* Header */}
+            <div style={{ flexShrink:0, borderBottom:`1px solid ${th.border}`, padding:"14px 16px 10px" }}>
+              {/* Pill */}
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                {friend.photoURL ? (
+                  <img src={friend.photoURL} alt={friend.name} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                ) : (
+                  <div style={{ width:46, height:46, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+                    {initials}
+                  </div>
+                )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div className="bebas" style={{ fontSize:26, textAlign: "left",letterSpacing:2, color:th.text, lineHeight:1 }}>{friend.name}</div>
+                  <div style={{ fontSize:12, textAlign:"left", color:th.muted, marginTop:2 }}>{friend.email}</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                  <button
+                    onClick={onCompete}
+                    style={{
+                      background:`color-mix(in srgb, rgba(212,175,55,0.2) 100%, transparent)`,
+                      backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                      border:`1.5px solid rgba(212,175,55,0.5)`,
+                      borderRadius:10, padding:"7px 12px", cursor:"pointer",
+                      fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
+                      color:"#D4AF37", letterSpacing:"0.5px",
+                      transition:"background .2s, color .2s",
+                    }}
+                  >{(() => {
+                    const comp = competitions && competitions.find(c =>
+                      (c.fromUid === user?.id && c.toUid === friend.uid) ||
+                      (c.toUid   === user?.id && c.fromUid === friend.uid)
+                    );
+                    if (comp?.status === "active") return (
+                      <span style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <span style={{ width:7, height:7, borderRadius:"50%", background:"#D4AF37", display:"inline-block", animation:"pulse 1.5s ease-in-out infinite", flexShrink:0 }} />
+                        COMPETING
+                      </span>
+                    );
+                    if (comp?.status === "pending") return "PENDING";
+                    return "COMPETE";
+                  })()}</button>
+                  <button onClick={close} style={{ background:"none", border:"none", color:th.muted, fontSize:26, cursor:"pointer", lineHeight:1, padding:"4px 6px" }}>✕</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable body */}
+            <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"16px 16px calc(88px + env(safe-area-inset-bottom, 0px))" }}>
+              {loading ? (
+                <div style={{ textAlign:"center", padding:"48px 0", color:th.dim, fontSize:14 }}>Loading…</div>
+              ) : !sessions || sessions.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"48px 0" }}>
+                  <div style={{ fontSize:32, marginBottom:12 }}>🏋️</div>
+                  <div style={{ color:th.muted, fontSize:14 }}>No workout history yet.</div>
+                </div>
+              ) : (
+                <>
+                  {/* ── Quick summary tiles ── */}
+                  {(() => {
+                    const todayMs = new Date(); todayMs.setHours(0,0,0,0);
+                    const sessionDays = new Set(sessions.map(s => { const d=new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
+                    let streak=0; for(let i=0;i<=365;i++){const d=new Date(todayMs);d.setDate(d.getDate()-i);if(sessionDays.has(d.getTime()))streak++;else if(i>0)break;}
+                    const last7 = sessions.filter(s=>(s.startTime||0)>=Date.now()-7*864e5).length;
+                    const now = new Date(); const monthStart = new Date(now.getFullYear(),now.getMonth(),1).getTime();
+                    const thisMonth = sessions.filter(s=>(s.startTime||0)>=monthStart).length;
+                    return (
+                      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+                        {[
+                          { label:"STREAK",       value: streak ? `${streak}d` : "—" },
+                          { label:"LAST 7 DAYS",  value: last7 },
+                          { label:"THIS MONTH",   value: thisMonth },
+                        ].map(({label,value}) => (
+                          <div key={label} style={{ flex:1, background:th.sect, borderRadius:12, padding:"14px 8px", textAlign:"center" }}>
+                            <div className="bebas" style={{ fontSize:28, color:th.accentFg, lineHeight:1 }}>{value}</div>
+                            <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px", marginTop:5 }}>{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  <StreakDashboard sessions={sessions} />
+                  <MusclesTrainedDashboard sessions={sessions} />
+                  <IntensityDashboard sessions={sessions} sessionVol={sessionVol} />
+                  <CaloriesDashboard sessions={sessions} />
+                  <WeeklyVolumeDashboard sessions={sessions} sessionVol={sessionVol} />
+                  {(() => {
+                    const prMap={};
+                    sessions.forEach(s=>(s.exercises||[]).forEach(ex=>{const id=ex.id||ex.exId;if(!id)return;(ex.sets||[]).filter(st=>st.done&&(st.weight||0)>0).forEach(st=>{if(!prMap[id]||st.weight>prMap[id].w){const dbEx=DB.find(d=>d.id===id);prMap[id]={w:st.weight,reps:st.reps,name:dbEx?.name||ex.name||id,t:s.startTime||0,muscle:dbEx?.muscle};}});} ));
+                    const allPrs=Object.values(prMap).sort((a,b)=>b.w-a.w);
+                    return allPrs.length ? <PRsDashboard allPrs={allPrs} /> : null;
+                  })()}
+                  <SetsByMuscleGroup sessions={sessions} />
+                  <TrainingDensityDashboard sessions={sessions} sessionVol={sessionVol} />
+                  <SessionPaceDashboard sessions={sessions} sessionVol={sessionVol} />
+                </>
+              )}
             </div>
           </div>
+        </div>
+      </>
+    );
+  }
+
+  function FriendCard({ friend, onViewDashboard, onCompete, editing, onRemove }) {
+    const th = useTheme();
+    const S = useS();
+    const initials = (friend.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    return (
+      <div style={{ ...S.card, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:12, border: editing ? `1px solid ${th.delB}` : undefined, transition:"border-color .2s" }}>
+        {friend.photoURL ? (
+          <img src={friend.photoURL} alt={friend.name} style={{ width:44, height:44, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+        ) : (
+          <div style={{ width:44, height:44, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+            {initials}
+          </div>
         )}
-        {(shownPrograms.length > 0 || editShortcuts) && (
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontWeight:700, fontSize:15, color:th.text }}>{friend.name}</div>
+        </div>
+        {editing ? (
+          <button
+            onClick={onRemove}
+            style={{ background:th.del, border:`1px solid ${th.delB}`, borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:14, lineHeight:1, flexShrink:0 }}
+          >✕</button>
+        ) : (
+          <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+            <button
+              onClick={onCompete}
+              style={{
+                background: `color-mix(in srgb, #E8612C 22%, transparent)`,
+                backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                border: `1px solid rgba(232,97,44,0.4)`,
+                borderRadius:10, padding:"8px 12px", cursor:"pointer",
+                fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
+                color:"#E8612C", letterSpacing:"0.5px",
+              }}
+            >COMPETE</button>
+            <button
+              onClick={onViewDashboard}
+              style={{ background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12, color:th.accentT, letterSpacing:"0.5px" }}
+            >VIEW →</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ─── Competition Sheet ─────────────────────────────────────────────────────── */
+  function CompetitionSheet({ user, friend, competitions, mySessions, onGetFriendSessions, onClose, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite }) {
+    const th = useTheme();
+    const S = useS();
+    const [closing, setClosing] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [sentOk,  setSentOk]  = useState(false);
+    const [friendSessions, setFriendSessions] = useState(null);
+
+    const close = () => { setClosing(true); setTimeout(onClose, 340); };
+
+    // Find relevant competition between this user and this friend
+    const comp = competitions.find(c =>
+      (c.fromUid === user.id && c.toUid === friend.uid) ||
+      (c.toUid === user.id   && c.fromUid === friend.uid)
+    ) || null;
+
+    const isPending  = comp?.status === "pending";
+    const isActive   = comp?.status === "active";
+    const isIncoming = isPending && comp?.toUid === user.id;
+    const isOutgoing = isPending && comp?.fromUid === user.id;
+
+    // Normalize Firestore Timestamps or plain numbers to ms
+    const toMs = (v) => {
+      if (!v) return 0;
+      if (typeof v === "number") return v;
+      if (v?.toMillis) return v.toMillis(); // Firestore Timestamp
+      if (v?.seconds) return v.seconds * 1000; // Firestore Timestamp (other shape)
+      return Number(v) || 0;
+    };
+
+    const startAt = toMs(comp?.startAt);
+    const endAt   = toMs(comp?.endAt) || Infinity;
+    const now     = Date.now();
+    const daysLeft = isActive ? Math.max(0, Math.floor((endAt - now) / 86400000)) : null;
+
+    const compFilter = (s) => {
+      // Use endTime (when the workout was saved/completed) — this is what matters.
+      // Fall back to startTime for legacy sessions that may not have endTime.
+      const t = toMs(s.endTime) || toMs(s.startTime);
+      return t >= startAt && t <= endAt;
+    };
+
+    useEffect(() => {
+      if (!isActive && !isIncoming) return;
+      onGetFriendSessions(friend.uid).then(s => setFriendSessions(s || []));
+    }, [friend.uid, comp?.id, comp?.status]);
+
+    const calcScore = (sessions) => {
+      if (!sessions) return null;
+      const relevant = sessions.filter(compFilter);
+      if (!relevant.length) return 0;
+
+      // ── Intensity (30%) — avg of sessions that logged it ──
+      const withInt   = relevant.filter(s => (s.intensity || 0) > 0);
+      const intensAvg = withInt.length
+        ? withInt.reduce((a, s) => a + s.intensity, 0) / withInt.length
+        : 0;
+      const intensScore = (intensAvg / 10) * 10 * 0.30;
+
+      // ── Calories (30%) — avg kcal per session, cap at 500/session ──
+      const totalCals = relevant.reduce((a, s) => a + (s.calories || 0), 0);
+      const avgCals   = totalCals / relevant.length;
+      const calScore  = Math.min(avgCals / 500, 1) * 10 * 0.30;
+
+      // ── Consistency (20%) — unique training days, cap at 7 ──
+      const trainedDays = new Set(
+        relevant.map(s => {
+          const d = new Date(toMs(s.endTime) || toMs(s.startTime));
+          d.setHours(0,0,0,0);
+          return d.getTime();
+        })
+      ).size;
+      const consistScore = Math.min(trainedDays / 7, 1) * 10 * 0.20;
+
+      // ── Activity (20%) — session duration first (covers cardio), then volume ──
+      // Duration from session.duration field, OR sum of individual cardio set durations
+      const totalMins = relevant.reduce((a, s) => {
+        if (s.duration && s.duration > 0) return a + s.duration;
+        // Sum cardio set durations (stored in minutes)
+        const cardioMins = (s.exercises || []).reduce((b, ex) =>
+          b + (ex.sets || []).filter(st => st.done !== false).reduce((c, st) => c + (st.duration || 0), 0), 0);
+        return a + cardioMins;
+      }, 0);
+      const totalVol  = relevant.reduce((a, s) => a + sessionVol(s), 0);
+      const avgMins   = totalMins / relevant.length;
+      const avgVol    = totalVol  / relevant.length;
+      // Prefer duration (benefits cardio), fallback to volume (benefits resistance)
+      const actScore  = avgMins > 0
+        ? Math.min(avgMins / 90, 1) * 10 * 0.20    // 90 min/session = full score
+        : Math.min(avgVol  / 5000, 1) * 10 * 0.20; // 5,000 kg/session = full score
+
+      return Math.round((intensScore + calScore + consistScore + actScore) * 10) / 10;
+    };
+
+    const myScore     = isActive ? calcScore(mySessions) : null;
+    const friendScore = isActive ? calcScore(friendSessions) : null;
+    const myRecent    = mySessions.filter(compFilter);
+    const frRecent    = (friendSessions || []).filter(compFilter);
+    const myColor = th.accentFg;
+    const frColor = "#E8612C";
+    const leading = myScore !== null && friendScore !== null
+      ? myScore > friendScore ? "you" : friendScore > myScore ? "friend" : "tied"
+      : null;
+
+    const ScoreRing = ({ score, label, color, size = 90 }) => {
+      const r = (size - 10) / 2;
+      const circ = 2 * Math.PI * r;
+      const pct = Math.min((score || 0) / 10, 1);
+      return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+          <div style={{ position:"relative", width:size, height:size }}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={th.inputB} strokeWidth="8" />
+              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="8"
+                strokeDasharray={circ} strokeDashoffset={circ*(1-pct)} strokeLinecap="round"
+                transform={`rotate(-90 ${size/2} ${size/2})`}
+                style={{ transition:"stroke-dashoffset 0.8s cubic-bezier(0.34,1.2,0.64,1)" }} />
+            </svg>
+            <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+              <div className="bebas" style={{ fontSize:22, color, lineHeight:1 }}>{score !== null ? score.toFixed(1) : "—"}</div>
+              <div style={{ fontSize:8, color:th.dim, letterSpacing:"1px" }}>/10</div>
+            </div>
+          </div>
+          <div style={{ fontSize:12, fontWeight:700, color:th.sub }}>{label}</div>
+        </div>
+      );
+    };
+
+    const StatRow = ({ label, myVal, frVal }) => (
+      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${th.border}` }}>
+        <div className="bebas" style={{ fontSize:15, color:myColor, textAlign:"right", minWidth:40 }}>{myVal}</div>
+        <div style={{ flex:1, fontSize:11, color:th.dim, textAlign:"center", letterSpacing:"0.5px" }}>{label}</div>
+        <div className="bebas" style={{ fontSize:15, color:frColor, textAlign:"left", minWidth:40 }}>{frVal}</div>
+      </div>
+    );
+
+    return (
+      <>
+        <style>{`
+          @keyframes compSheetIn  { from{transform:translateY(100%);opacity:.6} to{transform:translateY(0);opacity:1} }
+          @keyframes compSheetOut { from{transform:translateY(0);opacity:1}     to{transform:translateY(100%);opacity:0} }
+          @keyframes compBdIn     { from{opacity:0} to{opacity:1} }
+          @keyframes compBdOut    { from{opacity:1} to{opacity:0} }
+          @keyframes compSentIn   { 0%{transform:scale(0.7);opacity:0} 60%{transform:scale(1.1);opacity:1} 100%{transform:scale(1)} }
+        `}</style>
+        <div onClick={close} style={{ position:"fixed", inset:0, zIndex:72, background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", animation: closing ? "compBdOut .34s ease forwards" : "compBdIn .26s ease forwards" }}/>
+        <div style={{ position:"fixed", inset:0, zIndex:73, display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", pointerEvents:"none" }}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background:`color-mix(in srgb, ${th.card} 90%, transparent)`,
+            backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+            borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
+            marginTop:"calc(72px + env(safe-area-inset-top, 0px))",
+            display:"flex", flexDirection:"column", flex:1, overflow:"hidden", pointerEvents:"auto",
+            animation: closing ? "compSheetOut .34s cubic-bezier(0.4,0,1,1) forwards" : "compSheetIn .42s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
+            {/* Header */}
+            <div style={{ flexShrink:0, borderBottom:`1px solid ${th.border}`, padding:"14px 16px 12px" }}>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
+              </div>
+              <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <div style={{ textAlign:"center" }}>
+                  <div className="bebas" style={{ fontSize:26, letterSpacing:2, color:th.text, lineHeight:1 }}>
+                    {isActive ? "COMPETITION IN PROGRESS" : "COMPETE"}
+                  </div>
+                  <div style={{ fontSize:13, color:th.muted, marginTop:4 }}>
+                    {isActive ? `vs ${friend.name.split(" ")[0]}` :
+                     isOutgoing ? "Waiting for response…" :
+                     isIncoming ? `${friend.name.split(" ")[0]} challenged you!` :
+                     `Challenge ${friend.name.split(" ")[0]}`}
+                  </div>
+                </div>
+                <button onClick={close} style={{ position:"absolute", right:0, background:"none", border:"none", color:th.muted, fontSize:26, cursor:"pointer", lineHeight:1, padding:"4px 6px" }}>✕</button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ flex:1, overflowY:"auto", padding:"20px 16px calc(88px + env(safe-area-inset-bottom, 0px))" }}>
+
+              {/* ── INCOMING invitation ── */}
+              {isIncoming && (
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontSize:40, marginBottom:12 }}>🏆</div>
+                  <div className="bebas" style={{ fontSize:22, letterSpacing:2, color:th.text, marginBottom:6 }}>
+                    {friend.name.split(" ")[0].toUpperCase()} CHALLENGED YOU
+                  </div>
+                  <div style={{ fontSize:13, color:th.muted, lineHeight:1.6, marginBottom:24, maxWidth:280, margin:"0 auto 24px" }}>
+                    7-day competition starting 24 hours after you accept. Only sessions logged <em>after</em> the start time count.
+                  </div>
+                  {/* Rules */}
+                  <div style={{ ...S.card, padding:"14px 16px", marginBottom:20, textAlign:"left" }}>
+                    <div style={{ ...S.label, marginBottom:10 }}>RULES</div>
+                    {[
+                      { pct:"30%", label:"Intensity", desc:"Avg self-reported intensity rating per session (0–10)" },
+                      { pct:"30%", label:"Calories", desc:"Total calories burned across all sessions" },
+                      { pct:"20%", label:"Consistency", desc:"Every session logged earns points. 7 sessions = max" },
+                      { pct:"20%", label:"Activity", desc:"Total duration or volume when calories not logged" },
+                    ].map(({ pct, label, desc }) => (
+                      <div key={label} style={{ display:"flex", gap:10, marginBottom:8 }}>
+                        <div className="bebas" style={{ fontSize:16, color:th.accentFg, flexShrink:0, width:32, textAlign:"right" }}>{pct}</div>
+                        <div><div style={{ fontSize:13, fontWeight:700, color:th.text }}>{label}</div>
+                        <div style={{ fontSize:11, color:th.muted, marginTop:1 }}>{desc}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={async () => { await onDeclineCompeteInvite(comp.id); close(); }}
+                      style={{ flex:1, background:th.del, border:`1px solid ${th.delB}`, borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}>DECLINE</button>
+                    <button onClick={async () => { await onAcceptCompeteInvite(comp.id); }}
+                      style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT }}>ACCEPT ✓</button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── OUTGOING pending ── */}
+              {isOutgoing && (
+                <div style={{ textAlign:"center", padding:"32px 0" }}>
+                  <div style={{ fontSize:40, marginBottom:12 }}>⏳</div>
+                  <div className="bebas" style={{ fontSize:20, letterSpacing:2, color:th.text, marginBottom:8 }}>INVITATION SENT</div>
+                  <div style={{ fontSize:13, color:th.muted, lineHeight:1.6, marginBottom:24 }}>
+                    Waiting for {friend.name.split(" ")[0]} to accept.<br/>
+                    Competition starts 24 hours after they accept.
+                  </div>
+                  <button
+                    onClick={async () => { await onWithdrawCompeteInvite(comp.id); close(); }}
+                    style={{ background:th.del, border:`1px solid ${th.delB}`, borderRadius:12, padding:"11px 24px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}
+                  >WITHDRAW INVITATION</button>
+                </div>
+              )}
+
+              {/* ── ACTIVE — live scoreboard ── */}
+              {isActive && (
+                <>
+                  {/* Status bar */}
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:24, padding:"10px 16px", background:`color-mix(in srgb, ${th.accentBg} 8%, ${th.sect})`, borderRadius:14, border:`1px solid ${th.border}` }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:th.accentFg, animation:"pulse 1.5s ease-in-out infinite" }} />
+                    <div style={{ fontSize:13, fontWeight:700, color:th.accentFg, letterSpacing:"0.5px" }}>LIVE</div>
+                    <div style={{ fontSize:13, color:th.muted }}>{daysLeft} day{daysLeft!==1?"s":""} remaining</div>
+                  </div>
+
+                  {/* Score rings */}
+                  <div style={{ display:"flex", justifyContent:"space-around", alignItems:"center", marginBottom:24 }}>
+                    <ScoreRing score={myScore} label="YOU" color={myColor} size={110} />
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+                      {leading==="you"    && <div style={{ fontSize:11, fontWeight:700, color:myColor, letterSpacing:"1.5px" }}>LEADING ↑</div>}
+                      {leading==="friend" && <div style={{ fontSize:11, fontWeight:700, color:frColor, letterSpacing:"1.5px" }}>BEHIND ↓</div>}
+                      {leading==="tied"   && <div style={{ fontSize:11, fontWeight:700, color:th.dim,  letterSpacing:"1.5px" }}>TIED</div>}
+                      <div className="bebas" style={{ fontSize:34, color:th.dim, letterSpacing:4 }}>VS</div>
+                    </div>
+                    <ScoreRing score={friendScore} label={friend.name.split(" ")[0].toUpperCase()} color={frColor} size={110} />
+                  </div>
+
+                  {/* Stats breakdown */}
+                  <div style={{ ...S.card, padding:"16px 18px", marginBottom:16 }}>
+                    <div style={{ display:"flex", alignItems:"center", marginBottom:12 }}>
+                      <div style={{ flex:1, fontSize:13, fontWeight:800, textAlign:"left", color:myColor }}>YOU</div>
+                      <div style={{ flex:1, textAlign:"center" }}><div style={{ ...S.label, fontSize:10 }}>SINCE START</div></div>
+                      <div style={{ flex:1, fontSize:13, fontWeight:800, color:frColor, textAlign:"right" }}>{friend.name.split(" ")[0].toUpperCase()}</div>
+                    </div>
+                    {[
+                      { label:"WORKOUTS", my: myRecent.length||"—", fr: friendSessions===null?"…":(frRecent.length||"—") },
+                      { label:"AVG INTENSITY", my: myRecent.filter(s=>(s.intensity||0)>0).length?(myRecent.reduce((a,s)=>a+(s.intensity||0),0)/myRecent.filter(s=>(s.intensity||0)>0).length).toFixed(1):"—", fr: frRecent.filter(s=>(s.intensity||0)>0).length?(frRecent.reduce((a,s)=>a+(s.intensity||0),0)/frRecent.filter(s=>(s.intensity||0)>0).length).toFixed(1):(friendSessions===null?"…":"—") },
+                      { label:"CALORIES", my: myRecent.reduce((a,s)=>a+(s.calories||0),0)||"—", fr: frRecent.reduce((a,s)=>a+(s.calories||0),0)||(friendSessions===null?"…":"—") },
+                      { label:"DURATION", my: (()=>{ const m=myRecent.reduce((a,s)=>a+(s.duration||0),0); return m?`${Math.round(m)}min`:"—"; })(), fr: (()=>{ const m=frRecent.reduce((a,s)=>a+(s.duration||0),0); return friendSessions===null?"…":m?`${Math.round(m)}min`:"—"; })() },
+                    ].map(row => (
+                      <div key={row.label} style={{ display:"flex", textAlign:"left",alignItems:"center", padding:"10px 0", borderTop:`1px solid ${th.border}` }}>
+                        <div className="bebas" style={{ flex:1, fontSize:20, color:myColor, lineHeight:1 }}>{row.my}</div>
+                        <div style={{ flex:1, textAlign:"center", fontSize:10, color:th.dim, letterSpacing:"1px", fontWeight:700 }}>{row.label}</div>
+                        <div className="bebas" style={{ flex:1, fontSize:20, color:frColor, lineHeight:1, textAlign:"right" }}>{row.fr}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Result banner */}
+                  {leading && (
+                    <div style={{ borderRadius:16, padding:"20px 18px", textAlign:"center", marginBottom:4,
+                      background: leading==="you"?`color-mix(in srgb, ${th.accentBg} 14%, ${th.card})`:leading==="friend"?"color-mix(in srgb, rgba(232,97,44,0.18) 100%, transparent)":th.sect,
+                      border: leading==="you"?`1px solid ${th.accentBg}55`:leading==="friend"?"1px solid rgba(232,97,44,0.35)":`1px solid ${th.border}` }}>
+                      <div style={{ fontSize:38, marginBottom:8, lineHeight:1 }}>{leading==="you"?"🏆":leading==="friend"?"💪":"🤝"}</div>
+                      <div className="bebas" style={{ fontSize:26, letterSpacing:2, marginBottom:6, color:leading==="you"?th.accentFg:leading==="friend"?"#E8612C":th.sub }}>
+                        {leading==="you"?"YOU'RE WINNING!":leading==="friend"?`${friend.name.split(" ")[0].toUpperCase()} IS AHEAD`:"ALL TIED UP"}
+                      </div>
+                      <div style={{ fontSize:14, color:th.muted, lineHeight:1.5 }}>
+                        {leading==="you"?"Keep the pressure on — train hard every day.":leading==="friend"?"Time to turn it up. You've got this.":"Anyone's game — every session counts!"}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* End competition */}
+                  <button
+                    onClick={async () => { if (window.confirm("End this competition?")) { await onWithdrawCompeteInvite(comp.id); close(); } }}
+                    style={{ width:"100%", marginTop:16, background:"rgba(220, 50, 50, 0.45)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"1px solid rgba(220, 50, 50, 0.3)", borderRadius:13, padding:14, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.text }}
+                  >END COMPETITION</button>
+                </>
+              )}
+              {!comp && (
+                <>
+                  {sentOk ? (
+                    <div style={{ textAlign:"center", padding:"40px 0", animation:"compSentIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
+                      <div style={{ fontSize:40, marginBottom:12 }}>🏆</div>
+                      <div className="bebas" style={{ fontSize:22, letterSpacing:2, color:th.accentFg, marginBottom:8 }}>CHALLENGE SENT!</div>
+                      <div style={{ fontSize:13, color:th.muted }}>
+                        {friend.name.split(" ")[0]} will see your invitation in their Sharing tab.
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Rules preview */}
+                      <div style={{ textAlign:"center", marginBottom:20 }}>
+                        <div style={{ fontSize:36, marginBottom:8 }}>🏆</div>
+                        <div className="bebas" style={{ fontSize:20, letterSpacing:2, color:th.text, marginBottom:6 }}>7-DAY CHALLENGE</div>
+                        <div style={{ fontSize:13, color:th.muted, lineHeight:1.6, maxWidth:280, margin:"0 auto" }}>
+                          Score points over 7 days. Only sessions logged <em>after</em> both sides agree count.
+                        </div>
+                      </div>
+                      <div style={{ ...S.card, padding:"14px 16px", marginBottom:20 }}>
+                        <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>SCORING RULES</div>
+                        {[
+                          { pct:"30%", label:"Intensity", desc:"Avg self-reported intensity rating per session (0–10)" },
+                          { pct:"30%", label:"Calories", desc:"Total calories burned across all sessions" },
+                          { pct:"25%", label:"Consistency",       desc:"5+ sessions = max score" },
+                          { pct:"25%", label:"Activity",          desc:"Duration or volume if calories not logged" },
+                        ].map(({ pct, label, desc }) => (
+                          <div key={label} style={{ display:"flex", gap:10, marginBottom:8 }}>
+                            <div className="bebas" style={{ fontSize:16, color:th.accentFg, flexShrink:0, width:32, textAlign:"right" }}>{pct}</div>
+                            <div><div style={{ fontSize:13, fontWeight:700, textAlign:"left", color:th.text }}>{label}</div>
+                            <div style={{ fontSize:11, color:th.muted, marginTop:1 }}>{desc}</div></div>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        disabled={sending}
+                        onClick={async () => {
+                          setSending(true);
+                          const r = await onSendCompeteInvite(friend.uid, friend.name);
+                          setSending(false);
+                          if (r?.ok) setSentOk(true);
+                        }}
+                        style={{
+                          width:"100%",
+                          background:`color-mix(in srgb, rgba(212,175,55,0.2) 100%, transparent)`,
+                          backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                          border:`1.5px solid rgba(212,175,55,0.5)`,
+                          borderRadius:14, padding:"15px 0", cursor: sending?"default":"pointer",
+                          fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14,
+                          letterSpacing:"0.5px", color:"#D4AF37",
+                          transition:"background .2s, color .2s",
+                          opacity: sending ? 0.6 : 1,
+                        }}
+                      >
+                        {sending ? "SENDING…" : `CHALLENGE ${friend.name.split(" ")[0].toUpperCase()}`}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+  function SharingOnboarding({ onDismiss }) {
+    const th = useTheme();
+    const S = useS();
+    const [step, setStep] = useState(0);
+    const [leaving, setLeaving] = useState(false);
+    const [dir, setDir] = useState(1);
+
+    const STEPS = [
+      {
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <circle cx="9" cy="7.5" r="3.5" stroke={th.accentFg} strokeWidth="2"/>
+            <path d="M1 19.5c0-4.418 3.582-8 8-8" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/>
+            <line x1="17" y1="11" x2="17" y2="19" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/>
+            <line x1="13" y1="15" x2="21" y2="15" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        ),
+        title: "Invite Friends",
+        body: "Tap INVITE A FRIEND and enter their email address. They'll get an invitation in their Sharing tab. Once they accept, you're connected.",
+      },
+      {
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <circle cx="7" cy="7" r="2.8" stroke={th.accentFg} strokeWidth="1.8"/>
+            <path d="M1 19c0-3.314 2.686-6 6-6" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+            <circle cx="15" cy="7" r="2.8" stroke={th.accentFg} strokeWidth="1.8"/>
+            <path d="M21 19c0-3.314-2.686-6-6-6" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        ),
+        title: "Friends List",
+        body: "Accepted friends appear as circular bubbles at the top. Tap any bubble to open their full dashboard — streak, volume, muscles trained, and more.",
+      },
+      {
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <polygon points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
+          </svg>
+        ),
+        title: "React to Workouts",
+        body: "Completed workouts from friends appear in your Feed. Tap the star button on any session to react. Your friend gets notified right away.",
+      },
+      {
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <path d="M11 2l2.4 6.8H20l-5.5 4 2.1 6.8L11 15.6l-5.6 4 2.1-6.8L2 8.8h6.6z" stroke="#D4AF37" strokeWidth="1.8" strokeLinejoin="round"/>
+          </svg>
+        ),
+        title: "Compete",
+        body: "Open a friend's dashboard and tap COMPETE to send a 7-day challenge. Scores are based on intensity, calories, consistency and activity. The bell icon notifies you of all competition events.",
+      },
+      {
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <path d="M4 4h14v10a4 4 0 01-4 4H8a4 4 0 01-4-4V4z" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
+            <path d="M8 18v2M14 18v2M6 20h10" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        ),
+        title: "Notifications",
+        body: "Tap the bell icon at the top right of Sharing to see all your notifications — friend requests accepted, competition invites, and workout reactions.",
+      },
+    ];
+
+    const goTo = (next) => {
+      setDir(next > step ? 1 : -1);
+      setLeaving(true);
+      setTimeout(() => { setStep(next); setLeaving(false); }, 160);
+    };
+
+    const isLast = step === STEPS.length - 1;
+    const s = STEPS[step];
+
+    return (
+      <div style={{
+        ...S.card, padding: 0, marginBottom: 14, overflow: "hidden",
+        border: `1px solid ${th.accentBg}44`,
+        animation: "shortcutListIn 0.3s cubic-bezier(0,0,0.2,1) forwards",
+      }}>
+        <style>{`
+          @keyframes obSlideIn  { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideInR { from{opacity:0;transform:translateX(-22px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes obSlideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-18px)} }
+          @keyframes obSlideOutR{ from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(18px)} }
+        `}</style>
+        {/* Accent top bar */}
+        <div style={{ height: 3, background: th.accentBg }} />
+        <div style={{ padding: "16px 16px 14px" }}>
+          {/* Step content */}
           <div
+            key={step}
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 8,
-              marginBottom: editShortcuts ? 8 : 16,
+              animation: leaving
+                ? (dir > 0 ? "obSlideOut 0.16s ease-in forwards" : "obSlideOutR 0.16s ease-in forwards")
+                : (dir > 0 ? "obSlideIn 0.22s cubic-bezier(0,0,0.2,1) forwards" : "obSlideInR 0.22s cubic-bezier(0,0,0.2,1) forwards"),
+              minHeight: 84,
             }}
           >
-            {shownPrograms.map((p) => (
-              <div key={p.id} style={{ position: "relative",
-                animation: removingShortcut === p.id ? "removeSlide 0.31s ease-in forwards" : undefined }}>
-                {/* Remove-from-home ✕ */}
-                {editShortcuts && (
-                  <button
-                    onClick={() => animatedRemoveFromHome(p.id)}
-                    style={{
-                      position: "absolute",
-                      top: 7,
-                      right: 7,
-                      zIndex: 5,
-                      background: "rgba(220,50,50,0.15)",
-                      border: "1px solid rgba(220,50,50,0.3)",
-                      borderRadius: 7,
-                      width: 22,
-                      height: 22,
-                      cursor: "pointer",
-                      color: th.delText,
-                      fontSize: 12,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      lineHeight: 1,
-                    }}
-                  >
-                    ✕
-                  </button>
-                )}
-                <div
-                  onClick={() => !editShortcuts && onOpenShortcut(p)}
-                  style={{
-                    width: "100%",
-                    background: `color-mix(in srgb, ${th.card} 35%, transparent)`,
-                    backdropFilter: "blur(12px)",
-                    WebkitBackdropFilter: "blur(12px)",
-                    border: `1px solid ${editShortcuts ? th.accentBg + "44" : th.border}`,
-                    borderRadius: 14,
-                    padding: "15px 13px",
-                    textAlign: "left",
-                    transition: "border-color .25s",
-                    cursor: editShortcuts ? "default" : "pointer",
-                    animation: editShortcuts ? "shortcutBtnIn 0.28s cubic-bezier(0,0,0.2,1) forwards" : undefined,
-                  }}
-                >
-                  <div style={{ marginBottom: 8 }}>
-                    <ProgramIcon name={p.name} />
+            <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                background: `color-mix(in srgb, ${th.accentBg} 15%, ${th.sect})`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 13, textAlign: "left", fontWeight: 700, color: th.text, marginBottom: 5 }}>{s.title}</div>
+                <div style={{ fontSize: 12, textAlign: "left", color: th.muted, lineHeight: 1.55 }}>{s.body}</div>
+              </div>
+            </div>
+          </div>
+          {/* Footer: dots + nav */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop: 14 }}>
+            <div style={{ display:"flex", gap:5 }}>
+              {STEPS.map((_,i) => (
+                <div key={i} onClick={() => goTo(i)} style={{
+                  width: i === step ? 18 : 6, height: 6, borderRadius: 3,
+                  background: i === step ? th.accentBg : th.inputB,
+                  cursor: "pointer",
+                  transition: "width 0.2s, background 0.2s",
+                }} />
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              {!isLast && (
+                <button onClick={onDismiss} style={{
+                  background: "none", border: "none",
+                  color: th.dim, fontSize: 12, cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 600, padding: "6px 0",
+                }}>Skip</button>
+              )}
+              {!isLast ? (
+                <button onClick={() => goTo(step + 1)} style={{
+                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                  border: "none", borderRadius: 9, color: th.accentT,
+                  padding: "6px 16px", cursor: "pointer", fontSize: 12,
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 700,
+                }}>Next →</button>
+              ) : (
+                <button onClick={onDismiss} style={{
+                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                  border: "none", borderRadius: 9, color: th.accentT,
+                  padding: "6px 16px", cursor: "pointer", fontSize: 12,
+                  fontFamily: "'Outfit',sans-serif", fontWeight: 700,
+                }}>Got it ✓</button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function SharingView({ user, sessions: mySessions, pendingInvitations, sentInvitations, friends, onSendInvite, onAcceptInvite, onDeclineInvite, onGetFriendSessions, onRemoveFriend, onToggleStar, starNotifications, unreadStars, onMarkNotifsRead, competitions, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite, settings, onUpdateSettings }) {
+    const th = useTheme();
+    const S = useS();
+    const [inviteEmail, setInviteEmail] = useState("");
+    const [inviteStatus, setInviteStatus] = useState("idle");
+    const [inviteError, setInviteError] = useState("");
+    const [showInvitePanel, setShowInvitePanel] = useState(false);
+    const [inviteClosing, setInviteClosing] = useState(false);
+    const closeInvitePanel = () => {
+      setInviteClosing(true);
+      setTimeout(() => { setShowInvitePanel(false); setInviteClosing(false); setInviteStatus("idle"); setInviteEmail(""); }, 220);
+    };
+    const [actioning, setActioning] = useState({});
+    const [dashFriend, setDashFriend] = useState(null);
+    const [competeFriend, setCompeteFriend] = useState(null);
+    const [editFriends, setEditFriends] = useState(false);
+    // Feed: map of friendUid → their recent sessions
+    const [feedData, setFeedData] = useState({});
+    const [feedLoading, setFeedLoading] = useState(false);
+    // Stars: key = `${ownerUid}-${sessionId}`, value = { starred: bool, count: number }
+    const [starState, setStarState] = useState({});
+
+    // Load feed when friends list changes
+    useEffect(() => {
+      if (!friends.length) return;
+      setFeedLoading(true);
+      Promise.all(
+        friends.map(f => onGetFriendSessions(f.uid).then(sessions => ({ uid: f.uid, sessions })))
+      ).then(results => {
+        const map = {};
+        results.forEach(({ uid, sessions }) => { map[uid] = sessions || []; });
+        setFeedData(map);
+        setFeedLoading(false);
+        // Load reaction counts for all sessions in view
+        const W7 = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        results.forEach(({ uid, sessions }) => {
+          (sessions || []).filter(s => (s.startTime||0) >= W7).forEach(s => {
+            const sid = s.id || s.startTime;
+            if (!sid) return;
+            fsGetReactions(uid, sid).then(rxns => {
+              const key = `${uid}-${sid}`;
+              setStarState(prev => ({
+                ...prev,
+                [key]: { starred: rxns.some(r => r.uid === user.id), count: rxns.length }
+              }));
+            });
+          });
+        });
+      });
+    }, [friends.map(f => f.uid).join(",")]);
+
+    // Build feed items: last 7 days only, sort newest first
+    const W7 = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const feedItems = friends.flatMap(f => {
+      const sessions = feedData[f.uid] || [];
+      return sessions
+        .filter(s => (s.startTime || 0) >= W7)
+        .map(s => ({ friend: f, session: s }));
+    }).sort((a, b) => (b.session.startTime || 0) - (a.session.startTime || 0));
+
+    const handleSendInvite = async () => {
+      const email = inviteEmail.trim().toLowerCase();
+      if (!email) return;
+      if (email === user.email.toLowerCase()) { setInviteStatus("error"); setInviteError("That's your own email!"); return; }
+      if (friends.some(f => f.email.toLowerCase() === email)) { setInviteStatus("error"); setInviteError("Already friends!"); return; }
+      if (sentInvitations.some(i => i.toEmail === email)) { setInviteStatus("error"); setInviteError("Invitation already sent."); return; }
+      setInviteStatus("sending");
+      const result = await onSendInvite(email);
+      if (result?.ok) {
+        setInviteStatus("sent");
+        setTimeout(() => { setInviteStatus("idle"); setInviteEmail(""); setShowInvitePanel(false); }, 2400);
+      } else {
+        setInviteStatus("error"); setInviteError("Failed to send. Try again.");
+      }
+    };
+
+    const handleAction = async (id, invite, action) => {
+      setActioning(a => ({ ...a, [id]: true }));
+      if (action === "accept") await onAcceptInvite(id, invite);
+      else await onDeclineInvite(id);
+      setActioning(a => ({ ...a, [id]: false }));
+    };
+
+    const fmtTimeAgo = (ts) => {
+      if (!ts) return "";
+      const diff = Date.now() - ts;
+      const m = Math.floor(diff / 60000);
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(diff / 3600000);
+      if (h < 24) return `${h}h ago`;
+      // For anything older than 24h show the actual day name + date so two different
+      // days never show the same string (e.g. "Mon 21 Apr" vs "Tue 22 Apr")
+      return new Date(ts).toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short" });
+    };
+
+    return (
+      <div className="slide-up" style={{ paddingBottom: 90 }}>
+        <style>{`
+          @keyframes sharingFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes invitePop   { from{opacity:0;transform:scale(0.96) translateY(-8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+          @keyframes inviteClose { from{opacity:1;transform:scale(1) translateY(0)} to{opacity:0;transform:scale(0.96) translateY(-6px)} }
+          @keyframes sentBounce    { 0%{transform:scale(0.7);opacity:0} 60%{transform:scale(1.12);opacity:1} 100%{transform:scale(1)} }
+          @keyframes inviteShake   { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+          @keyframes feedFadeIn    { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes starTick {
+            0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+            60%  { transform: scale(1.25) rotate(5deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+          }
+          @keyframes notifPop { from{opacity:0;transform:translateY(-8px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+        `}</style>
+
+        {/* ── Sharing onboarding guide ── */}
+        {!settings?.hasSharingOnboarded && (
+          <SharingOnboarding onDismiss={() => onUpdateSettings?.({ ...settings, hasSharingOnboarded: true })} />
+        )}
+
+        {/* ── Pending invitations received ── */}
+        {pendingInvitations.length > 0 && (
+          <div style={{ marginBottom: 20,textAlign:"left", animation: "sharingFadeUp 0.3s ease both" }}>
+            <div style={{ ...S.label, marginBottom: 10 }}>PENDING FOR YOU ({pendingInvitations.length})</div>
+            {pendingInvitations.map(inv => (
+              <div key={inv.id} style={{ ...S.card, padding: "14px 16px", marginBottom: 8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+                    {(inv.fromName||"?")[0].toUpperCase()}
                   </div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: 14,
-                      color: th.text,
-                      marginBottom: 3,
-                    }}
-                  >
-                    {p.name}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:15, color:th.text }}>{inv.fromName}</div>
+                    <div style={{ fontSize:13, color:th.muted, marginTop:1 }}>{inv.fromEmail}</div>
+                    <div style={{ fontSize:13, color:th.dim, marginTop:2 }}>Wants to share workout progress</div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: th.muted,
-                    }}
-                  >
-                    {p.exs.length} exercises
-                  </div>
+                  {/* X decline */}
+                  <button onClick={() => handleAction(inv.id, inv, "decline")} disabled={actioning[inv.id]}
+                    style={{ background:th.del, border:`1px solid ${th.delB}`, borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:15, flexShrink:0, opacity: actioning[inv.id]?0.4:1 }}>✕</button>
+                  {/* Accept */}
+                  <button onClick={() => handleAction(inv.id, inv, "accept")} disabled={actioning[inv.id]}
+                    style={{ background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT, flexShrink:0, opacity: actioning[inv.id]?0.4:1 }}>{actioning[inv.id] ? "…" : "ACCEPT"}</button>
                 </div>
               </div>
             ))}
-            {editShortcuts && (
-              <button
-                onClick={() => setAddingShortcut((a) => !a)}
-                style={{
-                  background: "transparent",
-                  border: `1px dashed ${th.text}`,
-                  borderRadius: 14,
-                  padding: "15px 13px",
-                  cursor: "pointer",
-                  textAlign: "center",
-                  fontFamily: "'Outfit',sans-serif",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  minHeight: 90,
-                  animation: "shortcutBtnIn 0.3s cubic-bezier(0,0,0.2,1) forwards",
-                }}
-              >
-                <span
-                  style={{ fontSize: 26, color: th.accentFg, fontWeight: 700 }}
-                >
-                  +
-                </span>
-                <span style={{ fontSize: 12, color: th.muted }}>
-                  Add shortcut
-                </span>
-              </button>
-            )}
           </div>
         )}
-        {addingShortcut && (
-          <div style={{ ...S.card, padding: 14, marginBottom: 16, animation: "shortcutListIn 0.28s cubic-bezier(0,0,0.2,1) forwards" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 10,
-              }}
-            >
-              <div style={S.label}>ADD TO HOME</div>
-              <button
-                onClick={() => setAddingShortcut(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: th.muted,
-                  cursor: "pointer",
-                  fontSize: 16,
-                }}
-              >
-                ✕
+
+        {/* ── Pending competition invitations received ── */}
+        {competitions.filter(c => c.toUid === user.id && c.status === "pending").map(c => {
+          const f = friends.find(fr => fr.uid === c.fromUid);
+          const initials = (c.fromName||"?")[0].toUpperCase();
+          return (
+            <div key={c.id} style={{ ...S.card, padding:"14px 16px", marginBottom:8, animation:"sharingFadeUp 0.3s ease both" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
+                {f?.photoURL ? (
+                  <img src={f.photoURL} alt={c.fromName} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                ) : (
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, #E8612C 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:"#E8612C", flexShrink:0 }}>
+                    {initials}
+                  </div>
+                )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:15, color:th.text }}>{c.fromName}</div>
+                  <div style={{ fontSize:13, color:"#E8612C", marginTop:1, fontWeight:600 }}>COMPETE INVITATION</div>
+                </div>
+              </div>
+              <div style={{ fontSize:13, color:th.muted, marginBottom:12, lineHeight:1.5 }}>
+                Challenges you to a 7-day workout competition. Score is based on intensity, calories and consistency.
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={async () => { await onDeclineCompeteInvite(c.id); }}
+                  style={{ flex:1, background:th.del, border:`1px solid ${th.delB}`, borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.delText }}>DECLINE</button>
+                <button onClick={async () => { await onAcceptCompeteInvite(c.id); }}
+                  style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.accentT }}>ACCEPT ✓</button>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* ── Horizontal friends bubble row ── */}
+        {friends.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <div style={S.label}>FRIENDS ({friends.length})</div>
+              <button onClick={() => setEditFriends(e => !e)}
+                style={{ background:"none", border:"none", color: editFriends ? th.accentFg : th.dim, fontSize:13, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700 }}>
+                {editFriends ? "DONE" : "EDIT ✎"}
               </button>
             </div>
-            {programs.filter((p) => !pinnedIds || !pinnedIds.includes(p.id))
-              .length === 0 ? (
-              <div
-                style={{
-                  fontSize: 13,
-                  color: th.muted,
-                  textAlign: "center",
-                  padding: "12px 0",
-                }}
-              >
-                All programs are already pinned.
-              </div>
-            ) : (
-              programs
-                .filter((p) => !pinnedIds || !pinnedIds.includes(p.id))
-                .map((p) => (
-                  <div
-                    key={p.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 0",
-                      borderBottom: `1px solid ${th.border}`,
-                    }}
-                  >
-                    <ProgramIcon name={p.name} size={32} />
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 15,
-                        textAlign: "left",
-                        color: th.text,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {p.name}
-                    </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addToHome(p.id); }}
-                      style={{
-                        background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                        backdropFilter: "blur(8px)",
-                        WebkitBackdropFilter: "blur(8px)",
-                        border: "none",
-                        borderRadius: 9,
-                        color: th.accentT,
-                        padding: "6px 14px",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        fontFamily: "'Outfit',sans-serif",
-                        fontWeight: 700,
-                        flexShrink: 0,
-                      }}
-                    >+ Add</button>
+            {/* Horizontal scroll row */}
+            <div style={{ display:"flex", gap:16, overflowX:"auto", overflowY:"visible", paddingBottom:6, paddingTop:6, scrollbarWidth:"none", msOverflowStyle:"none" }}>
+              <style>{`.ib-friends-scroll::-webkit-scrollbar{display:none}`}</style>
+              {friends.map(f => {
+                const initials = (f.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+                return (
+                  <div key={f.uid} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, position:"relative", cursor: editFriends ? "default" : "pointer" }}
+                    onClick={() => { if (!editFriends) setDashFriend(f); }}>
+                    {/* Avatar */}
+                    {f.photoURL ? (
+                      <img src={f.photoURL} alt={f.name} style={{ width:54, height:54, borderRadius:"50%", objectFit:"cover", border:`2.5px solid ${th.accentBg}` }} />
+                    ) : (
+                      <div style={{ width:54, height:54, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:th.accentFg, border:`2.5px solid ${th.border}` }}>
+                        {initials}
+                      </div>
+                    )}
+                    {/* Remove X badge in edit mode — floats above avatar, delete-account style */}
+                    {editFriends && (
+                      <button onClick={e => { e.stopPropagation(); onRemoveFriend(f.uid); }}
+                        style={{
+                          position: "absolute",
+                          top: -4,
+                          right: -4,
+                          zIndex: 50,
+                          background: "rgba(220, 50, 50, 0.45)",
+                          backdropFilter: "blur(10px)",
+                          WebkitBackdropFilter: "blur(10px)",
+                          border: "1px solid rgba(220, 50, 50, 0.3)",
+                          borderRadius: "50%",
+                          width: 22,
+                          height: 22,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: "#fff",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          lineHeight: 1,
+                        }}>✕</button>
+                    )}
+                    {/* Name */}
+                    <div style={{ fontSize:13, fontWeight:700, color:th.sub, maxWidth:60, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {f.name.split(" ")[0]}
+                    </div>
                   </div>
-                ))
-            )}
+                );
+              })}
+              {/* Add friend bubble — dashed style with accent color */}
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, cursor:"pointer" }}
+                onClick={() => { setShowInvitePanel(true); setInviteStatus("idle"); setInviteError(""); }}>
+                <div style={{
+                  width:54, height:54, borderRadius:"50%",
+                  background: "transparent",
+                  border: `1.5px dashed ${th.accentBg}`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:22, color: th.accentFg, fontWeight:700,
+                }}>+</div>
+                <div style={{ fontSize:13, fontWeight:700, color:th.accentFg }}>Invite</div>
+              </div>
+            </div>
           </div>
         )}
 
+        {/* ── Friend dashboard sheet ── */}
+        {dashFriend && (
+          <FriendDashboardSheet
+            friend={dashFriend}
+            user={user}
+            competitions={competitions}
+            onClose={() => setDashFriend(null)}
+            onGetFriendSessions={onGetFriendSessions}
+            onCompete={() => { setDashFriend(null); setTimeout(() => setCompeteFriend(dashFriend), 360); }}
+          />
+        )}
 
+        {/* ── Competition sheet ── */}
+        {competeFriend && (
+          <CompetitionSheet
+            user={user}
+            friend={competeFriend}
+            competitions={competitions}
+            mySessions={mySessions}
+            onGetFriendSessions={onGetFriendSessions}
+            onClose={() => setCompeteFriend(null)}
+            onSendCompeteInvite={onSendCompeteInvite}
+            onAcceptCompeteInvite={onAcceptCompeteInvite}
+            onDeclineCompeteInvite={onDeclineCompeteInvite}
+            onWithdrawCompeteInvite={onWithdrawCompeteInvite}
+          />
+        )}
+
+        {/* ── Empty state (no friends yet) ── */}
+        {friends.length === 0 && pendingInvitations.length === 0 && (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", paddingTop:24, paddingBottom:8, animation:"sharingFadeUp 0.4s cubic-bezier(0,0,0.2,1) forwards" }}>
+            <div style={{ width:100, height:100, borderRadius:"50%", marginBottom:20, background:`color-mix(in srgb, ${th.accentBg} 10%, ${th.card})`, border:`1.5px solid ${th.border}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                <circle cx="18" cy="16" r="7" stroke={th.accentFg} strokeWidth="2.2" />
+                <path d="M4 44c0-7.732 6.268-14 14-14" stroke={th.accentFg} strokeWidth="2.2" strokeLinecap="round" />
+                <circle cx="34" cy="16" r="7" stroke={th.accentFg} strokeWidth="2.2" />
+                <path d="M48 44c0-7.732-6.268-14-14-14" stroke={th.accentFg} strokeWidth="2.2" strokeLinecap="round" />
+                <circle cx="26" cy="34" r="6" fill={`${th.accentBg}22`} stroke={th.accentFg} strokeWidth="1.8" />
+                <text x="26" y="38" textAnchor="middle" fontSize="8" fill={th.accentFg} fontFamily="Outfit,sans-serif" fontWeight="700">★</text>
+              </svg>
+            </div>
+            <div className="bebas" style={{ fontSize:26, letterSpacing:2, color:th.text, marginBottom:8 }}>TRAIN TOGETHER</div>
+            <div style={{ fontSize:15, color:th.muted, lineHeight:1.6, maxWidth:280, marginBottom:28 }}>
+              Invite friends to share progress, celebrate wins, and compete on workouts.
+            </div>
+          </div>
+        )}
+
+        {/* ── Invite button / panel — only shown when no friends yet ── */}
+        {!showInvitePanel && friends.length === 0 ? (
+          <button onClick={() => { setShowInvitePanel(true); setInviteStatus("idle"); setInviteError(""); }}
+            style={{ width:"100%", background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:16, padding:"16px 20px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color:th.accentT, letterSpacing:"0.5px", marginBottom:20, animation:"sharingFadeUp 0.45s cubic-bezier(0,0,0.2,1) 0.05s both" }}>
+            <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+              <circle cx="9" cy="7.5" r="3.5" stroke={th.accentT} strokeWidth="2" />
+              <path d="M1 19.5c0-4.418 3.582-8 8-8" stroke={th.accentT} strokeWidth="2" strokeLinecap="round" />
+              <line x1="17" y1="11" x2="17" y2="19" stroke={th.accentT} strokeWidth="2" strokeLinecap="round" />
+              <line x1="13" y1="15" x2="21" y2="15" stroke={th.accentT} strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            INVITE A FRIEND
+          </button>
+        ) : showInvitePanel ? (
+          <div style={{ ...S.card, padding:18, marginBottom:20, animation: inviteClosing ? "inviteClose 0.22s cubic-bezier(0.4,0,1,1) forwards" : "invitePop 0.28s cubic-bezier(0,0,0.2,1) forwards" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+              <div style={S.label}>SEND INVITATION</div>
+              <button onClick={closeInvitePanel} style={{ background:"none", border:"none", color:th.muted, cursor:"pointer", fontSize:18 }}>✕</button>
+            </div>
+            {inviteStatus === "sent" ? (
+              <div style={{ textAlign:"center", padding:"18px 0", animation:"sentBounce 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
+                <div style={{ fontSize:36, marginBottom:8 }}>✓</div>
+                <div style={{ color:th.accentFg, fontWeight:700, fontSize:15 }}>Invitation sent!</div>
+                <div style={{ color:th.muted, fontSize:13, marginTop:4 }}>They'll see it in their Sharing tab.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize:14, color:th.muted, marginBottom:12, lineHeight:1.5, textAlign:"left" }}>
+                  Enter your friend's email. Once they accept, you'll both see each other's workouts.
+                </div>
+                <input type="email" placeholder="friend@example.com" value={inviteEmail}
+                  onChange={(e) => { setInviteEmail(e.target.value); if (inviteStatus === "error") setInviteStatus("idle"); }}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendInvite()}
+                  style={{ ...S.input, marginBottom: inviteStatus === "error" ? 6 : 12, animation: inviteStatus === "error" ? "inviteShake 0.3s ease" : "none" }}
+                  autoFocus />
+                {inviteStatus === "error" && <div style={{ fontSize:13, color:"#CC1F42", marginBottom:10 }}>{inviteError}</div>}
+                <button onClick={handleSendInvite} disabled={!inviteEmail.trim() || inviteStatus === "sending"}
+                  style={{ width:"100%", background: inviteEmail.trim() ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : th.inputB, border:"none", borderRadius:12, padding:"13px 0", cursor: inviteEmail.trim() ? "pointer" : "default", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color: inviteEmail.trim() ? th.accentT : th.dim, transition:"background .2s, color .2s", letterSpacing:"0.5px" }}>
+                  {inviteStatus === "sending" ? "SENDING…" : "SEND INVITE →"}
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        {/* ── Sent invitations awaiting response ── */}
+        {sentInvitations.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>AWAITING RESPONSE</div>
+            {sentInvitations.map(inv => (
+              <div key={inv.id} style={{ ...S.card, padding:"12px 16px", marginBottom:8, textAlign:"left", display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ width:34, height:34, borderRadius:"50%", background:th.row, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:th.dim }}>⏳</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:15, color:th.text, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{inv.toEmail}</div>
+                  <div style={{ fontSize:13, color:th.dim, marginTop:1 }}>Invitation pending</div>
+                </div>
+                <button
+                  onClick={() => handleAction(inv.id, inv, "decline")}
+                  disabled={actioning[inv.id]}
+                  style={{ background:"rgba(220,50,50,0.15)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:15, lineHeight:1, flexShrink:0, opacity:actioning[inv.id]?0.4:1 }}
+                >✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Activity Feed ── */}
+        {friends.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ ...S.label, marginBottom: 12,textAlign: "left" }}>FEED</div>
+            {feedLoading ? (
+              <div style={{ ...S.card, padding:"22px 16px", textAlign:"center", color:th.dim, fontSize:14 }}>Loading activity…</div>
+            ) : feedItems.length === 0 ? (
+              <div style={{ ...S.card, padding:"22px 16px", textAlign:"center" }}>
+                <div style={{ color:th.muted, fontSize:14, textAlign: "center" }}>No recent workouts from friends yet.</div>
+              </div>
+            ) : feedItems.map(({ friend: f, session: s }, i) => {
+              const initials = (f.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+              const vol = sessionVol(s);
+              const muscles = [...new Set((s.exercises||[]).map(e=>e.group).filter(Boolean))];
+              const totalSets = (s.exercises||[]).reduce((a,e) => a + (e.sets||[]).filter(st=>st.done).length, 0);
+              const stats = [
+                vol > 0       ? { label:"VOLUME",    value: vol >= 1000 ? `${(vol/1000).toFixed(1)}t` : `${Math.round(vol)}kg` } : null,
+                totalSets > 0 ? { label:"SETS",       value: totalSets } : null,
+                s.duration    ? { label:"DURATION",   value: `${Math.round(s.duration)}min` } : null,
+                s.calories    ? { label:"CALORIES",   value: `${s.calories}kcal` } : null,
+                s.intensity   ? { label:"INTENSITY",  value: `${s.intensity}/10` } : null,
+              ].filter(Boolean);
+              const sid = s.id || s.startTime;
+              const starKey = `${f.uid}-${sid}`;
+              const starInfo = starState[starKey] || { starred: false, count: 0 };
+
+              const handleStar = async () => {
+                if (!sid) return;
+                // Optimistic update
+                const wasStarred = starInfo.starred;
+                setStarState(prev => ({
+                  ...prev,
+                  [starKey]: { starred: !wasStarred, count: Math.max(0, starInfo.count + (wasStarred ? -1 : 1)) }
+                }));
+                const result = await onToggleStar(f.uid, sid, s.name || "Workout");
+                // If something went wrong, revert
+                if (result === null) {
+                  setStarState(prev => ({ ...prev, [starKey]: starInfo }));
+                }
+              };
+
+              return (
+                <div key={`${f.uid}-${sid || i}`} style={{ ...S.card, textAlign: "left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
+                  {/* Friend row */}
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                    {f.photoURL ? (
+                      <img src={f.photoURL} alt={f.name} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                    ) : (
+                      <div style={{ width:36, height:36, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+                        {initials}
+                      </div>
+                    )}
+                    <div style={{ flex:1 }}>
+                      <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{f.name.split(" ")[0]}</span>
+                      <span style={{ fontSize:13, color:th.muted }}> completed a workout</span>
+                    </div>
+                    <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(s.startTime)}</div>
+                  </div>
+                  {/* Session card */}
+                  <div style={{ background:th.sect, borderRadius:10, padding:"12px 14px" }}>
+                    {/* Session name */}
+                    <div style={{ fontWeight:700, fontSize:15, color:th.text, marginBottom:10 }}>{s.name || "Workout"}</div>
+                    {/* Stats grid */}
+                    {stats.length > 0 && (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom: muscles.length > 0 ? 10 : 0 }}>
+                        {stats.map(({ label, value }) => (
+                          <div key={label} style={{ background:`color-mix(in srgb, ${th.card} 60%, transparent)`, backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", borderRadius:8, padding:"6px 10px", minWidth:0 }}>
+                            <div className="bebas" style={{ fontSize:16, color:th.accentFg, lineHeight:1 }}>{value}</div>
+                            <div style={{ fontSize:11, color:th.dim, letterSpacing:"1px", marginTop:2 }}>{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Muscle group tags */}
+                    {muscles.length > 0 && (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                        {muscles.map(g => (
+                          <div key={g} style={{ padding:"2px 7px", borderRadius:5, fontSize:12, fontWeight:700, background:`${gc(g)}18`, color:gc(g) }}>{g}</div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Star reaction row */}
+                    <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", marginTop:10, gap:6 }}>
+                      {starInfo.count > 0 && (
+                        <span style={{ fontSize:13, color: starInfo.starred ? th.accentFg : th.dim, fontWeight:700, transition:"color .2s" }}>
+                          {starInfo.count}
+                        </span>
+                      )}
+                      <div style={{ position:"relative", display:"inline-flex" }}>
+                        <button
+                          onClick={handleStar}
+                          style={{
+                            background: starInfo.starred
+                              ? `color-mix(in srgb, ${th.accentBg} 22%, transparent)`
+                              : "transparent",
+                            border: `1.5px solid ${starInfo.starred ? th.accentBg : th.inputB}`,
+                            borderRadius: 10,
+                            padding: "6px 10px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            transition: "background .18s, border-color .18s",
+                            WebkitTapHighlightColor: "transparent",
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 22 22"
+                            fill={starInfo.starred ? th.accentFg : "none"}
+                            style={{ animation: starInfo.starred ? "starTick 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards" : "none" }}>
+                            <polygon points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3"
+                              stroke={starInfo.starred ? th.accentFg : th.dim} strokeWidth="1.8" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
@@ -6352,7 +7801,7 @@ import "./styles.css";
     );
   }
 
-  function CreateProgramView({ program, onSave, onBack }) {
+  function CreateProgramView({ program, onSave, onStart, onBack }) {
     const th = useTheme();
     const S = useS();
     const editing = !!program?.id;
@@ -6649,18 +8098,80 @@ import "./styles.css";
             </div>
           )}
         </div>
-        <div 
-        style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
-          <Btn
+        <div style={{
+          position: "sticky",
+          bottom: 0,
+          padding: "12px 0 20px",
+          display: "flex",
+          gap: 10,
+        }}>
+          {/* SAVE button — subtle secondary, frosted glass with accent border */}
+          <button
             onClick={() => {
               if (!name.trim() || exs.length === 0) return;
               onSave({ id: program?.id || uid(), name: name.trim(), exs });
             }}
             disabled={!name.trim() || exs.length === 0}
-            style={{ width: "100%", fontSize: 14, fontFamily: "'Outfit',sans-serif", letterSpacing: 0.5 }}
+            style={{
+              flex: 1,
+              background: (!name.trim() || exs.length === 0)
+                ? `color-mix(in srgb, ${th.card} 40%, transparent)`
+                : `color-mix(in srgb, ${th.accentBg} 12%, ${th.card})`,
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              border: `1.5px solid ${(!name.trim() || exs.length === 0) ? th.inputB : `color-mix(in srgb, ${th.accentBg} 60%, transparent)`}`,
+              borderRadius: 14,
+              padding: "15px 0",
+              cursor: (!name.trim() || exs.length === 0) ? "default" : "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: "0.5px",
+              color: (!name.trim() || exs.length === 0) ? th.dim : th.accentFg,
+              transition: "background .2s, color .2s, border-color .2s",
+            }}
           >
-            SAVE PROGRAM
-          </Btn>
+            SAVE
+          </button>
+          {/* START button — accent primary, frosted glass */}
+          <button
+            onClick={() => {
+              if (!name.trim() || exs.length === 0) return;
+              const p = { id: program?.id || uid(), name: name.trim(), exs };
+              onSave(p);
+              onStart(p);
+            }}
+            disabled={!name.trim() || exs.length === 0}
+            style={{
+              flex: 1,
+              background: (!name.trim() || exs.length === 0)
+                ? `color-mix(in srgb, ${th.accentBg} 25%, transparent)`
+                : `color-mix(in srgb, ${th.accentBg} 70%, transparent)`,
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              border: `1px solid ${(!name.trim() || exs.length === 0)
+                ? `color-mix(in srgb, ${th.accentBg} 20%, transparent)`
+                : `color-mix(in srgb, ${th.accentBg} 50%, transparent)`}`,
+              borderRadius: 14,
+              padding: "15px 0",
+              cursor: (!name.trim() || exs.length === 0) ? "default" : "pointer",
+              fontFamily: "'Outfit',sans-serif",
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: "0.5px",
+              color: (!name.trim() || exs.length === 0) ? `${th.accentT}44` : th.accentT,
+              transition: "background .2s, color .2s, border-color .2s",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <polygon points="3,1 13,7 3,13" fill="currentColor" />
+            </svg>
+            START
+          </button>
         </div>
       </>
     );
@@ -7152,6 +8663,7 @@ import "./styles.css";
           <span
             style={{
               fontSize: 11,
+              textAlign:"left",
               color: th.dim,
               width: 28,
               flexShrink: 0,
@@ -7160,7 +8672,7 @@ import "./styles.css";
           >
             #{setIdx + 1}
           </span>
-          <span style={{ fontSize: 10, color: th.muted, flex: 1 }}>
+          <span style={{ fontSize: 10,textAlign:"left", color: th.muted, flex: 1 }}>
             FROM WEARABLE / APPLE WATCH
           </span>
           <button
@@ -7178,7 +8690,7 @@ import "./styles.css";
             ✕
           </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", textAlign:"left", gap: 8 }}>
           {fields.map((f) => (
             <div key={f.k}>
               <div
@@ -8133,7 +9645,7 @@ import "./styles.css";
       <div style={{ paddingBottom: 90 }} className="slide-up">
         {sessions.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 16px" }}>
-            <div className="bebas" style={{ fontSize: 42, color: th.border }}>
+            <div className="bebas" style={{ fontSize: 42, color: th.dim }}>
               NO SESSIONS
             </div>
             <div style={{ fontSize: 13, color: th.muted, marginTop: 10 }}>
@@ -8570,6 +10082,8 @@ import "./styles.css";
     onThemeAutoToggle,
     onGoWorkout,
     onClearUnread,
+    onClose,
+    onPhotoUpdate,
   }) {
     const th = useTheme();
     const S = useS();
@@ -8577,6 +10091,8 @@ import "./styles.css";
     const [eName, setEName] = useState(user.name);
     const [eEmail, setEEmail] = useState(user.email);
     const [ePhoto, setEPhoto] = useState(user.photoURL || "");
+    const [eAge, setEAge] = useState(user.age || "");
+    const [eGender, setEGender] = useState(user.gender || "");
     const [ePw, setEPw] = useState("");
     const [eConfirm, setEConfirm] = useState("");
     const [eCurrent, setECurrent] = useState("");
@@ -8801,14 +10317,25 @@ import "./styles.css";
           name: eName.trim(),
           email: eEmail.trim().toLowerCase(),
           photoURL: photoData,
+          age: eAge ? parseInt(eAge) : null,
+          gender: eGender || null,
         });
-        // Push photo to Firestore so other devices can fetch it
-        fsSaveSettings(fbUser.uid, { photoURL: photoData || null });
+        // Push ALL profile fields to Firestore settings (name, photo, age, gender)
+        fsSaveSettings(fbUser.uid, {
+          name: eName.trim(),
+          photoURL: photoData || null,
+          age: eAge ? parseInt(eAge) : null,
+          gender: eGender || null,
+        });
+        // Push updated name + photo to every friend's friend-list entry
+        if (onPhotoUpdate) onPhotoUpdate({ name: eName.trim(), photoURL: photoData || null });
         onUpdateUser({
           ...user,
           name: eName.trim(),
           email: eEmail.trim().toLowerCase(),
           photoURL: photoData,
+          age: eAge ? parseInt(eAge) : null,
+          gender: eGender || null,
         });
         setEPw("");
         setEConfirm("");
@@ -8863,7 +10390,7 @@ import "./styles.css";
 
     return (
       <div className="slide-up" style={{ paddingBottom: 90 }}>
-        <div style={{ marginBottom: 16, marginTop: 4 }} />
+        <div style={{ marginBottom: 12, marginTop: 0 }} />
         {/* Guest upgrade banner */}
         {user.isGuest && (
           <div
@@ -8998,7 +10525,7 @@ import "./styles.css";
                   className="bebas"
                   style={{ fontSize: 24, color: th.accentT }}
                 >
-                  {user.name[0].toUpperCase()}
+                  {user.name?.[0]?.toUpperCase() || "?"}
                 </span>
               )}
             </div>
@@ -9007,6 +10534,11 @@ import "./styles.css";
                 {user.name}
               </div>
               <div style={{ fontSize: 12, color: th.muted, textAlign: "left" }}>{user.email}</div>
+              {(user.age || user.gender) && (
+                <div style={{ fontSize: 11, color: th.dim, textAlign: "left", marginTop: 3 }}>
+                  {[user.gender, user.age ? `${user.age} yrs` : null].filter(Boolean).join(" · ")}
+                </div>
+              )}
             </div>
             <button
               onClick={() => {
@@ -9016,6 +10548,8 @@ import "./styles.css";
                 setEName(user.name);
                 setEEmail(user.email);
                 setEPhoto(user.photoURL || "");
+                setEAge(user.age ? String(user.age) : "");
+                setEGender(user.gender || "");
               }}
               style={{
                 backdropFilter: "blur(10px)",
@@ -9050,6 +10584,49 @@ import "./styles.css";
                 onChange={(e) => setEEmail(e.target.value)}
                 style={{ ...S.input, marginBottom: 12 }}
               />
+              {/* Age & Gender side by side */}
+              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>AGE</div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="120"
+                    placeholder="e.g. 28"
+                    value={eAge}
+                    onChange={(e) => setEAge(e.target.value)}
+                    style={{ ...S.input }}
+                  />
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>GENDER</div>
+                  <div style={{ display:"flex", gap:6 }}>
+                    {["Male","Female","Other"].map(g => (
+                      <button
+                        key={g}
+                        onClick={() => setEGender(eGender === g ? "" : g)}
+                        style={{
+                          flex:1,
+                          background: eGender === g
+                            ? `color-mix(in srgb, ${th.accentBg} 80%, transparent)`
+                            : th.inputB,
+                          backdropFilter: "blur(8px)",
+                          WebkitBackdropFilter: "blur(8px)",
+                          border: `1px solid ${eGender === g ? th.accentBg : th.border}`,
+                          borderRadius: 9,
+                          color: eGender === g ? th.accentT : th.muted,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fontFamily: "'Outfit',sans-serif",
+                          padding: "8px 4px",
+                          cursor: "pointer",
+                          transition: "all .15s",
+                        }}
+                      >{g}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
               <div style={{ ...S.label, marginBottom: 8, textAlign: "left", }}>
                 PROFILE PHOTO{" "}
                 <span
@@ -10259,7 +11836,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.5.3 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.0 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -10613,6 +12190,33 @@ import "./styles.css";
       return unsub;
     }, []);
     const [view, setView] = useState("home");
+    const [profileOpen, setProfileOpen] = useState(false);
+    const [profileClosing, setProfileClosing] = useState(false);
+    const closeProfile = () => {
+      setProfileClosing(true);
+      setTimeout(() => { setProfileOpen(false); setProfileClosing(false); }, 360);
+    };
+    // Reset to home whenever a new user session starts (prevents stale view on re-login)
+    const prevUserIdRef = useRef(null);
+    useEffect(() => {
+      if (user?.id && user.id !== prevUserIdRef.current) {
+        prevUserIdRef.current = user.id;
+        setView("home");
+        setProfileOpen(false);
+      }
+      if (!user) prevUserIdRef.current = null;
+    }, [user?.id]);
+    // Sharing / friends state
+    const [pendingInvitations, setPendingInvitations] = useState([]); // invites received
+    const [sentInvitations, setSentInvitations]       = useState([]); // invites sent
+    const [friends, setFriends]                       = useState([]);
+    const [starNotifications, setStarNotifications]   = useState([]); // reactions on own sessions
+    const [unreadStars, setUnreadStars]               = useState(0);
+    const [notifOpen, setNotifOpen]                   = useState(false);
+    const [notifClosing, setNotifClosing]             = useState(false);
+    const closeNotif = () => { setNotifClosing(true); setTimeout(() => { setNotifOpen(false); setNotifClosing(false); }, 220); };
+    const [lastReadNotif, setLastReadNotif]            = useState(() => parseInt(localStorage.getItem("ib3-lastReadNotif") || "0"));
+    const [competitions, setCompetitions]             = useState([]);
     const [sessions, setSessions] = useState([]);
     const [programs, setPrograms] = useState([]);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -10691,6 +12295,24 @@ import "./styles.css";
               });
               setUser((u) => (u ? { ...u, photoURL: fsSet.photoURL } : u));
             }
+          }
+          // Restore name, age & gender from Firestore settings
+          if (fsSet?.age != null || fsSet?.gender != null || fsSet?.name) {
+            const localProf = getLocalProfile(user.id) || {};
+            if (!localProf.age && !localProf.gender) {
+              saveLocalProfile(user.id, {
+                ...localProf,
+                name: fsSet.name || localProf.name,
+                age: fsSet.age || null,
+                gender: fsSet.gender || null,
+              });
+            }
+            setUser(u => u ? {
+              ...u,
+              name: u.name || fsSet.name || u.name,
+              age: u.age || fsSet.age || null,
+              gender: u.gender || fsSet.gender || null,
+            } : u);
           }
           // Measurements
           const fsMeas = await fsGetMeasurements(user.id);
@@ -10779,6 +12401,56 @@ import "./styles.css";
       );
       return () => unsub();
     }, [user?.id]);
+
+    // Real-time sharing listeners — invitations received, sent, friends, and own-session reactions
+    useEffect(() => {
+      if (!user?.id || !user?.email || user?.isGuest) return;
+      const unsubReceived = fsListenInvitationsReceived(user.email, setPendingInvitations);
+      const unsubSent     = fsListenInvitationsSent(user.id, setSentInvitations);
+      const unsubFriends  = fsListenFriends(user.id, setFriends);
+      const unsubCompete  = fsListenCompetitions(user.id, setCompetitions);
+
+      // Listen for star reactions on user's sessions
+      const unsubReactions = onSnapshot(
+        query(collection(fbDb, "reactions"), where("ownerUid", "==", user.id)),
+        snap => {
+          const rxns = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+          setStarNotifications(prev => {
+            // Merge with social notifications (dedupe by id)
+            const social = prev.filter(n => n._type === "social");
+            return [...social, ...rxns.map(r => ({ ...r, _type: "star" }))];
+          });
+          const lastRead = parseInt(localStorage.getItem("ib3-lastReadNotif") || "0");
+          setUnreadStars(prev => {
+            const socialUnread = prev; // will be updated by notifications listener
+            return rxns.filter(r => (r.ts || 0) > lastRead).length;
+          });
+        }
+      );
+
+      // Listen for social notifications (friend accepted, compete invite, compete accepted)
+      const unsubNotifs = onSnapshot(
+        query(collection(fbDb, "notifications"), where("toUid", "==", user.id)),
+        snap => {
+          const notifs = snap.docs.map(d => ({ id: d.id, ...d.data(), _type: "social" }))
+            .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+          setStarNotifications(prev => {
+            const stars = prev.filter(n => n._type === "star");
+            const merged = [...notifs, ...stars].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            return merged;
+          });
+          const lastRead = parseInt(localStorage.getItem("ib3-lastReadNotif") || "0");
+          setUnreadStars(prev => {
+            const starUnread = prev;
+            const socialUnread = notifs.filter(n => (n.ts || 0) > lastRead).length;
+            return starUnread + socialUnread;
+          });
+        }
+      );
+
+      return () => { unsubReceived(); unsubSent(); unsubFriends(); unsubCompete(); unsubReactions(); unsubNotifs(); };
+    }, [user?.id, user?.email]);
     const saveActive = (a) => {
       setActive(a);
       lsSet(uKey(user.id, "active"), a);
@@ -11092,12 +12764,23 @@ import "./styles.css";
       },
       {
         id: "programs",
-        label: "PROGRAMS",
+        label: "WORKOUTS",
         icon: (c) => (
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="4"    width="18" height="2.5" rx="1.25" fill={c} />
-            <rect x="2" y="9.75" width="18" height="2.5" rx="1.25" fill={c} />
-            <rect x="2" y="15.5" width="18" height="2.5" rx="1.25" fill={c} />
+          <svg width="24" height="22" viewBox="0 0 24 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Left collar */}
+            <rect x="1" y="8" width="2.5" height="6" rx="1.25" fill={c} />
+            {/* Left plate */}
+            <rect x="3.5" y="6" width="2" height="10" rx="1" fill={c} />
+            {/* Left handle grip */}
+            <rect x="5.5" y="9.75" width="4" height="2.5" rx="1.25" fill={c} />
+            {/* Grip centre bar */}
+            <rect x="9.5" y="9.75" width="5" height="2.5" rx="1.25" fill={c} />
+            {/* Right handle grip */}
+            <rect x="14.5" y="9.75" width="4" height="2.5" rx="1.25" fill={c} />
+            {/* Right plate */}
+            <rect x="18.5" y="6" width="2" height="10" rx="1" fill={c} />
+            {/* Right collar */}
+            <rect x="20.5" y="8" width="2.5" height="6" rx="1.25" fill={c} />
           </svg>
         ),
       },
@@ -11113,27 +12796,25 @@ import "./styles.css";
         ),
       },
       {
-        id: "profile",
-        label: "PROFILE",
-        icon: (c, isA) => (
+        id: "sharing",
+        label: "SHARING",
+        icon: (c) => (
           <div style={{ position: "relative", display: "inline-flex" }}>
             <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="11" cy="7.5" r="3.5" stroke={c} strokeWidth="2" />
-              <path d="M3 19.5c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke={c} strokeWidth="2" strokeLinecap="round" />
+              <circle cx="7" cy="7" r="2.8" stroke={c} strokeWidth="1.8" />
+              <path d="M1 19c0-3.314 2.686-6 6-6" stroke={c} strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="15" cy="7" r="2.8" stroke={c} strokeWidth="1.8" />
+              <path d="M21 19c0-3.314-2.686-6-6-6" stroke={c} strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="10" y1="13.5" x2="12" y2="13.5" stroke={c} strokeWidth="1.8" strokeLinecap="round" />
             </svg>
-            {isA && unreadFeedback > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: -2,
-                  right: -2,
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#CC1F42",
-                  animation: "pulse 1.5s ease-in-out infinite",
-                }}
-              />
+            {(pendingInvitations.length > 0 || unreadStars > 0 || competitions.filter(c => c.toUid === user.id && c.status === "pending").length > 0) && (
+              <div style={{
+                position: "absolute", top: -3, right: -3,
+                width: 9, height: 9, borderRadius: "50%",
+                background: unreadStars > 0 ? th.accentFg : "#CC1F42",
+                border: `1.5px solid ${th.nav}`,
+                animation: "pulse 1.5s ease-in-out infinite",
+              }} />
             )}
           </div>
         ),
@@ -11439,13 +13120,127 @@ import "./styles.css";
               <div style={{
                 background: `color-mix(in srgb, ${th.bg} 25%, transparent)`,
                 backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)", // Crucial for Safari compatibility
+                WebkitBackdropFilter: "blur(12px)",
                 paddingTop: "calc(14px + env(safe-area-inset-top, 0px))",
                 paddingRight: "16px",
                 paddingBottom: "1px",
                 paddingLeft: "16px",
                 pointerEvents: "auto",
+                position: "relative",
               }}>
+              {/* Notification bell — shown on sharing tab, top-right same as profile icon */}
+              {view === "sharing" && (
+                <button
+                  onClick={() => {
+                    if (notifOpen) { closeNotif(); } else { setNotifOpen(true); }
+                    if (unreadStars > 0) {
+                      const now = Date.now();
+                      localStorage.setItem("ib3-lastReadNotif", String(now));
+                      setLastReadNotif(now);
+                      setUnreadStars(0);
+                    }
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+                    right: 16,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                  }}
+                >
+                  <div style={{
+                    width: 44, height: 44, borderRadius: "50%",
+                    background: `color-mix(in srgb, ${th.accentBg} 15%, ${th.card})`,
+                    border: `1.5px solid ${th.border}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    position: "relative",
+                  }}>
+                    <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+                      <path d="M11 2C7.686 2 5 4.686 5 8v5l-2 2v1h16v-1l-2-2V8c0-3.314-2.686-6-6-6z" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
+                      <path d="M9 18a2 2 0 004 0" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+                    </svg>
+                    {unreadStars > 0 && (
+                      <div style={{
+                        position: "absolute", top: 2, right: 2,
+                        minWidth: 16, height: 16, borderRadius: 8,
+                        background: th.accentFg, border: `2px solid ${th.bg}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 9, fontWeight: 700, color: th.accentT,
+                        fontFamily: "'Outfit',sans-serif", padding: "0 3px",
+                        animation: "pulse 1.5s ease-in-out infinite",
+                      }}>{unreadStars > 9 ? "9+" : unreadStars}</div>
+                    )}
+                  </div>
+                </button>
+              )}
+              {/* Profile icon — absolutely positioned into the top padding space, doesn't affect row height */}
+              {view === "home" && (
+                <button
+                  onClick={() => setProfileOpen(true)}
+                  style={{
+                    position: "absolute",
+                    top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+                    right: 16,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                  }}
+                >
+                  {user?.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt="profile"
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: `2px solid ${th.border}`,
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      background: `color-mix(in srgb, ${th.accentBg} 15%, ${th.card})`,
+                      border: `1.5px solid ${th.border}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}>
+                      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                        <circle cx="11" cy="7.5" r="3.5" stroke={th.accentFg} strokeWidth="2" />
+                        <path d="M3 19.5c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  )}
+                  {unreadFeedback > 0 && (
+                    <div style={{
+                      position: "absolute",
+                      top: 1,
+                      right: 1,
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: "#CC1F42",
+                      border: `2px solid ${th.bg}`,
+                      animation: "pulse 1.5s ease-in-out infinite",
+                    }} />
+                  )}
+                </button>
+              )}
               <div style={{ pointerEvents: "auto" }}>
               <div
                 style={{
@@ -11504,11 +13299,11 @@ import "./styles.css";
                   {view === "home"
                     ? "HOME"
                     : view === "programs"
-                    ? "MY PROGRAMS"
+                    ? "WORKOUTS"
                     : view === "history"
                     ? "SESSION HISTORY"
-                    : view === "profile"
-                    ? "PROFILE"
+                    : view === "sharing"
+                    ? "SHARING"
                     : view === "create"
                     ? "CONFIGURE SESSION"
                     : view === "editProgram"
@@ -11523,9 +13318,6 @@ import "./styles.css";
                     ? selShortcut?.name || "SHORTCUT"
                     : ""}
                 </div>
-                {/* Date — only shown on Home tab, top-right of header */}
-
-
 
               </div>
               </div>
@@ -11544,6 +13336,10 @@ import "./styles.css";
             @keyframes workoutFadeIn {
               from { opacity: 0; transform: translateY(18px) scale(0.98); }
               to   { opacity: 1; transform: translateY(0)    scale(1); }
+            }
+            @keyframes tabFadeIn {
+              from { opacity: 0; transform: translateY(10px); }
+              to   { opacity: 1; transform: translateY(0); }
             }
             @keyframes removeSlide {
               0%   { opacity: 1; transform: translateX(0)   scaleY(1); max-height: 200px; }
@@ -11580,10 +13376,21 @@ import "./styles.css";
               from { opacity: 0; transform: translateY(24px); }
               to   { opacity: 1; transform: translateY(0); }
             }
+            @keyframes profileSlideUp {
+              from { opacity: 0; transform: translateY(48px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
             @keyframes pipExit {
               from { opacity: 1; transform: translateY(0)   scale(1); }
               to   { opacity: 0; transform: translateY(10px) scale(0.97); }
             }
+            /* ── Global button press feedback ── */
+            button:not(:disabled):active {
+              transform: scale(0.95);
+              opacity: 0.82;
+              transition: transform 0.08s ease, opacity 0.08s ease !important;
+            }
+            button { transition: transform 0.18s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.18s ease, background 0.18s ease, color 0.18s ease; }
           `}</style>
           <div
             key={view}
@@ -11597,7 +13404,7 @@ import "./styles.css";
                 workoutExiting      ? "pipExit 0.32s cubic-bezier(0.4,0,1,1) forwards" :
                 view === "workout"  ? "workoutFadeIn 0.45s cubic-bezier(0,0,0.2,1) forwards" :
                 view === "complete" ? "completeFadeIn 0.4s ease-out forwards" :
-                undefined,
+                "tabFadeIn 0.22s ease-out forwards",
             }}
           >
             {view === "home" && (
@@ -11696,11 +13503,14 @@ import "./styles.css";
                     ? programs.map((x) => (x.id === p.id ? p : x))
                     : [...programs, p];
                   savePrograms(updated);
-                  // Don't auto-pin new programs to shortcuts
                   if (!editingProg && settings.homePrograms === null) {
                     saveSettings({ ...settings, homePrograms: programs.map((x) => x.id) });
                   }
                   setView("programs");
+                }}
+                onStart={(p) => {
+                  // onSave already called by the button before onStart fires
+                  handleTemplate(p);
                 }}
                 onBack={() => setView("programs")}
               />
@@ -11742,27 +13552,44 @@ import "./styles.css";
                 onBack={() => setView("home")}
               />
             )}
-            {view === "profile" && (
-              <ProfileView
+            {view === "sharing" && (
+              <SharingView
                 user={user}
                 sessions={sessions}
-                measurements={measurements}
-                onSaveMeasurement={saveMeasurements}
-                theme={theme}
-                themeAuto={themeAuto}
-                active={active}
-                elapsed={elapsed}
-                onLogout={handleLogout}
-                onUpdateUser={(u) => setUser(u)}
-                onThemeChange={(t) => {
-                  setTheme(t);
+                pendingInvitations={pendingInvitations}
+                sentInvitations={sentInvitations}
+                friends={friends}
+                onSendInvite={(toEmail) => fsSendInvitation(user.id, user.name, user.email, toEmail, user.photoURL)}
+                onAcceptInvite={(inviteId, invite) => fsAcceptInvitation(inviteId, invite, user)}
+                onDeclineInvite={(inviteId) => fsDeclineInvitation(inviteId)}
+                onGetFriendSessions={fsGetFriendSessions}
+                competitions={competitions}
+                onSendCompeteInvite={(toUid, toName) => fsSendCompeteInvite(user.id, user.name || "Friend", toUid, toName)}
+                onAcceptCompeteInvite={(compId) => fsAcceptCompeteInvite(compId, user.name)}
+                onDeclineCompeteInvite={fsDeclineCompeteInvite}
+                onWithdrawCompeteInvite={fsWithdrawCompeteInvite}
+                starNotifications={starNotifications}
+                unreadStars={unreadStars}
+                notifPopOpen={notifOpen}
+                onToggleNotifPop={() => {
+                  if (notifOpen) { closeNotif(); } else { setNotifOpen(true); }
+                  if (unreadStars > 0) {
+                    const now = Date.now();
+                    localStorage.setItem("ib3-lastReadNotif", String(now));
+                    setLastReadNotif(now);
+                    setUnreadStars(0);
+                  }
                 }}
-                onThemeAutoToggle={(auto) => {
-                  setThemeAuto(auto);
-                  if (auto) setTheme(getAutoTheme());
+                onMarkNotifsRead={() => {
+                  const now = Date.now();
+                  localStorage.setItem("ib3-lastReadNotif", String(now));
+                  setLastReadNotif(now);
+                  setUnreadStars(0);
                 }}
-                onGoWorkout={() => setView("workout")}
-                onClearUnread={() => setUnreadFeedback(0)}
+                onRemoveFriend={(friendUid) => fsRemoveFriend(user.id, friendUid)}
+                settings={settings}
+                onUpdateSettings={saveSettings}
+                onToggleStar={(ownerUid, sessionId, sName) => fsToggleStar(ownerUid, sessionId, user.id, user.name || "Friend", sName)}
               />
             )}
           </div>
@@ -11848,6 +13675,9 @@ import "./styles.css";
                         setView("home");
                       else setView(tab.id);
                     }}
+                    onPointerDown={e => { e.currentTarget.style.transform = "scale(0.88)"; e.currentTarget.style.opacity = "0.7"; }}
+                    onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+                    onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
                     style={{
                       flex: 1,
                       background: "none",
@@ -11863,8 +13693,9 @@ import "./styles.css";
                       fontWeight: 700,
                       letterSpacing: "1.5px",
                       color: col,
-                      transition: "color .2s",
+                      transition: "color .2s, transform .22s cubic-bezier(0.25,0.46,0.45,0.94), opacity .22s ease",
                       position: "relative",
+                      WebkitTapHighlightColor: "transparent",
                     }}
                   >
                     <div
@@ -12125,6 +13956,194 @@ import "./styles.css";
           </div>
         );
       })()}
+
+      {/* ── Notification popup (sharing tab bell) ── */}
+      {notifOpen && (
+        <>
+          <style>{`
+            @keyframes notifPop  { from{opacity:0;transform:translateY(-8px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+            @keyframes notifDrop { from{opacity:1;transform:translateY(0) scale(1)} to{opacity:0;transform:translateY(-6px) scale(0.96)} }
+          `}</style>
+          <div onClick={closeNotif} style={{ position:"fixed", inset:0, zIndex:55 }} />
+          <div style={{
+            position:"fixed",
+            top:"calc(env(safe-area-inset-top, 0px) + 68px)",
+            right:12, left:12,
+            maxWidth:360, margin:"0 auto",
+            zIndex:56,
+            background:`color-mix(in srgb, ${th.card} 90%, transparent)`,
+            backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)",
+            border:`1px solid ${th.border}`,
+            borderRadius:18,
+            boxShadow:"0 8px 32px rgba(0,0,0,0.28)",
+            animation: notifClosing
+              ? "notifDrop 0.2s cubic-bezier(0.4,0,1,1) forwards"
+              : "notifPop 0.22s cubic-bezier(0,0,0.2,1) forwards",
+            overflow:"hidden",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px 10px" }}>
+              <div style={{ fontSize:11, fontWeight:700, letterSpacing:"1.5px", color:th.sub }}>NOTIFICATIONS</div>
+              <button onClick={closeNotif} style={{ background:"none", border:"none", color:th.muted, cursor:"pointer", fontSize:18, lineHeight:1 }}>✕</button>
+            </div>
+            {starNotifications.length === 0 ? (
+              <div style={{ padding:"12px 16px 20px", textAlign:"center", color:th.muted, fontSize:13 }}>No notifications yet.</div>
+            ) : (
+              <div style={{ maxHeight:300, overflowY:"auto" }}>
+                {starNotifications.map((n, i) => {
+                  const diff = Date.now() - (n.ts || 0);
+                  const m = Math.floor(diff / 60000);
+                  const timeStr = m < 60 ? `${m}m ago`
+                    : diff < 86400000 ? `${Math.floor(diff/3600000)}h ago`
+                    : new Date(n.ts).toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short" });
+                  const iconBg = n.type === "compete_accepted" || n.type === "compete_invite"
+                    ? "rgba(212,175,55,0.18)"
+                    : n.type === "friend_accepted"
+                    ? `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`
+                    : `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`;
+                  const icon = n.type === "compete_accepted" || n.type === "compete_invite"
+                    ? <span style={{ fontSize:14 }}>🏆</span>
+                    : n.type === "friend_accepted"
+                    ? <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7.5" r="3.5" stroke={th.accentFg} strokeWidth="2"/><path d="M3 19.5c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/></svg>
+                    : <svg width="14" height="14" viewBox="0 0 22 22" fill={th.accentFg}><polygon points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3" stroke={th.accentFg} strokeWidth="1.4" strokeLinejoin="round"/></svg>;
+                  const text = n.text || (n.type === "star"
+                    ? <><span style={{ fontWeight:700 }}>{n.name || "Someone"}</span><span style={{ color:th.muted }}> starred your </span><span style={{ fontWeight:600, color:th.text }}>{n.sessionName || "workout"}</span></>
+                    : <span style={{ color:th.text }}>{n.name || "Someone"}</span>);
+                  return (
+                    <div key={n.id || i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderTop:`1px solid ${th.border}` }}>
+                      <div style={{ width:32, height:32, borderRadius:"50%", background:iconBg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {icon}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, textAlign:"left", color:th.text, lineHeight:1.4 }}>
+                          {typeof text === "string" ? text : text}
+                        </div>
+                        <div style={{ fontSize:11, textAlign:"left", color:th.dim, marginTop:2 }}>{timeStr}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Profile bottom-sheet modal ── */}
+      {profileOpen && (
+        <>
+          <style>{`
+            @keyframes profileSheetIn {
+              from { transform: translateY(100%); opacity: 0.6; }
+              to   { transform: translateY(0);    opacity: 1; }
+            }
+            @keyframes profileSheetOut {
+              from { transform: translateY(0);    opacity: 1; }
+              to   { transform: translateY(100%); opacity: 0; }
+            }
+            @keyframes profileBackdropIn {
+              from { opacity: 0; }
+              to   { opacity: 1; }
+            }
+            @keyframes profileBackdropOut {
+              from { opacity: 1; }
+              to   { opacity: 0; }
+            }
+          `}</style>
+
+          {/* Outer — backdrop + centering shell, click outside to close */}
+          <div
+            onClick={closeProfile}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.52)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              zIndex: 60,
+              display: "flex",
+              flexDirection: "column",
+              maxWidth: 480,
+              margin: "0 auto",
+              animation: profileClosing
+                ? "profileBackdropOut 0.36s ease forwards"
+                : "profileBackdropIn 0.28s ease forwards",
+            }}
+          >
+            {/* Sheet — stops click propagation so tapping inside doesn't close */}
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: `color-mix(in srgb, ${th.card} 88%, transparent)`,
+                backdropFilter: "blur(28px) saturate(1.5)",
+                WebkitBackdropFilter: "blur(28px) saturate(1.5)",
+                borderRadius: "24px 24px 0 0",
+                borderTop: `1px solid ${th.border}`,
+                marginTop: "calc(72px + env(safe-area-inset-top, 0px))",
+                display: "flex",
+                flexDirection: "column",
+                flex: 1,
+                overflow: "hidden",
+                animation: profileClosing
+                  ? "profileSheetOut 0.36s cubic-bezier(0.4,0,1,1) forwards"
+                  : "profileSheetIn 0.42s cubic-bezier(0.32,0.72,0,1) forwards",
+              }}
+            >
+              {/* Header */}
+              <div style={{ padding: "14px 16px 6px", flexShrink: 0, borderBottom: `1px solid ${th.border}` }}>
+                {/* Pill handle */}
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                  <div style={{ width: 36, height: 4, borderRadius: 2, background: th.inputB }} />
+                </div>
+                {/* Title row */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div className="bebas" style={{ fontSize: 40, letterSpacing: 2, color: th.text, lineHeight: 1 }}>
+                    PROFILE
+                  </div>
+                  <button
+                    onClick={closeProfile}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: th.muted,
+                      fontSize: 28,
+                      cursor: "pointer",
+                      lineHeight: 1,
+                      padding: "4px 6px",
+                      fontFamily: "system-ui, sans-serif",
+                    }}
+                  >✕</button>
+                </div>
+              </div>
+
+              {/* Scrollable content */}
+              <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingTop: 8, paddingLeft: 14, paddingRight: 14 }}>
+                <ProfileView
+                  user={user}
+                  sessions={sessions}
+                  measurements={measurements}
+                  onSaveMeasurement={saveMeasurements}
+                  theme={theme}
+                  themeAuto={themeAuto}
+                  active={active}
+                  elapsed={elapsed}
+                  onLogout={handleLogout}
+                  onUpdateUser={(u) => setUser(u)}
+                  onThemeChange={(t) => setTheme(t)}
+                  onThemeAutoToggle={(auto) => {
+                    setThemeAuto(auto);
+                    if (auto) setTheme(getAutoTheme());
+                  }}
+                  onGoWorkout={() => { closeProfile(); setTimeout(() => setView("workout"), 380); }}
+                  onClearUnread={() => setUnreadFeedback(0)}
+                  onClose={closeProfile}
+                  onPhotoUpdate={(updates) => fsPushProfileToFriends(user.id, updates, friends.map(f => f.uid))}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       </ThemeCtx.Provider>
     );
   }
