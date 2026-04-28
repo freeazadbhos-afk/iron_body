@@ -3538,7 +3538,7 @@ import "./styles.css";
             style={{
               fontSize: 85,
               textAlign: "left",
-              color: "#c8f030",
+              color: "rgba(200,240,48,0.4)",
               lineHeight: 0.85,
               marginBottom: 8,
             }}
@@ -7012,6 +7012,9 @@ import "./styles.css";
           @keyframes sharingFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
           @keyframes invitePop   { from{opacity:0;transform:scale(0.96) translateY(-8px)} to{opacity:1;transform:scale(1) translateY(0)} }
           @keyframes inviteClose { from{opacity:1;transform:scale(1) translateY(0)} to{opacity:0;transform:scale(0.96) translateY(-6px)} }
+          @keyframes xBadgePop   { 0%{transform:scale(0) rotate(-45deg);opacity:0} 70%{transform:scale(1.18) rotate(4deg);opacity:1} 100%{transform:scale(1) rotate(0deg);opacity:1} }
+          @keyframes avatarWobble { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(-2.5deg)} 75%{transform:rotate(2.5deg)} }
+          @keyframes editBtnIn   { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
           @keyframes sentBounce    { 0%{transform:scale(0.7);opacity:0} 60%{transform:scale(1.12);opacity:1} 100%{transform:scale(1)} }
           @keyframes inviteShake   { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
           @keyframes feedFadeIn    { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
@@ -7093,7 +7096,7 @@ import "./styles.css";
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <div style={S.label}>FRIENDS ({friends.length})</div>
               <button onClick={() => setEditFriends(e => !e)}
-                style={{ background:"none", border:"none", color: editFriends ? th.accentFg : th.dim, fontSize:13, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700 }}>
+                style={{ background:"none", border:"none", color: editFriends ? th.accentFg : th.dim, fontSize:13, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, transition:"color .2s" }}>
                 {editFriends ? "DONE" : "EDIT ✎"}
               </button>
             </div>
@@ -7103,7 +7106,9 @@ import "./styles.css";
               {friends.map(f => {
                 const initials = (f.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
                 return (
-                  <div key={f.uid} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, position:"relative", cursor: editFriends ? "default" : "pointer" }}
+                  <div key={f.uid} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, position:"relative", cursor: editFriends ? "default" : "pointer",
+                    animation: editFriends ? "avatarWobble 0.45s ease-in-out infinite alternate" : "none",
+                  }}
                     onClick={() => { if (!editFriends) setDashFriend(f); }}>
                     {/* Avatar */}
                     {f.photoURL ? (
@@ -7126,16 +7131,22 @@ import "./styles.css";
                           WebkitBackdropFilter: "blur(10px)",
                           border: "1px solid rgba(220, 50, 50, 0.3)",
                           borderRadius: "50%",
+                          minWidth: 22,
+                          minHeight: 22,
                           width: 22,
                           height: 22,
+                          aspectRatio: "1 / 1",
+                          padding: 0,
+                          boxSizing: "content-box",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           cursor: "pointer",
                           color: "#fff",
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: 700,
                           lineHeight: 1,
+                          animation: "xBadgePop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
                         }}>✕</button>
                     )}
                     {/* Name */}
