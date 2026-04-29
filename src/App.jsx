@@ -7744,7 +7744,7 @@ import "./styles.css";
                           cursor:"pointer", color: th.accentFg,
                           transition:"opacity .15s",
                         }}>
-                        <svg width="18" height="18" viewBox="0 0 18 18">
+                        <svg width="22" height="22" viewBox="0 0 18 18">
                           <polygon points="4,2 16,9 4,16" fill={th.accentT}/>
                         </svg>
                       </button>
@@ -11924,7 +11924,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.0 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
