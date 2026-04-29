@@ -1047,33 +1047,79 @@ import "./styles.css";
 
   // ── Secondary muscles (synergists) ──────────────────────────────────────────
   const SECONDARY = {
-    // Chest
-    e1:"Triceps · Front Delts", e2:"Triceps · Front Delts", e4:"Triceps · Front Delts",
-    e5:"Triceps · Front Delts", e7:"Triceps · Front Delts", e8:"Triceps · Core",
+    // Chest — pressing movements hit front delts & triceps; flyes hit front delts
+    e1:"Triceps · Front Delts", e2:"Triceps · Front Delts", e3:"Front Delts",
+    e4:"Triceps · Front Delts", e5:"Triceps · Front Delts", e6:"Front Delts",
+    e7:"Triceps · Front Delts", e8:"Triceps · Core",
     e51:"Triceps · Front Delts · Core", e52:"Triceps · Front Delts",
-    e55:"Triceps · Front Delts",
-    // Back
+    e53:"Triceps · Front Delts", e54:"Front Delts", e55:"Front Delts",
+    e56:"Front Delts · Triceps", e57:"Lats · Triceps", e58:"Triceps · Core",
+    x13:"Front Delts", x14:"Triceps · Front Delts",
+    x15:"Front Delts", x16:"Front Delts", x17:"Front Delts · Triceps",
+    m1:"Front Delts", m2:"Triceps · Front Delts", m3:"Triceps · Front Delts", m4:"Front Delts",
+    // Back — pulling movements hit biceps & rear delts; rows hit lower back
     e15:"Biceps · Rear Delts", e16:"Biceps · Rear Delts", e17:"Biceps · Rear Delts",
     e18:"Biceps · Rear Delts", e19:"Biceps · Rear Delts", e20:"Biceps · Lower Back",
-    e59:"Glutes · Hamstrings", e60:"Glutes · Hamstrings", e61:"Glutes",
-    e62:"Biceps · Rear Delts", e63:"Biceps · Core", e64:"Biceps · Core",
-    e67:"Glutes", e68:"Glutes · Hamstrings",
-    // Shoulders
+    e21:"Biceps · Core", e22:"Biceps · Rear Delts",
+    e59:"Glutes · Hamstrings · Quads", e60:"Glutes · Hamstrings · Upper Back",
+    e61:"Biceps · Rear Delts · Glutes", e62:"Biceps · Rear Delts",
+    e63:"Biceps · Core", e64:"Biceps · Core",
+    e65:"Biceps · Rear Delts", e66:"Biceps · Rear Delts",
+    e67:"Glutes · Hamstrings", e68:"Glutes · Hamstrings",
+    e69:"Biceps · Rear Delts",
+    x18:"Biceps · Rear Delts", x19:"Biceps · Rear Delts",
+    x20:"Biceps · Rear Delts", x21:"Biceps · Core",
+    x22:"Mid Back · Upper Traps", x23:"Biceps · Rear Delts", x24:"Biceps · Rear Delts",
+    m5:"Biceps · Rear Delts", m6:"Biceps · Rear Delts",
+    m7:"Rear Delts · Upper Traps", m8:"Glutes · Hamstrings",
+    // Shoulders — overhead pressing hits upper chest & triceps; lateral/rear work secondary
     e28:"Triceps · Upper Chest", e29:"Triceps · Upper Chest",
-    e30:"Upper Traps", e31:"Upper Traps", e32:"Upper Traps", e33:"Upper Traps",
-    e84:"Upper Traps", e85:"Mid Back", e86:"Mid Back", e87:"Mid Back",
+    e30:"Triceps · Upper Chest", e31:"Mid Back · Upper Traps",
+    e32:"Upper Traps · Biceps", e33:"Triceps · Upper Chest",
+    e84:"Triceps · Upper Chest", e85:"Front Delts · Upper Chest",
+    e86:"Side Delts · Upper Traps", e87:"Upper Back",
+    e88:"Upper Back", e89:"Upper Traps · Biceps",
     e90:"Triceps · Upper Chest",
-    // Arms
-    e9:"Biceps", e13:"Biceps", e27:"Lats · Chest",
-    e70:"Forearms", e71:"Forearms", e73:"Biceps",
-    e23:"Triceps", e24:"Chest · Lats", e25:"Chest",
+    e91:"Mid Back · Upper Traps",
+    x33:"Mid Back", x34:"Side Delts · Upper Traps",
+    x35:"Front Delts · Upper Chest", x36:"Side Delts · Upper Traps",
+    x37:"Upper Back", x38:"Rear Delts · Biceps",
+    m9:"Triceps · Upper Chest", m10:"Side Delts · Upper Traps",
+    m11:"Mid Back · Upper Traps", m12:"Upper Back",
+    // Arms — biceps work hits forearms; triceps work hits chest
+    e9:"Forearms", e10:"Forearms", e11:"Biceps · Forearms",
+    e12:"Forearms", e13:"Forearms", e14:"Forearms",
+    e70:"Forearms", e71:"Forearms", e72:"Biceps · Forearms",
+    e73:"Forearms", e74:"Biceps", e75:"Biceps · Forearms",
+    e23:"Anconeus", e24:"Chest · Lats", e25:"Chest",
+    e26:"Anconeus", e27:"Lats · Chest",
     e76:"Chest · Lats", e77:"Chest · Lats", e78:"Lats · Chest",
-    // Legs
-    e92:"Glutes · Hamstrings · Core", e93:"Glutes · Hamstrings · Core",
-    e94:"Glutes · Core", e95:"Hamstrings", e96:"Quads",
-    e42:"Hamstrings · Glutes", e43:"Quads", e44:"Hamstrings",
-    e47:"Glutes · Hamstrings", e100:"Glutes · Hamstrings",
-    e101:"Quads · Hamstrings", e102:"Quads",
+    e79:"Chest", e80:"Anconeus", e81:"Rear Delts",
+    x25:"Forearms", x26:"Forearms", x27:"Biceps · Forearms",
+    x28:"Forearms", x29:"Chest · Lats", x30:"Chest",
+    x31:"Rear Delts", x32:"Chest",
+    m13:"Forearms", m14:"Forearms", m15:"Anconeus", m16:"Chest",
+    // Legs — compound movements engage multiple leg muscles
+    e42:"Glutes · Hamstrings · Core", e43:"Glutes · Hamstrings",
+    e44:"Glutes · Hamstrings", e45:"Glutes · Hamstrings",
+    e46:"Hip Flexors", e47:"Glutes · Hamstrings · Core",
+    e48:"Glutes · Calves", e49:"Soleus",
+    e92:"Glutes · Hamstrings · Core", e93:"Glutes · Lower Back · Calves",
+    e94:"Glutes · Core", e95:"Hamstrings · Core",
+    e96:"Hamstrings · Core", e97:"Glutes · Calves",
+    e98:"Soleus · Hamstrings", e99:"Soleus",
+    e100:"Glutes · Hamstrings", e101:"Quads · Hamstrings",
+    e102:"Quads · Hamstrings", e103:"Glutes · Calves",
+    e104:"Hamstrings · Lower Back", e105:"Glutes · Hamstrings",
+    e106:"Glutes · Hamstrings",
+    x1:"Hamstrings", x2:"Hamstrings", x3:"Glutes",
+    x4:"Hamstrings", x5:"Hamstrings · Core",
+    x6:"Glutes · Hamstrings · Core", x7:"Hamstrings · Quads",
+    x9:"Lower Back · Hamstrings", x10:"Hip Flexors",
+    m17:"Hip Flexors", m18:"Glutes · Calves",
+    m19:"Glutes · Calves", m22:"Hamstrings · Core",
+    m23:"Hamstrings", m24:"Soleus", m25:"Soleus",
+    m26:"Glutes · Hamstrings",
   };
 
   // ── Difficulty badge helper ──────────────────────────────────────────────────
@@ -4831,30 +4877,42 @@ import "./styles.css";
         )}
         {lift && (() => {
           const allPts = lift.pts;
-          if (allPts.length < 2) return (
+          // Show only the last 7 data points
+          const pts = allPts.slice(-7);
+          if (pts.length < 2) return (
             <div key={selGroup+selId} style={{ height:80, display:"flex", flexDirection:"column", justifyContent:"center", gap:4, animation:"tabSlideIn 0.2s ease-out" }}>
               <div style={{ fontSize:12, color:th.muted, fontWeight:600 }}>Not enough data</div>
               <div style={{ fontSize:11, color:th.dim }}>Log at least 2 sessions with <span style={{ color:th.sub }}>{lift.name}</span> to see the trend.</div>
             </div>
           );
-          const vals = allPts.map(p => p.w);
+          const vals = pts.map(p => p.w);
           const mn = Math.min(...vals); const mx = Math.max(...vals, mn+1);
           const range = mx - mn || 1;
           const W = 280, H = 60, R = 3;
-          const xs = allPts.map((_,i) => (i/(allPts.length-1))*W);
-          const ys = allPts.map(p => H - ((p.w-mn)/range)*(H-R*2) - R);
+          const xs = pts.map((_,i) => i === 0 ? R : i === pts.length-1 ? W-R : (i/(pts.length-1))*W);
+          const ys = pts.map(p => H - ((p.w-mn)/range)*(H-R*2) - R);
           const linePath = xs.map((x,i) => (i===0?`M${x},${ys[i]}`:`L${x},${ys[i]}`)).join(" ");
           const areaPath = `${linePath} L${xs[xs.length-1]},${H+4} L0,${H+4} Z`;
+          // X-axis: label all 7 points
+          const labelStep = Math.ceil(pts.length / 7);
           return (
             <svg key={selGroup+selId} viewBox={`0 0 ${W} ${H+20}`} width="100%" style={{ overflow:"visible", minHeight:80, animation:"tabSlideIn 0.2s ease-out" }}>
               <path d={areaPath} fill={group.col} opacity="0.07" />
               <path d={linePath} fill="none" stroke={group.col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              {allPts.map((p,i) => (
-                <circle key={i} cx={xs[i]} cy={ys[i]} r={i===allPts.length-1?R+1:R}
-                  fill={i===allPts.length-1?group.col:th.card} stroke={group.col} strokeWidth="1.5" />
+              {pts.map((p,i) => (
+                <circle key={i} cx={xs[i]} cy={ys[i]} r={i===pts.length-1?R+1:R}
+                  fill={i===pts.length-1?group.col:th.card} stroke={group.col} strokeWidth="1.5" />
               ))}
-              <text x={xs[0]} y={H+15} textAnchor="start" fontSize="10" fill="#666" fontFamily="Outfit,sans-serif">{fmtW(allPts[0].w)} kg</text>
-              <text x={xs[xs.length-1]} y={H+15} textAnchor="end" fontSize="10" fill={group.col} fontFamily="Outfit,sans-serif" fontWeight="700">{fmtW(allPts[allPts.length-1].w)} kg</text>
+              {pts.map((p,i) => {
+                const anchor = i === 0 ? "start" : i === pts.length-1 ? "end" : "middle";
+                const col = i === pts.length-1 ? group.col : "#666";
+                const fw = i === pts.length-1 ? "700" : "400";
+                return (
+                  <text key={i} x={xs[i]} y={H+15} textAnchor={anchor} fontSize="9" fill={col} fontFamily="Outfit,sans-serif" fontWeight={fw}>
+                    {fmtW(p.w)}
+                  </text>
+                );
+              })}
             </svg>
           );
         })()}
@@ -5187,9 +5245,21 @@ import "./styles.css";
             <div style={S.label}>MY DASHBOARDS</div>
             <button
               onClick={() => setEditingDashboards(true)}
-              style={{ background:"none", border:"none", color:th.dim, fontSize:12, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700 }}
+              style={{
+                background: `color-mix(in srgb, ${th.inputB} 40%, transparent)`,
+                border: `1px solid ${th.border}`,
+                borderRadius: 20,
+                color: th.muted,
+                fontSize: 11,
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                fontWeight: 700,
+                letterSpacing: "0.5px",
+                padding: "4px 12px",
+                transition: "background .2s, color .2s, border-color .2s",
+              }}
             >
-              EDIT ✎
+              EDIT
             </button>
           </div>
         )}
@@ -6553,21 +6623,22 @@ import "./styles.css";
             animation: closing ? "compSheetOut .34s cubic-bezier(0.4,0,1,1) forwards" : "compSheetIn .42s cubic-bezier(0.32,0.72,0,1) forwards",
           }}>
             {/* Header */}
-            <div style={{ flexShrink:0, borderBottom:`1px solid ${th.border}`, padding:"14px 16px 12px" }}>
+            <div style={{ flexShrink:0, borderBottom:`1px solid ${th.border}`, padding:"14px 16px 14px" }}>
               <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
                 <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
               </div>
-              <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", minHeight:36 }}>
                 <div style={{ textAlign:"center" }}>
                   <div className="bebas" style={{ fontSize:26, letterSpacing:2, color:th.text, lineHeight:1 }}>
                     {isActive ? "COMPETITION IN PROGRESS" : "COMPETE"}
                   </div>
-                  <div style={{ fontSize:13, color:th.muted, marginTop:4 }}>
-                    {isActive ? `vs ${friend.name.split(" ")[0]}` :
-                     isOutgoing ? "Waiting for response…" :
-                     isIncoming ? `${friend.name.split(" ")[0]} challenged you!` :
-                     `Challenge ${friend.name.split(" ")[0]}`}
-                  </div>
+                  {!isActive && (
+                    <div style={{ fontSize:13, color:th.muted, marginTop:4 }}>
+                      {isOutgoing ? "Waiting for response…" :
+                       isIncoming ? `${friend.name.split(" ")[0]} challenged you!` :
+                       `Challenge ${friend.name.split(" ")[0]}`}
+                    </div>
+                  )}
                 </div>
                 <button onClick={close} style={{ position:"absolute", right:0, background:"none", border:"none", color:th.muted, fontSize:26, cursor:"pointer", lineHeight:1, padding:"4px 6px" }}>✕</button>
               </div>
@@ -7096,13 +7167,41 @@ import "./styles.css";
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <div style={S.label}>FRIENDS ({friends.length})</div>
               <button onClick={() => setEditFriends(e => !e)}
-                style={{ background:"none", border:"none", color: editFriends ? th.accentFg : th.dim, fontSize:13, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, transition:"color .2s" }}>
-                {editFriends ? "DONE" : "EDIT ✎"}
+                style={{
+                  background: editFriends
+                    ? `color-mix(in srgb, ${th.accentBg} 14%, transparent)`
+                    : `color-mix(in srgb, ${th.inputB} 40%, transparent)`,
+                  border: editFriends
+                    ? `1px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`
+                    : `1px solid ${th.border}`,
+                  borderRadius: 20,
+                  color: editFriends ? th.accentFg : th.muted,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                  fontWeight: 700,
+                  letterSpacing: "0.5px",
+                  padding: "4px 12px",
+                  transition: "background .2s, color .2s, border-color .2s",
+                }}>
+                {editFriends ? "DONE" : "EDIT"}
               </button>
             </div>
             {/* Horizontal scroll row */}
             <div style={{ display:"flex", gap:16, overflowX:"auto", overflowY:"visible", paddingBottom:6, paddingTop:6, scrollbarWidth:"none", msOverflowStyle:"none" }}>
               <style>{`.ib-friends-scroll::-webkit-scrollbar{display:none}`}</style>
+              {/* Add friend bubble — dashed style with accent color — LEFT END */}
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, cursor:"pointer" }}
+                onClick={() => { setShowInvitePanel(true); setInviteStatus("idle"); setInviteError(""); }}>
+                <div style={{
+                  width:54, height:54, borderRadius:"50%",
+                  background: "transparent",
+                  border: `1.5px dashed ${th.accentBg}`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:22, color: th.accentFg, fontWeight:700,
+                }}>+</div>
+                <div style={{ fontSize:13, fontWeight:700, color:th.accentFg }}>Invite</div>
+              </div>
               {friends.map(f => {
                 const initials = (f.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
                 return (
@@ -7156,18 +7255,6 @@ import "./styles.css";
                   </div>
                 );
               })}
-              {/* Add friend bubble — dashed style with accent color */}
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, cursor:"pointer" }}
-                onClick={() => { setShowInvitePanel(true); setInviteStatus("idle"); setInviteError(""); }}>
-                <div style={{
-                  width:54, height:54, borderRadius:"50%",
-                  background: "transparent",
-                  border: `1.5px dashed ${th.accentBg}`,
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:22, color: th.accentFg, fontWeight:700,
-                }}>+</div>
-                <div style={{ fontSize:13, fontWeight:700, color:th.accentFg }}>Invite</div>
-              </div>
             </div>
           </div>
         )}
@@ -7554,141 +7641,123 @@ import "./styles.css";
   }) {
     const th = useTheme();
     const S = useS();
+    const [editing, setEditing] = useState(false);
     const dismissProgramOnboarding = () => {
       onUpdateSettings && onUpdateSettings({ ...settings, hasProgramOnboarded: true });
     };
     return (
-      <div className="slide-up" style={{ paddingBottom: 90 }}>
-
+      <div className="slide-up" style={{ paddingBottom: 160 }}>
+        <style>{`
+          @keyframes progXPop   { 0%{transform:scale(0) rotate(-45deg);opacity:0} 70%{transform:scale(1.2) rotate(4deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
+          @keyframes playPulse  { 0%{transform:scale(1);opacity:1} 40%{transform:scale(0.91);opacity:0.85} 100%{transform:scale(1);opacity:1} }
+          @keyframes playRipple { 0%{transform:translate(-50%,-50%) scale(0.6);opacity:0.5} 100%{transform:translate(-50%,-50%) scale(2.4);opacity:0} }
+        `}</style>
         <div style={{ marginBottom: 12, marginTop: 4 }} />
         {!settings?.hasProgramOnboarded && <ProgramOnboarding onDismiss={dismissProgramOnboarding} />}
         {programs.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 18px" }}>
-            <div className="bebas" style={{ fontSize: 44, color: th.border }}>
-              NO PROGRAMS
-            </div>
-            <div style={{ fontSize: 13, color: th.muted, marginTop: 10 }}>
-              Create your first workout program
-            </div>
+            <div className="bebas" style={{ fontSize: 44, color: th.border }}>NO PROGRAMS</div>
+            <div style={{ fontSize: 13, color: th.muted, marginTop: 10 }}>Create your first workout program</div>
           </div>
         ) : (
-          programs.map((p) => (
-            <div key={p.id} id={"prog-card-" + p.id} style={{ ...S.card, marginBottom: 9, overflow: "hidden" }}>
-              <div
-                style={{
-                  padding: "15px 16px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                }}
-              >
-                <div
-                  style={{
-                    flex: 1,
-                    cursor: "pointer",
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "flex-start",
-                  }}
-                  onClick={() => onEdit(p)}
-                >
-                  <ProgramIcon name={p.name} size={44} />
-                  <div>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 16,
-                        textAlign: "left",
-                        color: th.text,
-                        marginBottom: 5,
-                      }}
-                    >
-                      {p.name}
-                    </div>
-                    <div
-                      style={{ fontSize: 12, color: th.muted, marginBottom: 8, textAlign: "left" }}
-                    >
-                      {p.exs.length} exercises
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {[
-                        ...new Set(
-                          p.exs
-                            .map((e) => DB.find((d) => d.id === e.id)?.group)
-                            .filter(Boolean)
-                        ),
-                      ].map((g) => (
-                        <span key={g} style={S.tag(g)}>
-                          {g}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    flexShrink: 0,
-                    marginLeft: 10,
-                  }}
-                >
-                  <button
-                    onClick={() => onStart(p)}
-                    style={{
-                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      border: "none",
-                      borderRadius: 8,
-                      color: th.accentT,
-                      padding: "7px 14px",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontFamily: "'Outfit',sans-serif",
-                      fontWeight: 700,
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    START
-                  </button>
+          <>
+            <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:20 }}>
+              <button onClick={() => setEditing(e => !e)} style={{
+                background: editing
+                  ? `color-mix(in srgb, ${th.accentBg} 14%, transparent)`
+                  : `color-mix(in srgb, ${th.inputB} 40%, transparent)`,
+                border: editing
+                  ? `1px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`
+                  : `1px solid ${th.border}`,
+                borderRadius: 20,
+                color: editing ? th.accentFg : th.muted,
+                fontSize: 11,
+                cursor: "pointer",
+                fontFamily: "'Outfit',sans-serif",
+                fontWeight: 700,
+                letterSpacing: "0.5px",
+                padding: "4px 12px",
+                transition: "background .2s, color .2s, border-color .2s",
+              }}>{editing ? "DONE" : "EDIT"}</button>
+            </div>
+            {programs.map((p) => (
+              <div key={p.id} id={"prog-card-" + p.id}
+                style={{ ...S.card, marginBottom:9, overflow:"visible", position:"relative",
+                  // no wobble in edit mode
+                }}>
+                {editing && (
                   <button
                     onClick={() => {
-                      if (!window.confirm("Delete this program?")) return;
                       const el = document.getElementById("prog-card-" + p.id);
-                      if (el) {
-                        el.style.animation = "removeSlide 0.31s ease-in forwards";
-                        setTimeout(() => onDelete(p.id), 310);
-                      } else {
-                        onDelete(p.id);
-                      }
+                      if (el) { el.style.animation = "removeSlide 0.31s ease-in forwards"; setTimeout(() => onDelete(p.id), 310); }
+                      else onDelete(p.id);
                     }}
                     style={{
-                      background: "rgba(220, 50, 50, 0.15)",
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      border: "1px solid rgba(220, 50, 50, 0.3)",
-                      borderRadius: 8,
-                      color: th.delText,
-                      padding: "7px 12px",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontFamily: "'Outfit',sans-serif",
-                    }}
-                  >
-                    Delete
-                  </button>
+                      position:"absolute", top:-8, right:-8, zIndex:50,
+                      background:"rgba(220,50,50,0.45)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                      border:"1px solid rgba(220,50,50,0.3)", borderRadius:"50%",
+                      minWidth:24, minHeight:24, width:24, height:24, aspectRatio:"1/1",
+                      padding:0, boxSizing:"content-box",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      cursor:"pointer", color:"#fff", fontSize:12, fontWeight:700, lineHeight:1,
+                      animation:"progXPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                    }}>✕</button>
+                )}
+                <div style={{ padding:"15px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ flex:1, cursor:"pointer", display:"flex", gap:12, alignItems:"flex-start" }} onClick={() => !editing && onEdit(p)}>
+                    <ProgramIcon name={p.name} size={44} />
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:16, textAlign:"left", color:th.text, marginBottom:5 }}>{p.name}</div>
+                      <div style={{ fontSize:12, color:th.muted, marginBottom:8, textAlign:"left" }}>{p.exs.length} exercise{p.exs.length !== 1 ? "s" : ""}</div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                        {[...new Set(p.exs.map(e => DB.find(d => d.id === e.id)?.group).filter(Boolean))].slice(0,4).map(g => (
+                          <span key={g} style={S.tag(g)}>{g.toUpperCase()}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {!editing && (
+                    <div style={{ position:"relative", flexShrink:0, marginLeft:12, width:48, height:48 }}>
+                      <button
+                        onClick={() => onStart(p)}
+                        onPointerDown={e => {
+                          const btn = e.currentTarget;
+                          btn.style.animation = "none";
+                          void btn.offsetWidth;
+                          btn.style.animation = "playPulse 0.35s cubic-bezier(0.4,0,0.2,1) forwards";
+                          // ripple element
+                          const wrap = btn.parentElement;
+                          const old = wrap.querySelector(".play-ripple");
+                          if (old) old.remove();
+                          const r = document.createElement("div");
+                          r.className = "play-ripple";
+                          r.style.cssText = `position:absolute;top:50%;left:50%;width:48px;height:48px;border-radius:50%;border:2px solid ${th.accentFg};pointer-events:none;animation:playRipple 0.55s ease-out forwards;`;
+                          wrap.appendChild(r);
+                          setTimeout(() => r.remove(), 560);
+                        }}
+                        style={{
+                          background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                          backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                          border:"none", borderRadius:"50%",
+                          width:48, height:48, minWidth:48,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          cursor:"pointer", color: th.accentFg,
+                          transition:"opacity .15s",
+                        }}>
+                        <svg width="18" height="18" viewBox="0 0 18 18">
+                          <polygon points="4,2 16,9 4,16" fill={th.accentT}/>
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+          </>
         )}
       </div>
     );
   }
-
-  /* ─── Create / Edit Program — with suggestions ───────────────────────────────── */
   /* ─── Create Program Guide — inline, shown once inside new program ────────────── */
   function CreateProgramGuide({ onDismiss }) {
     const th = useTheme();
@@ -8331,7 +8400,7 @@ import "./styles.css";
                         <span style={S.tag(ex.group)}>
                           {ex.muscle.toUpperCase()}
                         </span>
-                        {SECONDARY[ex.id] && SECONDARY[ex.id].split(" · ").map(m => {
+                        {SECONDARY[ex.exId] && SECONDARY[ex.exId].split(" · ").map(m => {
                           const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
                           return (
                             <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:10, padding:"2px 7px" }}>
@@ -9041,8 +9110,16 @@ import "./styles.css";
                       )}
                     </div>
                   </div>
-                  <div style={{ paddingLeft: 14, marginTop: 2, textAlign: "left", }}>
+                  <div style={{ paddingLeft: 14, marginTop: 2, textAlign: "left", display:"flex", flexWrap:"wrap", gap:5 }}>
                     <span style={S.tag(ex.group)}>{ex.muscle.toUpperCase()}</span>
+                    {(SECONDARY[ex.exId] || SECONDARY[ex.id]) && (SECONDARY[ex.exId] || SECONDARY[ex.id]).split(" · ").map(m => {
+                      const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
+                      return (
+                        <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:10, padding:"2px 7px" }}>
+                          {m.toUpperCase()}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
                 <button
@@ -11847,7 +11924,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.0 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.1 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
