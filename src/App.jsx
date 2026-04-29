@@ -7744,7 +7744,7 @@ import "./styles.css";
                           cursor:"pointer", color: th.accentFg,
                           transition:"opacity .15s",
                         }}>
-                        <svg width="22" height="22" viewBox="0 0 18 18">
+                        <svg width="22" height="22" viewBox="0 0 18 18" style={{ width:22, height:22, minWidth:22, flexShrink:0, display:"block" }}>
                           <polygon points="4,2 16,9 4,16" fill={th.accentT}/>
                         </svg>
                       </button>
