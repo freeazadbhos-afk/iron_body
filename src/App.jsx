@@ -10621,10 +10621,10 @@ import "./styles.css";
               <div style={{ fontWeight: 700, fontSize: 17, color: th.text, textAlign: "left" }}>
                 {user.name}
               </div>
-              <div style={{ fontSize: 12, color: th.muted, textAlign: "left" }}>{user.email}</div>
+              <div style={{ fontSize: 14, color: th.muted, textAlign: "left" }}>{user.email}</div>
               {(user.age || user.gender) && (
-                <div style={{ fontSize: 11, color: th.dim, textAlign: "left", marginTop: 3 }}>
-                  {[user.gender, user.age ? `${user.age} yrs` : null].filter(Boolean).join(" · ")}
+                <div style={{ fontSize: 13, color: th.dim, textAlign: "left", marginTop: 3 }}>
+                  {[user.gender, user.age ? `${user.age} years` : null].filter(Boolean).join(" · ")}
                 </div>
               )}
             </div>
