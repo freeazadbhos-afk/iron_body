@@ -2334,11 +2334,11 @@ import "./styles.css";
         >
           {done && (
             <span style={{
-              color: th.accentT, fontSize: 13, fontWeight: 900,
+              color: th.accentT, fontSize: 16, fontWeight: 900,
               display: "block",
               animation: smashing ? "checkTick 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards" : "none",
             }}>
-              ✓
+              ✔
             </span>
           )}
         </div>
@@ -3254,7 +3254,7 @@ import "./styles.css";
                           fontWeight: 800,
                         }}
                       >
-                        ✓
+                        ✔
                       </span>
                     )}
                   </div>
@@ -4170,7 +4170,7 @@ import "./styles.css";
               <button onClick={() => setOpen(false)} style={{
                 display:"block", marginTop:12, background:"none", border:"none",
                 cursor:"pointer", fontSize:12, color:th.accentFg, fontWeight:700, padding:0,
-              }}>Got it ✓</button>
+              }}>Got it ✔</button>
             </div>
           </div>,
           document.body
@@ -4429,7 +4429,7 @@ import "./styles.css";
     return (
       <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>WORKLOAD RATIO</div>
               <DashInfoBtn title="Workload Ratio" text="Acute-to-Chronic Workload Ratio (ACWR) divides your last 7 days of total tonnage by your 4-week average. Values between 0.8-1.3 indicate a safe training load." />
             </div>
@@ -4742,7 +4742,7 @@ import "./styles.css";
     return (
       <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>TRAINING DENSITY</div>
               <DashInfoBtn title="Training Density" text="Weekly tonnage divided by total session time for that week (kg/min). Tracks whether you're doing more work per hour across 5-week periods." />
             </div>
@@ -4825,7 +4825,7 @@ import "./styles.css";
       <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
         {/* Group selector */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>STRENGTH PROGRESSION</div>
               <DashInfoBtn title="Strength Progression" text="Estimated one-rep max (1RM) trend for push, pull, leg, and arm movements. Calculated from your actual sets and reps using the Epley formula." />
             </div>
@@ -5036,7 +5036,7 @@ import "./styles.css";
                   border: "none", borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
-                }}>Got it ✓</button>
+                }}>Got it ✔</button>
               )}
             </div>
           </div>
@@ -5347,7 +5347,7 @@ import "./styles.css";
               `}</style>
               {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>STREAK</div>
               <DashInfoBtn title="Streak" text="Your workout calendar showing training days. The streak counts consecutive days with at least one completed workout." />
             </div>
@@ -5422,7 +5422,7 @@ import "./styles.css";
                   marginBottom: 10,
                 }}
               >
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>INTENSITY</div>
               <DashInfoBtn title="Intensity" text="Average self-reported intensity score (1-10) across all sessions in the last 7 days, compared to the previous 7-day period." />
             </div>
@@ -5563,7 +5563,7 @@ import "./styles.css";
 
             {isDashEnabled("calories") && <div style={{ order: dashOrder("calories") }}><div style={{ ...S.card, padding: 16, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>CALORIES BURNED</div>
               <DashInfoBtn title="Calories Burned" text="Average estimated calories burned per session over the last 7 days, compared to the prior week." />
             </div>
@@ -5853,7 +5853,7 @@ import "./styles.css";
             <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>SESSION PACE</div>
               <DashInfoBtn title="Session Pace" text="Tonnage lifted per minute for each individual session over the last 30 days. A rising trend means your sessions are becoming more productive over time." />
             </div>
@@ -5952,7 +5952,7 @@ import "./styles.css";
           return (
             <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, position: "relative", top: -15 }}>
               <div style={{ ...S.label }}>WEEKLY VOLUME</div>
               <DashInfoBtn title="Weekly Volume" text="Total tonnage (sets x reps x weight) lifted per week over the last 5 weeks. Tracks progressive overload and weekly load management." />
             </div>
@@ -5976,7 +5976,7 @@ import "./styles.css";
                         {v > 0 ? fmtV(v) : ""}
                       </div>
                       <div style={{ width:"100%", height:h, background:col, borderRadius:"3px 3px 0 0" }} />
-                      <div style={{ fontSize:8, color:th.dim, marginTop:3, textAlign:"center", lineHeight:1.2, whiteSpace:"nowrap" }}>{w.label}</div>
+                      <div style={{ fontSize:9, color:th.dim, marginTop:3, textAlign:"center", lineHeight:1.2, whiteSpace:"nowrap" }}>{w.label}</div>
                     </div>
                   );
                 })}
@@ -6681,7 +6681,7 @@ import "./styles.css";
                     <button onClick={async () => { await onDeclineCompeteInvite(comp.id); close(); }}
                       style={{ flex:1, background:th.del, border:`1px solid ${th.delB}`, borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}>DECLINE</button>
                     <button onClick={async () => { await onAcceptCompeteInvite(comp.id); }}
-                      style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT }}>ACCEPT ✓</button>
+                      style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT }}>ACCEPT ✔</button>
                   </div>
                 </div>
               )}
@@ -6977,7 +6977,7 @@ import "./styles.css";
                   border: "none", borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
-                }}>Got it ✓</button>
+                }}>Got it ✔</button>
               )}
             </div>
           </div>
@@ -7159,7 +7159,7 @@ import "./styles.css";
                 <button onClick={async () => { await onDeclineCompeteInvite(c.id); }}
                   style={{ flex:1, background:th.del, border:`1px solid ${th.delB}`, borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.delText }}>DECLINE</button>
                 <button onClick={async () => { await onAcceptCompeteInvite(c.id); }}
-                  style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.accentT }}>ACCEPT ✓</button>
+                  style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.accentT }}>ACCEPT ✔</button>
               </div>
             </div>
           );
@@ -7231,7 +7231,7 @@ import "./styles.css";
                           top: -4,
                           right: -4,
                           zIndex: 50,
-                          background: "rgba(220, 50, 50, 0.45)",
+                          background: "rgba(160, 10, 10, 0.75)",
                           backdropFilter: "blur(10px)",
                           WebkitBackdropFilter: "blur(10px)",
                           border: "1px solid rgba(220, 50, 50, 0.3)",
@@ -7251,7 +7251,7 @@ import "./styles.css";
                           fontSize: 11,
                           fontWeight: 700,
                           lineHeight: 1,
-                          animation: "xBadgePop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                          animation: "xBadgePop 0.4s cubic-bezier(0.54,1.56,0.64,0.8) forwards",
                         }}>✕</button>
                     )}
                     {/* Name */}
@@ -7367,7 +7367,7 @@ import "./styles.css";
               </div>
               {inviteStatus === "sent" ? (
                 <div style={{ textAlign:"center", padding:"18px 0", animation:"sentBounce 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
-                  <div style={{ fontSize:40, marginBottom:8 }}>✓</div>
+                  <div style={{ fontSize:40, marginBottom:8 }}>✔</div>
                   <div style={{ color:th.accentFg, fontWeight:700, fontSize:16 }}>Invitation sent!</div>
                   <div style={{ color:th.muted, fontSize:13, marginTop:4 }}>They'll see it in their Sharing tab.</div>
                 </div>
@@ -7562,7 +7562,7 @@ import "./styles.css";
         body: "Tap the START button on any program card to kick off a live session. The timer starts automatically.",
       },
       {
-        icon: "✓",
+        icon: "✔",
         title: "Log Sets as You Go",
         body: "Tap the circle next to each set to mark it done. Adjust weight and reps on the fly — the session saves your actual numbers.",
       },
@@ -7660,7 +7660,7 @@ import "./styles.css";
                   border: "none", borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
-                }}>Got it ✓</button>
+                }}>Got it ✔</button>
               )}
             </div>
           </div>
@@ -7744,7 +7744,7 @@ import "./styles.css";
                       padding:0, boxSizing:"content-box",
                       display:"flex", alignItems:"center", justifyContent:"center",
                       cursor:"pointer", color:"#fff", fontSize:12, fontWeight:700, lineHeight:1,
-                      animation:"progXPop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                      animation:"progXPop 0.4s cubic-bezier(0.54,1.56,0.64,0.8) forwards",
                     }}>✕</button>
                 )}
                 <div style={{ padding:"15px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -7832,7 +7832,7 @@ import "./styles.css";
         body: "Scroll down to find ready-made programs. Tap one to load it as a starting point — you can then edit it however you like.",
       },
       {
-        icon: "✓",
+        icon: "✔",
         title: "Save & Go",
         body: "Hit SAVE PROGRAM when done. It will appear on your Programs tab ready to start any time.",
       },
@@ -7916,7 +7916,7 @@ import "./styles.css";
                   border:"none", borderRadius:9, color:th.accentT,
                   padding:"6px 16px", cursor:"pointer", fontSize:12,
                   fontFamily:"'Outfit',sans-serif", fontWeight:700,
-                }}>Got it ✓</button>
+                }}>Got it ✔</button>
               )}
             </div>
           </div>
@@ -9150,7 +9150,7 @@ import "./styles.css";
                           }}
                         >
                           {" "}
-                          ✓
+                          ✔
                         </span>
                       )}
                     </div>
@@ -11461,7 +11461,7 @@ import "./styles.css";
             >
               {feedbackSent ? (
                 <div style={{ textAlign: "center", padding: "16px 0" }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>✔</div>
                   <div
                     style={{ fontWeight: 700, color: th.accentFg, fontSize: 14 }}
                   >
@@ -11969,7 +11969,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.2 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.3 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -13083,7 +13083,7 @@ import "./styles.css";
                       marginTop: 2,
                     }}
                   >
-                    <span style={{ fontSize: 15, color: th.muted }}>
+                    <span style={{ fontSize: 15, color: "#5B9CF6" }}>
                       {wDoneSets}/{wTotalSets} sets
                     </span>
                     <span
@@ -13756,7 +13756,7 @@ import "./styles.css";
           {/* ── Programs FAB — floating + button above nav ── */}
           {view === "programs" && !hideNav && (
             <div
-              style={{ position:"absolute", bottom:95, right:28, zIndex:20, width:52, height:52 }}
+              style={{ position:"absolute", bottom:105, right:28, zIndex:20, width:52, height:52 }}
             >
               <style>{`@keyframes fabRipple{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0.6}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}`}</style>
               <div
@@ -13769,7 +13769,7 @@ import "./styles.css";
                   if (old) old.remove();
                   const r = document.createElement("div");
                   r.className = "fab-ripple";
-                  r.style.cssText = `position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;border:2.5px solid ${th.accentFg};pointer-events:none;animation:fabRipple 0.55s ease-out forwards;`;
+                  r.style.cssText = `position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;border:2.5px solid ${"#5B9CF6"};pointer-events:none;animation:fabRipple 0.55s ease-out forwards;`;
                   wrap.appendChild(r);
                   setTimeout(() => r.remove(), 560);
                 }}
@@ -13778,18 +13778,18 @@ import "./styles.css";
                 style={{
                   width: 52, height: 52,
                   borderRadius: 20,
-                  background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                  backdropFilter: "blur(14px)",
-                  WebkitBackdropFilter: "blur(14px)",
-                  border: `1px solid color-mix(in srgb, ${th.accentBg} 60%, transparent)`,
-                  boxShadow: `0 4px 20px color-mix(in srgb, ${th.accentBg} 30%, transparent)`,
+                  background: `color-mix(in srgb, ${"#5B9CF6"} 85%, transparent)`,
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
+                  border: `1px solid color-mix(in srgb, ${"#5B9CF6"} 60%, transparent)`,
+                  boxShadow: `0 4px 20px color-mix(in srgb, ${"#5B9CF6"} 50%, transparent)`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
                   color: th.accentT,
-                  fontSize: 26,
-                  fontWeight: 300,
+                  fontSize: 32,
+                  fontWeight: 400,
                   lineHeight: 1,
                   userSelect: "none",
                   transition: "transform .18s cubic-bezier(0.25,0.46,0.45,0.94)",
