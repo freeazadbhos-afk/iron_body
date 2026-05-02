@@ -1144,38 +1144,28 @@ import "./styles.css";
     Each entry: label shown in UI + filter function against a DB entry
   ─────────────────────────────────────────────────────────────────────────────── */
   const MUSCLE_FILTERS = [
-    { label: "All", fn: () => true },
-    { label: "Chest", fn: (e) => e.group === "Chest" },
-    { label: "Lats", fn: (e) => e.muscle === "Lats" },
-    {
-      label: "Mid Back",
-      fn: (e) =>
-        e.muscle === "Mid Back" ||
-        e.muscle === "Upper Back" ||
-        e.muscle === "Full Back",
-    },
-    { label: "Lower Back", fn: (e) => e.muscle === "Lower Back" },
-    { label: "Shoulders", fn: (e) => e.muscle === "Shoulders" },
-    { label: "Rear Delts", fn: (e) => e.muscle === "Rear Delts" },
-    { label: "Side Delts", fn: (e) => e.muscle === "Side Delts" },
+    { label: "All",         fn: () => true },
+    { label: "Chest",       fn: (e) => e.group === "Chest" },
+    { label: "Upper Chest", fn: (e) => e.muscle === "Upper Chest" },
+    { label: "Lats",        fn: (e) => e.muscle === "Lats" },
+    { label: "Upper Back",  fn: (e) => e.muscle === "Upper Back" },
+    { label: "Mid Back",    fn: (e) => e.muscle === "Mid Back" || e.muscle === "Full Back" },
+    { label: "Lower Back",  fn: (e) => e.muscle === "Lower Back" },
+    { label: "Shoulders",   fn: (e) => e.group === "Shoulders" },
+    { label: "Rear Delts",  fn: (e) => e.muscle === "Rear Delts" },
+    { label: "Side Delts",  fn: (e) => e.muscle === "Side Delts" },
     { label: "Front Delts", fn: (e) => e.muscle === "Front Delts" },
-    { label: "Traps", fn: (e) => e.muscle === "Traps" },
-    {
-      label: "Biceps",
-      fn: (e) => e.muscle === "Biceps" || e.muscle === "Brachialis",
-    },
-    { label: "Triceps", fn: (e) => e.muscle === "Triceps" },
-    { label: "Forearms", fn: (e) => e.muscle === "Forearms" },
-    { label: "Quads", fn: (e) => e.muscle === "Quads" },
-    { label: "Hamstrings", fn: (e) => e.muscle === "Hamstrings" },
-    { label: "Glutes", fn: (e) => e.muscle === "Glutes" },
-    { label: "Calves", fn: (e) => e.muscle === "Calves" },
-    {
-      label: "Thighs",
-      fn: (e) => e.muscle === "Inner Thigh" || e.muscle === "Outer Thigh",
-    },
-    { label: "Cardio", fn: (e) => e.group === "Cardio" },
-    { label: "Core", fn: (e) => e.group === "Core" },
+    { label: "Traps",       fn: (e) => e.muscle === "Traps" || e.muscle === "Upper Traps" },
+    { label: "Biceps",      fn: (e) => e.muscle === "Biceps" || e.muscle === "Brachialis" },
+    { label: "Triceps",     fn: (e) => e.muscle === "Triceps" },
+    { label: "Forearms",    fn: (e) => e.muscle === "Forearms" },
+    { label: "Quads",       fn: (e) => e.muscle === "Quads" },
+    { label: "Hamstrings",  fn: (e) => e.muscle === "Hamstrings" },
+    { label: "Glutes",      fn: (e) => e.muscle === "Glutes" },
+    { label: "Calves",      fn: (e) => e.muscle === "Calves" || e.muscle === "Soleus" },
+    { label: "Thighs",      fn: (e) => e.muscle === "Inner Thigh" || e.muscle === "Outer Thigh" || e.muscle === "Hip Flexors" },
+    { label: "Core",        fn: (e) => e.group === "Core" || e.muscle === "Abs" || e.muscle === "Obliques" },
+    { label: "Cardio",      fn: (e) => e.group === "Cardio" },
   ];
 
   /* ─── All muscles for "Muscles Trained" display ───────────────────────────────── */
@@ -3057,42 +3047,36 @@ import "./styles.css";
     };
 
     return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          backdropFilter: "blur(18px)",
-          WebkitBackdropFilter: "blur(18px)",
-          zIndex: 100,
-          display: "flex",
-          flexDirection: "column",
-          maxWidth: 480,
-          margin: "0 auto",
-          animation: epClosing ? "epFadeOut 0.3s ease-in forwards" : "epFadeIn 0.25s ease-out forwards",
-        }}
-      >
+      <>
         <style>{`
           @keyframes epFadeIn  { from { opacity: 0; } to { opacity: 1; } }
           @keyframes epFadeOut { from { opacity: 1; } to { opacity: 0; } }
           @keyframes epSlideUp   { from { transform: translateY(100%); opacity:0.6; } to { transform: translateY(0); opacity:1; } }
           @keyframes epSlideDown { from { transform: translateY(0); opacity:1; } to { transform: translateY(100%); opacity:0; } }
         `}</style>
-        <div
-          style={{
-            background: `color-mix(in srgb, ${th.card} 88%, transparent)`,
-            backdropFilter: "blur(24px)",
-            WebkitBackdropFilter: "blur(24px)",
-            borderRadius: "20px 20px 0 0",
-            borderTop: `1px solid ${th.border}`,
-            marginTop: 50,
-            display: "flex",
-            flexDirection: "column",
-            flex: 1,
-            overflow: "hidden",
-            animation: epClosing ? "epSlideDown 0.3s cubic-bezier(0.4,0,1,1) forwards" : "epSlideUp 0.35s cubic-bezier(0,0,0.2,1) forwards",
-          }}
-        >
+
+        {/* Backdrop */}
+        <div onClick={() => closeMe()} style={{
+          position:"fixed", inset:0, zIndex:70,
+          background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+          animation: epClosing ? "epFadeOut 0.3s ease-in forwards" : "epFadeIn 0.25s ease-out forwards",
+        }} />
+
+        {/* Sheet */}
+        <div style={{
+          position:"fixed", inset:0, zIndex:71,
+          display:"flex", flexDirection:"column",
+          maxWidth:480, margin:"0 auto", pointerEvents:"none",
+        }}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background: `color-mix(in srgb, ${th.card} 90%, transparent)`,
+            backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+            borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
+            marginTop:"calc(72px + env(safe-area-inset-top, 0px))",
+            display:"flex", flexDirection:"column", flex:1, overflow:"hidden",
+            pointerEvents:"auto",
+            animation: epClosing ? "epSlideDown 0.34s cubic-bezier(0.4,0,1,1) forwards" : "epSlideUp 0.42s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
           <div style={{ padding: "18px 18px 0" }}>
             <div
               style={{
@@ -3308,7 +3292,8 @@ import "./styles.css";
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -3437,6 +3422,7 @@ import "./styles.css";
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [pw, setPw] = useState("");
+    const [showPw, setShowPw] = useState(false);
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(false);
     const [forgotMode, setForgotMode] = useState(false);
@@ -3485,7 +3471,7 @@ import "./styles.css";
           isGuest: true,
         });
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false });
       } catch (e) {
         setErr(friendlyError(e.code));
       } finally {
@@ -3520,7 +3506,7 @@ import "./styles.css";
         });
         // 3. Seed default programs, but keep shortcuts empty so home tab is clean
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false });
         // 4. Reload Firebase user so displayName is fresh on next auth state change
         await cred.user.reload();
         // 5. Belt-and-suspenders: if auth state already fired with empty name, patch it directly
@@ -3685,26 +3671,42 @@ import "./styles.css";
             }}
           />
           {!forgotMode && (
-            <input
-              type="password"
-              placeholder="Password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              style={{
-                width: "100%",
-                background: "rgba(255,255,255,0.09)",
-                backdropFilter: "blur(10px)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: 12,
-                padding: "14px 16px",
-                color: "#f0f0f0",
-                fontSize: 16,
-                fontWeight: 500,
-                outline: "none",
-                fontFamily: "'Outfit',sans-serif",
-                marginBottom: 12,
-              }}
-            />
+            <div style={{ position:"relative", marginBottom:12 }}>
+              <input
+                type={showPw ? "text" : "password"}
+                placeholder="Password"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.09)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 12,
+                  padding: "14px 48px 14px 16px",
+                  color: "#f0f0f0",
+                  fontSize: 16,
+                  fontWeight: 500,
+                  outline: "none",
+                  fontFamily: "'Outfit',sans-serif",
+                  boxSizing: "border-box",
+                }}
+              />
+              <button onClick={() => setShowPw(v => !v)}
+                style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.5)", padding:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                {showPw ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           )}
           {tab === "login" && !forgotMode && (
             <div style={{ textAlign: "right", marginBottom: 8, marginTop: -4 }}>
@@ -5246,7 +5248,9 @@ import "./styles.css";
             <button
               onClick={() => setEditingDashboards(true)}
               style={{
-                background: `color-mix(in srgb, ${th.inputB} 40%, transparent)`,
+                background: `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
                 border: `1px solid ${th.border}`,
                 borderRadius: 20,
                 color: th.muted,
@@ -7119,7 +7123,7 @@ import "./styles.css";
                   </div>
                   {/* X decline */}
                   <button onClick={() => handleAction(inv.id, inv, "decline")} disabled={actioning[inv.id]}
-                    style={{ background:th.del, border:`1px solid ${th.delB}`, borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:15, flexShrink:0, opacity: actioning[inv.id]?0.4:1 }}>✕</button>
+                    style={{ background:"rgba(220,50,50,0.45)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:14, lineHeight:1, flexShrink:0, opacity: actioning[inv.id]?0.4:1 }}>✕</button>
                   {/* Accept */}
                   <button onClick={() => handleAction(inv.id, inv, "accept")} disabled={actioning[inv.id]}
                     style={{ background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT, flexShrink:0, opacity: actioning[inv.id]?0.4:1 }}>{actioning[inv.id] ? "…" : "ACCEPT"}</button>
@@ -7170,7 +7174,9 @@ import "./styles.css";
                 style={{
                   background: editFriends
                     ? `color-mix(in srgb, ${th.accentBg} 14%, transparent)`
-                    : `color-mix(in srgb, ${th.inputB} 40%, transparent)`,
+                    : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
                   border: editFriends
                     ? `1px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`
                     : `1px solid ${th.border}`,
@@ -7319,37 +7325,73 @@ import "./styles.css";
             </svg>
             INVITE A FRIEND
           </button>
-        ) : showInvitePanel ? (
-          <div style={{ ...S.card, padding:18, marginBottom:20, animation: inviteClosing ? "inviteClose 0.22s cubic-bezier(0.4,0,1,1) forwards" : "invitePop 0.28s cubic-bezier(0,0,0.2,1) forwards" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-              <div style={S.label}>SEND INVITATION</div>
-              <button onClick={closeInvitePanel} style={{ background:"none", border:"none", color:th.muted, cursor:"pointer", fontSize:18 }}>✕</button>
-            </div>
-            {inviteStatus === "sent" ? (
-              <div style={{ textAlign:"center", padding:"18px 0", animation:"sentBounce 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
-                <div style={{ fontSize:36, marginBottom:8 }}>✓</div>
-                <div style={{ color:th.accentFg, fontWeight:700, fontSize:15 }}>Invitation sent!</div>
-                <div style={{ color:th.muted, fontSize:13, marginTop:4 }}>They'll see it in their Sharing tab.</div>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize:14, color:th.muted, marginBottom:12, lineHeight:1.5, textAlign:"left" }}>
-                  Enter your friend's email. Once they accept, you'll both see each other's workouts.
-                </div>
-                <input type="email" placeholder="friend@example.com" value={inviteEmail}
-                  onChange={(e) => { setInviteEmail(e.target.value); if (inviteStatus === "error") setInviteStatus("idle"); }}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendInvite()}
-                  style={{ ...S.input, marginBottom: inviteStatus === "error" ? 6 : 12, animation: inviteStatus === "error" ? "inviteShake 0.3s ease" : "none" }}
-                  autoFocus />
-                {inviteStatus === "error" && <div style={{ fontSize:13, color:"#CC1F42", marginBottom:10 }}>{inviteError}</div>}
-                <button onClick={handleSendInvite} disabled={!inviteEmail.trim() || inviteStatus === "sending"}
-                  style={{ width:"100%", background: inviteEmail.trim() ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : th.inputB, border:"none", borderRadius:12, padding:"13px 0", cursor: inviteEmail.trim() ? "pointer" : "default", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color: inviteEmail.trim() ? th.accentT : th.dim, transition:"background .2s, color .2s", letterSpacing:"0.5px" }}>
-                  {inviteStatus === "sending" ? "SENDING…" : "SEND INVITE →"}
-                </button>
-              </>
-            )}
-          </div>
         ) : null}
+
+        {/* ── Invite popup modal ── */}
+        {showInvitePanel && (
+          <>
+            <style>{`
+              @keyframes inviteModalIn  { from{opacity:0;transform:scale(0.94) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
+              @keyframes inviteModalOut { from{opacity:1;transform:scale(1) translateY(0)} to{opacity:0;transform:scale(0.94) translateY(8px)} }
+              @keyframes inviteBdIn  { from{opacity:0} to{opacity:1} }
+              @keyframes inviteBdOut { from{opacity:1} to{opacity:0} }
+            `}</style>
+            <div onClick={closeInvitePanel}
+              style={{ position:"fixed", top:0, bottom:0, left:0, right:0, margin:"0 auto", width:"100%", maxWidth:480, zIndex:80, background:"rgba(0,0,0,0.52)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+                animation: inviteClosing ? "inviteBdOut 0.22s ease forwards" : "inviteBdIn 0.2s ease forwards" }} />
+            <div style={{
+              position:"fixed",
+              top:0, bottom:0, left:0, right:0,
+              margin:"0 auto",
+              width:"100%", maxWidth:480,
+              zIndex:81,
+              display:"flex",
+              alignItems:"center",
+              justifyContent:"center",
+              padding:"0 20px",
+              pointerEvents:"none",
+            }}>
+              <div style={{
+                width:"100%",
+                maxWidth:360,
+                background:`color-mix(in srgb, ${th.card} 88%, transparent)`,
+                backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+                border:`1px solid ${th.border}`, borderRadius:22,
+                padding:"24px 22px",
+                pointerEvents:"auto",
+                animation: inviteClosing ? "inviteModalOut 0.22s cubic-bezier(0.4,0,1,1) forwards" : "inviteModalIn 0.28s cubic-bezier(0,0,0.2,1) forwards",
+              }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <div className="bebas" style={{ fontSize:22, letterSpacing:2, color:th.text }}>INVITE A FRIEND</div>
+                <button onClick={closeInvitePanel} style={{ background:"none", border:"none", color:th.muted, cursor:"pointer", fontSize:22, lineHeight:1, padding:"2px 4px" }}>✕</button>
+              </div>
+              {inviteStatus === "sent" ? (
+                <div style={{ textAlign:"center", padding:"18px 0", animation:"sentBounce 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
+                  <div style={{ fontSize:40, marginBottom:8 }}>✓</div>
+                  <div style={{ color:th.accentFg, fontWeight:700, fontSize:16 }}>Invitation sent!</div>
+                  <div style={{ color:th.muted, fontSize:13, marginTop:4 }}>They'll see it in their Sharing tab.</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize:13, color:th.muted, marginBottom:14, lineHeight:1.55, textAlign:"left" }}>
+                    Enter your friend's email. Once they accept, you'll both see each other's workouts.
+                  </div>
+                  <input type="email" placeholder="friend@example.com" value={inviteEmail}
+                    onChange={(e) => { setInviteEmail(e.target.value); if (inviteStatus === "error") setInviteStatus("idle"); }}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendInvite()}
+                    style={{ ...S.input, marginBottom: inviteStatus === "error" ? 6 : 14, animation: inviteStatus === "error" ? "inviteShake 0.3s ease" : "none" }}
+                    autoFocus />
+                  {inviteStatus === "error" && <div style={{ fontSize:13, color:"#CC1F42", marginBottom:10 }}>{inviteError}</div>}
+                  <button onClick={handleSendInvite} disabled={!inviteEmail.trim() || inviteStatus === "sending"}
+                    style={{ width:"100%", background: inviteEmail.trim() ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : th.inputB, border:"none", borderRadius:12, padding:"13px 0", cursor: inviteEmail.trim() ? "pointer" : "default", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color: inviteEmail.trim() ? th.accentT : th.dim, transition:"background .2s, color .2s", letterSpacing:"0.5px" }}>
+                    {inviteStatus === "sending" ? "SENDING…" : "SEND INVITE →"}
+                  </button>
+                </>
+              )}
+            </div>
+            </div>
+          </>
+        )}
 
         {/* ── Sent invitations awaiting response ── */}
         {sentInvitations.length > 0 && (
@@ -7665,7 +7707,9 @@ import "./styles.css";
               <button onClick={() => setEditing(e => !e)} style={{
                 background: editing
                   ? `color-mix(in srgb, ${th.accentBg} 14%, transparent)`
-                  : `color-mix(in srgb, ${th.inputB} 40%, transparent)`,
+                  : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
                 border: editing
                   ? `1px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`
                   : `1px solid ${th.border}`,
@@ -8352,6 +8396,7 @@ import "./styles.css";
             onAdd={addEx}
             onClose={() => setShowPicker(false)}
             added={exercises.map((e) => e.exId)}
+            key="create-picker"
           />
         )}
         <div className="slide-up" style={{ paddingBottom: 100, paddingTop: 4 }}>
@@ -11924,7 +11969,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.6.2 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -12485,11 +12530,18 @@ import "./styles.css";
               if (Array.isArray(prev.homePrograms) && !Array.isArray(remote.homePrograms)) {
                 merged.homePrograms = prev.homePrograms;
               }
+              // Onboarding flags are sticky — once dismissed locally, never revert
+              // even if a stale snapshot still has the old false value
+              ["hasDashOnboarded", "hasProgramOnboarded", "hasProgramBuildOnboarded", "hasSharingOnboarded"].forEach(k => {
+                if (prev[k] === true) merged[k] = true;
+              });
               const changed =
                 JSON.stringify(merged.homeDashboards) !== JSON.stringify(prev.homeDashboards) ||
                 JSON.stringify(merged.homePrograms)   !== JSON.stringify(prev.homePrograms)   ||
-                merged.hasDashOnboarded    !== prev.hasDashOnboarded    ||
-                merged.hasProgramOnboarded !== prev.hasProgramOnboarded;
+                merged.hasDashOnboarded         !== prev.hasDashOnboarded         ||
+                merged.hasProgramOnboarded      !== prev.hasProgramOnboarded      ||
+                merged.hasProgramBuildOnboarded !== prev.hasProgramBuildOnboarded ||
+                merged.hasSharingOnboarded      !== prev.hasSharingOnboarded;
               if (changed) {
                 lsSet(uKey(user.id, "settings"), merged);
                 return merged;
@@ -12655,6 +12707,12 @@ import "./styles.css";
         </ThemeCtx.Provider>
       );
     const handleTemplate = (prog) => {
+      // Block starting a new session if one is already active
+      if (active) {
+        alert("A workout is currently in progress. Please finish or quit the current session before starting a new one.");
+        setView("workout");
+        return;
+      }
       // Convert program exs (new per-set format) to workout exercises and start directly
       const exercises = prog.exs
         .map((te) => {
@@ -13698,37 +13756,47 @@ import "./styles.css";
           {/* ── Programs FAB — floating + button above nav ── */}
           {view === "programs" && !hideNav && (
             <div
-              onClick={() => { setEditingProg(null); setView("editProgram"); }}
-              style={{
-                position: "absolute",
-                bottom: 95,
-                right: 28,
-                zIndex: 20,
-                width: 52,
-                height: 52,
-                borderRadius: 20,
-                background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                backdropFilter: "blur(14px)",
-                WebkitBackdropFilter: "blur(14px)",
-                border: `1px solid color-mix(in srgb, ${th.accentBg} 60%, transparent)`,
-                boxShadow: `0 4px 20px color-mix(in srgb, ${th.accentBg} 30%, transparent)`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                color: th.accentT,
-                fontSize: 26,
-                fontWeight: 300,
-                lineHeight: 1,
-                userSelect: "none",
-                transition: "transform .12s ease, opacity .12s ease",
-              }}
-              onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
-              onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
-              onTouchStart={e => e.currentTarget.style.transform = "scale(0.9)"}
-              onTouchEnd={e => e.currentTarget.style.transform = "scale(1)"}
+              style={{ position:"absolute", bottom:95, right:28, zIndex:20, width:52, height:52 }}
             >
-              +
+              <style>{`@keyframes fabRipple{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0.6}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}`}</style>
+              <div
+                onClick={() => { setEditingProg(null); setView("editProgram"); }}
+                onPointerDown={e => {
+                  const el = e.currentTarget;
+                  el.style.transform = "scale(0.88)";
+                  const wrap = el.parentElement;
+                  const old = wrap.querySelector(".fab-ripple");
+                  if (old) old.remove();
+                  const r = document.createElement("div");
+                  r.className = "fab-ripple";
+                  r.style.cssText = `position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;border:2.5px solid ${th.accentFg};pointer-events:none;animation:fabRipple 0.55s ease-out forwards;`;
+                  wrap.appendChild(r);
+                  setTimeout(() => r.remove(), 560);
+                }}
+                onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+                onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+                style={{
+                  width: 52, height: 52,
+                  borderRadius: 20,
+                  background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
+                  backdropFilter: "blur(14px)",
+                  WebkitBackdropFilter: "blur(14px)",
+                  border: `1px solid color-mix(in srgb, ${th.accentBg} 60%, transparent)`,
+                  boxShadow: `0 4px 20px color-mix(in srgb, ${th.accentBg} 30%, transparent)`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: th.accentT,
+                  fontSize: 26,
+                  fontWeight: 300,
+                  lineHeight: 1,
+                  userSelect: "none",
+                  transition: "transform .18s cubic-bezier(0.25,0.46,0.45,0.94)",
+                }}
+              >
+                +
+              </div>
             </div>
           )}
 
