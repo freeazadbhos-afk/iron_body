@@ -3837,7 +3837,7 @@ import "./styles.css";
             style={{
               marginTop: 48,
               textAlign: "center",
-              color: "rgba(200,240,48,0.4)",
+              color: "#c8f030",
               fontSize: 11,
               letterSpacing: "1.5px",
             }}
