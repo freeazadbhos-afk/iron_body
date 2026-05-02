@@ -7231,7 +7231,7 @@ import "./styles.css";
                           top: -4,
                           right: -4,
                           zIndex: 50,
-                          background: "rgba(160, 10, 10, 0.75)",
+                          background: "rgba(160, 10, 10, 0.65)",
                           backdropFilter: "blur(10px)",
                           WebkitBackdropFilter: "blur(10px)",
                           border: "1px solid rgba(220, 50, 50, 0.3)",
