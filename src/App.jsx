@@ -5132,11 +5132,11 @@ import "./styles.css";
                   style={{
                     background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
                     backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
-                    border:"none", borderRadius:9, color:th.accentT,
-                    padding:"6px 14px", cursor:"pointer", fontSize:12,
-                    fontFamily:"'Outfit',sans-serif", fontWeight:700, flexShrink:0,
+                    border:"none", borderRadius:8, color:th.accentT,
+                    padding:"0px 9px", cursor:"pointer", fontSize:20,
+                    fontFamily:"'Outfit',sans-serif", fontWeight:600, flexShrink:0,
                   }}
-                >+ Add</button>
+                >+</button>
               </div>
             ))
           )}
