@@ -7738,7 +7738,7 @@ import "./styles.css";
                     }}
                     style={{
                       position:"absolute", top:-8, right:-8, zIndex:50,
-                      background:"rgba(220,50,50,0.45)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                      background:"rgba(200,10,10,0.65)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
                       border:"1px solid rgba(220,50,50,0.3)", borderRadius:"50%",
                       minWidth:24, minHeight:24, width:24, height:24, aspectRatio:"1/1",
                       padding:0, boxSizing:"content-box",
