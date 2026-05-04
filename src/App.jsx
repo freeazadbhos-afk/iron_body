@@ -4099,12 +4099,12 @@ import "./styles.css";
                 padding:"8px 0",
                 borderBottom: i < PAGE-1 ? `1px solid ${th.border}` : "none",
               }}>
-                <div className="bebas" style={{ fontSize:14, color:th.dim, width:22, flexShrink:0, textAlign:"right" }}>
+                <div className="bebas" style={{ fontSize:20, color:th.dim, width:22, flexShrink:0, textAlign:"right" }}>
                   #{page*PAGE+i+1}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:th.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{pr.name}</div>
-                  <div style={{ fontSize:10, color:th.muted, marginTop:1 }}>
+                  <div style={{ fontSize:11, color:th.muted, marginTop:1 }}>
                     {pr.muscle}{pr.reps ? ` · ${pr.reps} reps` : ""} · {new Date(pr.t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
                   </div>
                 </div>
@@ -4663,7 +4663,7 @@ import "./styles.css";
               <div style={{ ...S.label }}>RELATIVE STRENGTH</div>
               <DashInfoBtn title="Relative Strength" text="Estimated 1RM (One-Rep Max) relative to your body weight for key lifts. A squat of 1.5x Bodyweight means you squat 1.5 times your own weight — a meaningful standard regardless of body size." />
             </div>
-          <div style={{ fontSize:10, color:th.dim }}>Bodyweight: {bw}kg</div>
+          <div style={{ fontSize:11, color:th.dim }}>Bodyweight: {bw}kg</div>
         </div>
         {rows.map(({ label, mult, target, best }) => {
           const pct = Math.min((mult / (target * 1.5)) * 100, 100);
@@ -4674,7 +4674,7 @@ import "./styles.css";
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
                 <div>
                   <span style={{ fontSize:13, fontWeight:600, color:th.text }}>{label}</span>
-                  <span style={{ fontSize:10, color:th.dim, marginLeft:6 }}>target {target}x</span>
+                  <span style={{ fontSize:12, color:th.dim, marginLeft:6 }}>target {target}x</span>
                 </div>
                 <span className="bebas" style={{ fontSize:24, color: hit ? th.accentFg : th.muted, lineHeight:1 }}>
                   {mult.toFixed(2)}x
@@ -4767,7 +4767,7 @@ import "./styles.css";
                   {d > 0 ? fmtD(d) : ""}
                 </div>
                 <div style={{ width:"100%", height:h, background: isCur ? th.accentBg : `${th.accentBg}55`, borderRadius:"3px 3px 0 0" }} />
-                <div style={{ fontSize:7, color:th.dim, marginTop:3, textAlign:"center", lineHeight:1.2 }}>{w.label}</div>
+                <div style={{ fontSize:9, color:th.dim, marginTop:3, textAlign:"center", lineHeight:1.2 }}>{w.label}</div>
               </div>
             );
           })}
