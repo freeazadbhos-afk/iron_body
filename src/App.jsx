@@ -7391,7 +7391,7 @@ import "./styles.css";
                         <span style={{ fontSize:11, color:th.dim }}>{fmtAgo(c.ts)}</span>
                         {isOwn && (
                           <button onClick={() => fsDeleteComment(postId, c.id)}
-                            style={{ marginLeft:"auto", background:"none",border:"none",color:th.dim,fontSize:11,cursor:"pointer",padding:0 }}>Delete</button>
+                            style={{ marginLeft:"auto", background:"none",border:"none",color:th.delText,fontSize:11,cursor:"pointer",padding:0 }}>Delete</button>
                         )}
                       </div>
                       <div style={{ fontSize:14, color:th.sub, lineHeight:1.5, background:th.sect, borderRadius:"4px 12px 12px 12px", padding:"8px 12px", display:"inline-block", maxWidth:"100%", wordBreak:"break-word" }}>
@@ -8299,7 +8299,7 @@ import "./styles.css";
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
-                        <span style={{ fontSize:13, fontWeight:600 }}>{commentCounts[`program_${sp.id}`] || ""}</span>
+                        <span style={{ fontSize:13, color:th.accentBg, fontWeight:600 }}>{commentCounts[`program_${sp.id}`] || ""}</span>
                       </button>
                       <div style={{ display:"flex",alignItems:"center",gap:6 }}>
                         {(() => {
