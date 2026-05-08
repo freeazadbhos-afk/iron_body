@@ -1440,7 +1440,7 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false };
   const ALL_DASHBOARDS = [
     { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
     { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
@@ -4097,9 +4097,9 @@ import "./styles.css";
           @keyframes tabSlideIn { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
           @keyframes tabSlideOut { from{opacity:1} to{opacity:0} }
         `}</style>
-        <div key={range} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7, animation:"tabSlideIn 0.2s ease-out" }}>
+        <div key={range} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gridTemplateRows:"1fr 1fr", gap:7, animation:"tabSlideIn 0.2s ease-out", minHeight:130 }}>
           {tiles.map(s => (
-            <div key={s.l} style={{ background:`color-mix(in srgb, ${th.sect} 60%, transparent)`, backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", borderRadius:10, padding:"12px 8px", textAlign:"center" }}>
+            <div key={s.l} style={{ background:`color-mix(in srgb, ${th.sect} 60%, transparent)`, backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", borderRadius:10, padding:"12px 8px", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
               <div className="bebas" style={{ fontSize:22, color:s.col, lineHeight:1, letterSpacing:0.5 }}>{s.v}</div>
               <div style={{ fontSize:9, color:th.dim, letterSpacing:"1.2px", marginTop:3 }}>{s.l}</div>
             </div>
@@ -6623,7 +6623,8 @@ import "./styles.css";
     const isOutgoing = isPending && comp?.fromUid === user.id;
 
     // Show challenge interface if finished or no competition
-    const showChallenge = !comp || isFinished;
+    const isDeclined = comp?.status === "declined";
+    const showChallenge = !comp || isFinished || isDeclined;
 
     // Normalize Firestore Timestamps or plain numbers to ms
     const toMs = (v) => {
@@ -6997,35 +6998,46 @@ import "./styles.css";
       {
         icon: (
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <rect x="2" y="3" width="18" height="5" rx="2.5" stroke={th.accentFg} strokeWidth="1.8"/>
+            <line x1="7" y1="5.5" x2="15" y2="5.5" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        ),
+        title: "Feed & Friends Tabs",
+        body: "The Sharing tab has two sections. FEED shows your friends' recent workouts, shared programs, and reactions. FRIENDS shows your connections and the monthly Iron Board leaderboard.",
+      },
+      {
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
             <circle cx="9" cy="7.5" r="3.5" stroke={th.accentFg} strokeWidth="2"/>
             <path d="M1 19.5c0-4.418 3.582-8 8-8" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/>
             <line x1="17" y1="11" x2="17" y2="19" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/>
             <line x1="13" y1="15" x2="21" y2="15" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/>
           </svg>
         ),
-        title: "Invite Friends",
-        body: "Tap INVITE A FRIEND and enter their email address. They'll get an invitation in their Sharing tab. Once they accept, you're connected.",
+        title: "Add Friends",
+        body: "Tap the + bubble or INVITE A FRIEND to connect. Suggested users from the app appear automatically. Once accepted, you'll see each other's workouts in your feeds.",
       },
       {
         icon: (
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
-            <circle cx="7" cy="7" r="2.8" stroke={th.accentFg} strokeWidth="1.8"/>
-            <path d="M1 19c0-3.314 2.686-6 6-6" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
-            <circle cx="15" cy="7" r="2.8" stroke={th.accentFg} strokeWidth="1.8"/>
-            <path d="M21 19c0-3.314-2.686-6-6-6" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+            <rect x="3" y="3" width="6" height="6" rx="1.5" stroke={th.accentFg} strokeWidth="1.8"/>
+            <rect x="13" y="3" width="6" height="6" rx="1.5" stroke={th.accentFg} strokeWidth="1.8"/>
+            <rect x="3" y="13" width="6" height="6" rx="1.5" stroke={th.accentFg} strokeWidth="1.8"/>
+            <path d="M13 16h6M16 13v6" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
         ),
-        title: "Friends List",
-        body: "Accepted friends appear as circular bubbles at the top. Tap any bubble to open their full dashboard — streak, volume, muscles trained, and more.",
+        title: "Share Workouts",
+        body: "Inside any program in the Workouts tab, tap the share icon to send it to a friend. They'll see it in their Feed and can save it to their own Workouts with one tap.",
       },
       {
         icon: (
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
             <polygon points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round" transform="translate(0 0) scale(0.55) translate(10 16)"/>
           </svg>
         ),
-        title: "React to Workouts",
-        body: "Completed workouts from friends appear in your Feed. Tap the star button on any session to react. Your friend gets notified right away.",
+        title: "React & Comment",
+        body: "Tap the ★ on any feed post to react — your friend gets notified. Tap the comment bubble to leave a message. Tap a star count to see who reacted.",
       },
       {
         icon: (
@@ -7033,18 +7045,8 @@ import "./styles.css";
             <path d="M11 2l2.4 6.8H20l-5.5 4 2.1 6.8L11 15.6l-5.6 4 2.1-6.8L2 8.8h6.6z" stroke="#D4AF37" strokeWidth="1.8" strokeLinejoin="round"/>
           </svg>
         ),
-        title: "Compete",
-        body: "Open a friend's dashboard and tap COMPETE to send a 7-day challenge. Scores are based on intensity, calories, consistency and activity. The bell icon notifies you of all competition events.",
-      },
-      {
-        icon: (
-          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
-            <path d="M4 4h14v10a4 4 0 01-4 4H8a4 4 0 01-4-4V4z" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
-            <path d="M8 18v2M14 18v2M6 20h10" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-        ),
-        title: "Notifications",
-        body: "Tap the bell icon at the top right of Sharing to see all your notifications — friend requests accepted, competition invites, and workout reactions.",
+        title: "Iron Board & Compete",
+        body: "Switch to Friends tab to see the monthly Iron Board — a live leaderboard ranking you and friends by intensity, calories, consistency and volume. Tap a friend bubble to open their dashboard and send a 7-day challenge.",
       },
     ];
 
@@ -7138,7 +7140,7 @@ import "./styles.css";
     );
   }
 
-  function SharedProgramSheet({ sp, user, onClose, onSave }) {
+  function SharedProgramSheet({ sp, user, friends, onClose, onSave }) {
     const th = useTheme();
     const S = useS();
     const [spClosing, setSpClosing] = useState(false);
@@ -7146,7 +7148,8 @@ import "./styles.css";
     const prog = sp.program || {};
     const isReceiver = sp.toUid === user?.id;
     const senderName = sp.fromName || "Someone";
-    const recipName  = sp.toName   || "Friend";
+    const recipientFriend = sp.toUid ? (friends || []).find(f => f.uid === sp.toUid) : null;
+    const recipName  = sp.toName || recipientFriend?.name || "Friend";
     const closeMe = () => { setSpClosing(true); setTimeout(onClose, 300); };
 
     return (
@@ -7197,7 +7200,19 @@ import "./styles.css";
                       </div>
                     )}
                     <span style={{ fontSize:13, color:th.muted }}>
-                      {isReceiver ? `${senderName.split(" ")[0]} shared this with you` : `You shared with ${recipName.split(" ")[0]}`}
+                      {isReceiver ? (
+                        <>
+                          <span style={{ fontWeight:700, color:th.text }}>{senderName}</span>
+                          <span> shared this with </span>
+                          <span style={{ fontWeight:700, color:th.text }}>you</span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontWeight:700, color:th.text }}>You</span>
+                          <span> shared with </span>
+                          <span style={{ fontWeight:700, color:th.text }}>{recipName}</span>
+                        </>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -7270,13 +7285,13 @@ import "./styles.css";
                   style={{
                     width:"100%",
                     background: saved
-                      ? `color-mix(in srgb, #1db954 25%, transparent)`
+                      ? `color-mix(in srgb, ${th.accentBg} 25%, transparent)`
                       : `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
                     backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
                     border:"none", borderRadius:13, padding:"14px",
                     cursor: saved ? "default" : "pointer",
                     fontFamily:"'Outfit',sans-serif", fontSize:14, fontWeight:700,
-                    letterSpacing:0.5, color: saved ? "#1db954" : th.accentT,
+                    letterSpacing:0.5, color: saved ? th.accentFg : th.accentT,
                     transition:"background .2s, color .2s",
                   }}
                 >{saved ? "✓ SAVED TO MY WORKOUTS" : "SAVE TO MY WORKOUTS"}</button>
@@ -7587,8 +7602,7 @@ import "./styles.css";
                 <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg, flexShrink:0 }}>{initials}</div>
               )}
               <div style={{ flex:1 }}>
-                <div style={{ fontWeight:700, fontSize:15, color: e.isMe ? th.accentFg : th.text }}>{e.isMe ? "You" : e.name.split(" ")[0]}</div>
-                <div style={{ fontSize:11, color:th.dim, marginTop:1 }}>{monthName}</div>
+                <div style={{ fontWeight:700, fontSize:15, textAlign:"left", color: e.isMe ? th.accentFg : th.text }}>{e.isMe ? "You" : e.name.split(" ")[0]}</div>
               </div>
               <div style={{ textAlign:"right", flexShrink:0 }}>
                 <div className="bebas" style={{ fontSize:22, letterSpacing:1, color: isTop ? "#D4AF37" : e.isMe ? th.accentFg : th.text, lineHeight:1 }}>{e.score}</div>
@@ -7628,11 +7642,11 @@ import "./styles.css";
           }}
           style={{
             background: state === "sent"
-              ? `color-mix(in srgb, #1db954 20%, transparent)`
+              ? `color-mix(in srgb, ${th.accentBg} 22%, transparent)`
               : `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
             border:"none", borderRadius:20, padding:"4px 10px", cursor: state === "sent" ? "default" : "pointer",
             fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:11,
-            color: state === "sent" ? "#1db954" : th.accentT,
+            color: state === "sent" ? th.accentFg : th.accentT,
             transition:"background .2s, color .2s", whiteSpace:"nowrap",
           }}
         >{state === "sending" ? "…" : state === "sent" ? "✓ Sent" : "+ Add"}</button>
@@ -7726,8 +7740,7 @@ import "./styles.css";
         const filtered = all
           .filter(u => u.uid && u.uid !== user.id && u.name && u.email
             && !friendUidSet.has(u.uid)
-            && !pendingEmails.has((u.email||"").toLowerCase()))
-          .slice(0, 3);
+            && !pendingEmails.has((u.email||"").toLowerCase()));
         setSuggestedUsers(filtered);
         setSuggestLoading(false);
       });
@@ -7833,8 +7846,9 @@ import "./styles.css";
         `}</style>
 
         {/* ── Sharing onboarding guide ── */}
-        {!settings?.hasSharingOnboarded && (
-          <SharingOnboarding onDismiss={() => onUpdateSettings?.({ ...settings, hasSharingOnboarded: true })} />
+        {/* Show onboarding if user hasn't seen v2 of the sharing guide */}
+        {!settings?.hasSharingOnboardedV2 && (
+          <SharingOnboarding onDismiss={() => onUpdateSettings?.({ ...settings, hasSharingOnboarded: true, hasSharingOnboardedV2: true })} />
         )}
 
         {/* ── Pending invitations received ── */}
@@ -7896,21 +7910,36 @@ import "./styles.css";
           );
         })}
 
-        {/* ── Tab switcher: FEED | FRIENDS ── */}
-        <div style={{ display:"flex", gap:6, marginBottom:16, padding:"2px", background:th.row, borderRadius:14 }}>
-          {["feed","friends"].map(t => (
-            <button key={t} onClick={() => setSharingTab(t)} style={{
-              flex:1, padding:"8px 0", border:"none", cursor:"pointer",
-              borderRadius:12, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
-              letterSpacing:"0.5px",
-              background: sharingTab === t ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
-              color: sharingTab === t ? th.accentT : th.dim,
-              transition:"background .18s, color .18s",
-            }}>
-              {t === "feed" ? "FEED" : "FRIENDS"}
-            </button>
-          ))}
-        </div>
+        {/* ── Tab switcher: FEED | FRIENDS — smooth sliding rounded pill ── */}
+        {(() => {
+          const tabs = ["feed","friends"];
+          const idx = tabs.indexOf(sharingTab);
+          return (
+            <div style={{ display:"flex", position:"relative", marginBottom:16, padding:"3px", background:th.row, borderRadius:14 }}>
+              {/* Sliding pill */}
+              <div style={{
+                position:"absolute", top:3, bottom:3,
+                width:"calc(50% - 3px)",
+                left: idx === 0 ? 3 : "calc(50%)",
+                background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                borderRadius:11,
+                transition:"left 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
+                pointerEvents:"none",
+              }} />
+              {tabs.map(t => (
+                <button key={t} onClick={() => setSharingTab(t)} style={{
+                  flex:1, padding:"9px 0", border:"none", cursor:"pointer",
+                  borderRadius:11, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
+                  letterSpacing:"0.5px", background:"transparent", position:"relative", zIndex:1,
+                  color: sharingTab === t ? th.accentT : th.dim,
+                  transition:"color 0.22s ease",
+                }}>
+                  {t === "feed" ? "FEED" : "FRIENDS"}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* ── Horizontal friends bubble row ── */}
         {sharingTab === "friends" && friends.length > 0 && (
@@ -8016,7 +8045,7 @@ import "./styles.css";
 
 
         {/* ── Friend dashboard sheet ── */}
-        {dashFriend && (
+        {dashFriend && createPortal(
           <FriendDashboardSheet
             friend={dashFriend}
             user={user}
@@ -8024,7 +8053,8 @@ import "./styles.css";
             onClose={() => setDashFriend(null)}
             onGetFriendSessions={onGetFriendSessions}
             onCompete={() => { setDashFriend(null); setTimeout(() => setCompeteFriend(dashFriend), 360); }}
-          />
+          />,
+          document.body
         )}
 
         {/* ── Shared program detail sheet ── */}
@@ -8032,6 +8062,7 @@ import "./styles.css";
           <SharedProgramSheet
             sp={openSharedProg}
             user={user}
+            friends={friends}
             onClose={() => setOpenSharedProg(null)}
             onSave={(prog) => {
               onSaveSharedProgram && onSaveSharedProgram(prog);
@@ -8054,7 +8085,7 @@ import "./styles.css";
         )}
 
         {/* ── Competition sheet ── */}
-        {competeFriend && (
+        {competeFriend && createPortal(
           <CompetitionSheet
             user={user}
             friend={competeFriend}
@@ -8066,7 +8097,8 @@ import "./styles.css";
             onAcceptCompeteInvite={onAcceptCompeteInvite}
             onDeclineCompeteInvite={onDeclineCompeteInvite}
             onWithdrawCompeteInvite={onWithdrawCompeteInvite}
-          />
+          />,
+          document.body
         )}
 
         {/* ── Empty state (no friends yet) ── */}
@@ -8257,20 +8289,30 @@ import "./styles.css";
                   <div key={`sp-${sp.id}-${direction}`} style={{ ...S.card, textAlign:"left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
                     {/* Sender row — identical for both sender and receiver */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                      {sPhoto ? (
-                        <img src={sPhoto} alt={sName} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
-                      ) : (
-                        <div style={{ width:36, height:36, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg, flexShrink:0 }}>{sInitials}</div>
-                      )}
+                      {(() => {
+                        const senderFriend = friends.find(f => f.uid === sp.fromUid);
+                        const handleAvatarTap = senderFriend ? () => setDashFriend(senderFriend) : undefined;
+                        return sPhoto ? (
+                          <img src={sPhoto} alt={sName} onClick={handleAvatarTap} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", flexShrink:0, cursor: handleAvatarTap ? "pointer" : "default" }} />
+                        ) : (
+                          <div onClick={handleAvatarTap} style={{ width:36, height:36, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg, flexShrink:0, cursor: handleAvatarTap ? "pointer" : "default" }}>{sInitials}</div>
+                        );
+                      })()}
                       <div style={{ flex:1 }}>
                         <span style={{ fontWeight:700, fontSize:14, color:th.text }}>
-                          {direction === "received" ? sName.split(" ")[0] : "You"}
+                          {direction === "received" ? sName : "You"}
                         </span>
-                        <span style={{ fontSize:13, color:th.muted }}>
-                          {direction === "received"
-                            ? " shared a program with you"
-                            : ` shared a program with ${recipName.split(" ")[0]}`}
-                        </span>
+                        {direction === "received" ? (
+                          <>
+                            <span style={{ fontSize:13, color:th.muted }}> shared a program with </span>
+                            <span style={{ fontWeight:700, fontSize:14, color:th.text }}>you</span>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ fontSize:13, color:th.muted }}> shared a program with </span>
+                            <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{recipName}</span>
+                          </>
+                        )}
                       </div>
                       <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(sp.ts)}</div>
                     </div>
@@ -8295,11 +8337,21 @@ import "./styles.css";
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
                       <button
                         onClick={() => setOpenComments({ postId: `program_${sp.id}` })}
-                        style={{ background:"none",border:"none",display:"flex",alignItems:"center",gap:5,cursor:"pointer",padding:"4px 0",color:th.dim }}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        style={{
+                          background:"transparent",
+                          border:`1.5px solid ${th.inputB}`,
+                          borderRadius:10, padding:"6px 10px", cursor:"pointer",
+                          display:"flex", alignItems:"center", gap:5,
+                          transition:"background .18s, border-color .18s",
+                          WebkitTapHighlightColor:"transparent",
+                          color:th.dim,
+                        }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
-                        <span style={{ fontSize:13, color:th.accentBg, fontWeight:600 }}>{commentCounts[`program_${sp.id}`] || ""}</span>
+                        {commentCounts[`program_${sp.id}`] > 0 && (
+                          <span style={{ fontSize:13, fontWeight:700, color:th.accentFg }}>{commentCounts[`program_${sp.id}`]}</span>
+                        )}
                       </button>
                       <div style={{ display:"flex",alignItems:"center",gap:6 }}>
                         {(() => {
@@ -8374,17 +8426,19 @@ import "./styles.css";
 
               return (
                 <div key={`${f.uid}-${sid || i}`} style={{ ...S.card, textAlign: "left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
-                  {/* Friend row */}
+                  {/* Friend row — tap avatar to open dashboard */}
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                    <div onClick={() => setDashFriend(f)} style={{ cursor:"pointer", flexShrink:0 }}>
                     {f.photoURL ? (
-                      <img src={f.photoURL} alt={f.name} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                      <img src={f.photoURL} alt={f.name} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", display:"block" }} />
                     ) : (
-                      <div style={{ width:36, height:36, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+                      <div style={{ width:36, height:36, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg }}>
                         {initials}
                       </div>
                     )}
+                    </div>
                     <div style={{ flex:1 }}>
-                      <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{f.name.split(" ")[0]}</span>
+                      <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{f.name}</span>
                       <span style={{ fontSize:13, color:th.muted }}> completed a workout</span>
                     </div>
                     <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(s.startTime)}</div>
@@ -8414,14 +8468,24 @@ import "./styles.css";
                     )}
                     {/* Interaction row: star + comments */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10 }}>
-                      {/* Comment button */}
+                      {/* Comment button — same style as star button */}
                       <button
                         onClick={() => setOpenComments({ postId: `session_${f.uid}_${sid}` })}
-                        style={{ background:"none", border:"none", display:"flex", alignItems:"center", gap:5, cursor:"pointer", padding:"4px 0", color:th.dim }}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        style={{
+                          background:"transparent",
+                          border:`1.5px solid ${th.inputB}`,
+                          borderRadius:10, padding:"6px 10px", cursor:"pointer",
+                          display:"flex", alignItems:"center", gap:5,
+                          transition:"background .18s, border-color .18s",
+                          WebkitTapHighlightColor:"transparent",
+                          color:th.dim,
+                        }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
-                        <span style={{ fontSize:13, fontWeight:600 }}>{commentCounts[`session_${f.uid}_${sid}`] || ""}</span>
+                        {commentCounts[`session_${f.uid}_${sid}`] > 0 && (
+                          <span style={{ fontSize:13, fontWeight:700, color:th.accentFg }}>{commentCounts[`session_${f.uid}_${sid}`]}</span>
+                        )}
                       </button>
                       {/* Star + count */}
                       <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -13017,7 +13081,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.7.0 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.7.1 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -13399,6 +13463,7 @@ import "./styles.css";
     const [starNotifications, setStarNotifications]   = useState([]); // reactions on own sessions
     const [unreadStars, setUnreadStars]               = useState(0);
     const [notifOpen, setNotifOpen]                   = useState(false);
+    const [bellRipple, setBellRipple]                 = useState(false);
     const [notifClosing, setNotifClosing]             = useState(false);
     const closeNotif = () => { setNotifClosing(true); setTimeout(() => { setNotifOpen(false); setNotifClosing(false); }, 220); };
     const [lastReadNotif, setLastReadNotif]            = useState(() => parseInt(localStorage.getItem("ib3-lastReadNotif") || "0"));
@@ -13524,12 +13589,27 @@ import "./styles.css";
       const a = ls(uKey(user.id, "active"), null);
       if (a) {
         setActive(a);
-        const elapsed = Math.floor((Date.now() - a.startTime) / 1000);
-        elRef.current = elapsed;
-        setElapsed(elapsed);
-        startTsRef.current = a.startTime;
-        totalPausedRef.current = 0;
-        pauseStartRef.current = null;
+        const timer = a.timer || null;
+        const restoredPaused = !!timer?.paused;
+        let restoredElapsed = 0;
+
+        if (timer && typeof timer.elapsedSeconds === "number") {
+          elapsedBeforeRunRef.current = timer.elapsedSeconds || 0;
+          runStartedAtRef.current = restoredPaused ? null : (timer.runStartedAt || Date.now());
+          restoredElapsed = restoredPaused
+            ? elapsedBeforeRunRef.current
+            : elapsedBeforeRunRef.current + Math.floor((Date.now() - runStartedAtRef.current) / 1000);
+        } else {
+          // Legacy active workouts only stored startTime.
+          elapsedBeforeRunRef.current = 0;
+          runStartedAtRef.current = a.startTime || Date.now();
+          restoredElapsed = Math.floor((Date.now() - runStartedAtRef.current) / 1000);
+        }
+
+        pausedRef.current = restoredPaused;
+        setPaused(restoredPaused);
+        elRef.current = Math.max(0, restoredElapsed);
+        setElapsed(Math.max(0, restoredElapsed));
         // Only auto-jump to workout view on the FIRST mount of this user session.
         // Subsequent user updates (profile sync, photo change, etc.) must NOT
         // hijack navigation while the user is browsing other tabs in PiP mode.
@@ -13589,7 +13669,7 @@ import "./styles.css";
               }
               // Onboarding flags are sticky — once dismissed locally, never revert
               // even if a stale snapshot still has the old false value
-              ["hasDashOnboarded", "hasProgramOnboarded", "hasProgramBuildOnboarded", "hasSharingOnboarded"].forEach(k => {
+              ["hasDashOnboarded", "hasProgramOnboarded", "hasProgramBuildOnboarded", "hasSharingOnboarded", "hasSharingOnboardedV2"].forEach(k => {
                 if (prev[k] === true) merged[k] = true;
               });
               const changed =
@@ -13598,7 +13678,8 @@ import "./styles.css";
                 merged.hasDashOnboarded         !== prev.hasDashOnboarded         ||
                 merged.hasProgramOnboarded      !== prev.hasProgramOnboarded      ||
                 merged.hasProgramBuildOnboarded !== prev.hasProgramBuildOnboarded ||
-                merged.hasSharingOnboarded      !== prev.hasSharingOnboarded;
+                merged.hasSharingOnboarded      !== prev.hasSharingOnboarded ||
+                merged.hasSharingOnboardedV2    !== prev.hasSharingOnboardedV2;
               if (changed) {
                 lsSet(uKey(user.id, "settings"), merged);
                 return merged;
@@ -13668,63 +13749,142 @@ import "./styles.css";
 
       return () => { unsubReceived(); unsubSent(); unsubFriends(); unsubCompete(); unsubReactions(); unsubNotifs(); };
     }, [user?.id, user?.email]);
+    // ── Timer: accumulator-based so pause is a hard freeze ──────────────────────
+    const elapsedBeforeRunRef = useRef(0); // whole seconds accumulated before current run segment
+    const runStartedAtRef = useRef(null); // Date.now() for the current run segment, null while paused
+    const pausedRef = useRef(paused);
+
+    useEffect(() => {
+      pausedRef.current = paused;
+    }, [paused]);
+
+    const clearWorkoutInterval = useCallback(() => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }, []);
+
+    const readElapsedSeconds = useCallback(() => {
+      const base = elapsedBeforeRunRef.current || 0;
+      if (pausedRef.current || !runStartedAtRef.current) return base;
+      return Math.max(0, base + Math.floor((Date.now() - runStartedAtRef.current) / 1000));
+    }, []);
+
+    const syncElapsedFromClock = useCallback(() => {
+      const secs = readElapsedSeconds();
+      elRef.current = secs;
+      setElapsed(secs);
+    }, [readElapsedSeconds]);
+
+    const timerSnapshot = useCallback((isPaused = pausedRef.current) => {
+      const elapsedSeconds = isPaused ? readElapsedSeconds() : (elapsedBeforeRunRef.current || 0);
+      return {
+        paused: isPaused,
+        elapsedSeconds,
+        runStartedAt: isPaused ? null : runStartedAtRef.current,
+      };
+    }, [readElapsedSeconds]);
+    const userId = user?.id;
+
     const saveActive = (a) => {
-      setActive(a);
-      lsSet(uKey(user.id, "active"), a);
+      if (!userId) return;
+      const next = a
+        ? { ...a, timer: a.timer || timerSnapshot() }
+        : a;
+      setActive(next);
+      lsSet(uKey(userId, "active"), next);
     };
 
-    // ── Timer: timestamp-based so it survives lock screen / tab switch ──────────
-    const pauseStartRef = useRef(null); // when current pause began
-    const totalPausedRef = useRef(0); // ms paused so far this session
-    const startTsRef = useRef(0); // Date.now() when workout started
+    const persistActiveTimer = useCallback((isPaused, elapsedSeconds, runStartedAt) => {
+      if (!active || !userId) return;
+      const next = {
+        ...active,
+        timer: { paused: isPaused, elapsedSeconds, runStartedAt },
+      };
+      setActive(next);
+      lsSet(uKey(userId, "active"), next);
+    }, [active, userId]);
 
-    const startTimer = useCallback(() => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        const raw = Date.now() - startTsRef.current - totalPausedRef.current;
-        const secs = Math.floor(raw / 1000);
-        elRef.current = secs;
-        setElapsed(secs);
-      }, 500); // poll every 500 ms — fast enough, won't drift
-    }, []);
+    const pauseWorkoutTimer = useCallback(() => {
+      if (!active || pausedRef.current) return;
+      const frozenSecs = readElapsedSeconds();
+      clearWorkoutInterval();
+      elapsedBeforeRunRef.current = frozenSecs;
+      runStartedAtRef.current = null;
+      pausedRef.current = true;
+      elRef.current = frozenSecs;
+      setElapsed(frozenSecs);
+      setPaused(true);
+      persistActiveTimer(true, frozenSecs, null);
+    }, [active, clearWorkoutInterval, persistActiveTimer, readElapsedSeconds]);
 
-    const stopTimer = useCallback(() => {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }, []);
+    const resumeWorkoutTimer = useCallback(() => {
+      if (!active || !pausedRef.current) return;
+      const resumedAt = Date.now();
+      elapsedBeforeRunRef.current = elRef.current || elapsedBeforeRunRef.current || 0;
+      runStartedAtRef.current = resumedAt;
+      pausedRef.current = false;
+      setPaused(false);
+      persistActiveTimer(false, elapsedBeforeRunRef.current, resumedAt);
+    }, [active, persistActiveTimer]);
+
+    const toggleWorkoutPause = useCallback(() => {
+      if (pausedRef.current) {
+        resumeWorkoutTimer();
+      } else {
+        pauseWorkoutTimer();
+      }
+    }, [pauseWorkoutTimer, resumeWorkoutTimer]);
+
+    const resetWorkoutTimerState = useCallback(() => {
+      clearWorkoutInterval();
+      elapsedBeforeRunRef.current = 0;
+      runStartedAtRef.current = null;
+      pausedRef.current = false;
+      elRef.current = 0;
+      setElapsed(0);
+      setPaused(false);
+    }, [clearWorkoutInterval]);
+    const activeWorkoutId = active?.id;
 
     // Recalculate elapsed when page becomes visible again (phone unlocked)
     useEffect(() => {
       const onVisible = () => {
-        if (active && !paused) {
-          const raw = Date.now() - startTsRef.current - totalPausedRef.current;
-          const secs = Math.floor(raw / 1000);
-          elRef.current = secs;
-          setElapsed(secs);
-        }
+        if (activeWorkoutId && !pausedRef.current) syncElapsedFromClock();
       };
       document.addEventListener("visibilitychange", onVisible);
       return () => document.removeEventListener("visibilitychange", onVisible);
-    }, [active, paused]);
+    }, [activeWorkoutId, syncElapsedFromClock]);
 
-    // Timer runs whenever a workout is active and not paused — even when minimized
+    // Timer is created only while running. Set logging updates the active workout,
+    // but does not restart this interval because the dependency is active?.id.
     useEffect(() => {
-      if (active && !paused) {
-        // Resuming from pause — account for time spent paused
-        if (pauseStartRef.current) {
-          totalPausedRef.current += Date.now() - pauseStartRef.current;
-          pauseStartRef.current = null;
-        }
-        startTimer();
-      } else {
-        stopTimer();
-        // Record when pause started
-        if (active && paused && !pauseStartRef.current) {
-          pauseStartRef.current = Date.now();
-        }
+      if (!activeWorkoutId) {
+        clearWorkoutInterval();
+        return;
       }
-      return stopTimer;
-    }, [active, paused, startTimer, stopTimer]);
+
+      if (paused) {
+        clearWorkoutInterval();
+        syncElapsedFromClock();
+        return;
+      }
+
+      if (!runStartedAtRef.current) {
+        runStartedAtRef.current = Date.now();
+      }
+
+      clearWorkoutInterval();
+      syncElapsedFromClock();
+      timerRef.current = setInterval(syncElapsedFromClock, 250);
+
+      return clearWorkoutInterval;
+    }, [activeWorkoutId, clearWorkoutInterval, paused, syncElapsedFromClock]);
+
+    // No-op shims for any leftover callers (handleFinishWorkout etc.)
+    const startTimer = useCallback(() => {}, []);
+    const stopTimer = clearWorkoutInterval;
 
     if (authLoading)
       return (
@@ -13835,14 +13995,19 @@ import "./styles.css";
         startTime: now,
         exercises: data.exercises,
         progId: data.progId || null,
+        timer: {
+          paused: false,
+          elapsedSeconds: 0,
+          runStartedAt: now,
+        },
       };
+      clearWorkoutInterval();
+      elapsedBeforeRunRef.current = 0;
+      runStartedAtRef.current = now;
+      pausedRef.current = false;
       elRef.current = 0;
       setElapsed(0);
       setPaused(false);
-      startTsRef.current = now;
-      totalPausedRef.current = 0;
-      pauseStartRef.current = null;
-      setActive(session);
       saveActive(session);
       setView("workout");
     };
@@ -13867,7 +14032,8 @@ import "./styles.css";
         (a, ex) => a + ex.sets.filter((s) => s.done).length,
         0
       );
-      setFinished({ ...active, exercises, totalSets: total, doneSets: done });
+      const { timer, ...activeSession } = active || {};
+      setFinished({ ...activeSession, exercises, totalSets: total, doneSets: done });
       stopTimer();
       setView("complete");
     };
@@ -13932,13 +14098,14 @@ import "./styles.css";
       lsDel(uKey(user.id, "active"));
       setActive(null);
       setFinished(null);
+      resetWorkoutTimerState();
       setView("home");
     };
     const handleAbandon = () => {
       if (!window.confirm("Abandon workout? Progress will be lost.")) return;
       lsDel(uKey(user.id, "active"));
       setActive(null);
-      stopTimer();
+      resetWorkoutTimerState();
       setView("home");
     };
     const handleLogout = async () => {
@@ -13948,6 +14115,7 @@ import "./styles.css";
       setSessions([]);
       setPrograms([]);
       setActive(null);
+      resetWorkoutTimerState();
     };
 
     const handleSync = async () => {
@@ -14185,9 +14353,9 @@ import "./styles.css";
                     flexShrink: 0,
                     marginLeft: 10,
                   }}
-                >
+                  >
                   <button
-                    onClick={() => setPaused((p) => !p)}
+                    onClick={toggleWorkoutPause}
                     style={{
                       background: paused ? th.pause : "transparent",
                       border: `1px solid ${paused ? th.pauseB : th.inputB}`,
@@ -14369,6 +14537,7 @@ import "./styles.css";
               {view === "sharing" && (
                 <button
                   onClick={() => {
+                    setBellRipple(true); setTimeout(() => setBellRipple(false), 500);
                     if (notifOpen) { closeNotif(); } else { setNotifOpen(true); }
                     if (unreadStars > 0) {
                       const now = Date.now();
@@ -14397,11 +14566,17 @@ import "./styles.css";
                     border: `1.5px solid ${th.border}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     position: "relative",
+                    overflow: "hidden",
+                    transition: "background 0.2s",
                   }}>
+                    <style>{`@keyframes bellRipple{0%{transform:scale(0);opacity:0.35}100%{transform:scale(3.5);opacity:0}}`}</style>
                     <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
                       <path d="M11 2C7.686 2 5 4.686 5 8v5l-2 2v1h16v-1l-2-2V8c0-3.314-2.686-6-6-6z" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
                       <path d="M9 18a2 2 0 004 0" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
                     </svg>
+                    {bellRipple && (
+                      <div style={{ position:"absolute", width:44, height:44, borderRadius:"50%", background:th.accentFg, animation:"bellRipple 0.5s ease-out forwards", pointerEvents:"none" }} />
+                    )}
                     {unreadStars > 0 && (
                       <div style={{
                         position: "absolute", top: 2, right: 2,
@@ -14690,7 +14865,7 @@ import "./styles.css";
                 pct={wPct}
                 doneSets={wDoneSets}
                 totalSets={wTotalSets}
-                onTogglePause={() => setPaused((p) => !p)}
+                onTogglePause={toggleWorkoutPause}
                 onFinish={handleFinishWorkout}
                 onAbandon={handleAbandon}
                 onSaveActive={saveActive}
@@ -15481,13 +15656,13 @@ import "./styles.css";
                         }}
                         style={{
                           background: state === "sent"
-                            ? `color-mix(in srgb, #1db954 20%, transparent)`
+                            ? `color-mix(in srgb, ${th.accentBg} 22%, transparent)`
                             : `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
                           backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
                           border:"none", borderRadius:10,
                           padding:"7px 16px", cursor: state === "sent" ? "default" : "pointer",
                           fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13,
-                          color: state === "sent" ? "#1db954" : th.accentT,
+                          color: state === "sent" ? th.accentFg : th.accentT,
                           letterSpacing:"0.5px", transition:"background .2s, color .2s", flexShrink:0,
                         }}
                       >{state === "sending" ? "…" : state === "sent" ? "✓ Sent" : "Send"}</button>
