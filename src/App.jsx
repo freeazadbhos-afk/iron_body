@@ -7602,7 +7602,8 @@ import "./styles.css";
                 <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg, flexShrink:0 }}>{initials}</div>
               )}
               <div style={{ flex:1 }}>
-                <div style={{ fontWeight:700, fontSize:15, textAlign:"left", color: e.isMe ? th.accentFg : th.text }}>{e.isMe ? "You" : e.name.split(" ")[0]}</div>
+                <div style={{ fontWeight:700, fontSize:15, color: e.isMe ? th.accentFg : th.text }}>{e.isMe ? "You" : e.name.split(" ")[0]}</div>
+                <div style={{ fontSize:11, color:th.dim, marginTop:1 }}>{monthName}</div>
               </div>
               <div style={{ textAlign:"right", flexShrink:0 }}>
                 <div className="bebas" style={{ fontSize:22, letterSpacing:1, color: isTop ? "#D4AF37" : e.isMe ? th.accentFg : th.text, lineHeight:1 }}>{e.score}</div>
@@ -9227,7 +9228,11 @@ import "./styles.css";
               onClick={() => onShare && onShare({ id: program?.id || uid(), name: name.trim(), exs })}
               disabled={!name.trim() || exs.length === 0}
               style={{
-                width: 50, height: 50, flexShrink: 0,
+                width: 50, height: 50, minWidth: 50, maxWidth: 50, minHeight: 50, maxHeight: 50,
+                aspectRatio: "1 / 1",
+                flex: "0 0 50px",
+                flexShrink: 0,
+                boxSizing: "border-box",
                 background: (!name.trim() || exs.length === 0)
                   ? `color-mix(in srgb, ${th.card} 40%, transparent)`
                   : `color-mix(in srgb, ${th.accentBg} 12%, ${th.card})`,
@@ -9237,14 +9242,25 @@ import "./styles.css";
                 cursor: (!name.trim() || exs.length === 0) ? "default" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 transition: "background .2s, border-color .2s",
+                padding: 0,
+                lineHeight: 0,
+                overflow: "hidden",
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <circle cx="18" cy="5" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2"/>
-                <circle cx="6" cy="12" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2"/>
-                <circle cx="18" cy="19" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round"/>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round"/>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                focusable="false"
+                style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, maxWidth: 22, maxHeight: 22, display: "block", flex: "0 0 22px", overflow: "visible" }}
+              >
+                <circle cx="18" cy="5" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" vectorEffect="non-scaling-stroke"/>
+                <circle cx="6" cy="12" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" vectorEffect="non-scaling-stroke"/>
+                <circle cx="18" cy="19" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" vectorEffect="non-scaling-stroke"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
               </svg>
             </button>
           )}
