@@ -1813,11 +1813,15 @@ import "./styles.css";
   async function fsGetPrograms(uid) {
     try {
       const snap = await getDoc(doc(fbDb, "users", uid, "data", "programs"));
-      if (!snap.exists()) return null;
-      return snap.data().list || null;
+      if (!snap.exists()) return [];        // doc doesn't exist = empty
+      return snap.data().list || [];        // exists but no list = empty
     } catch (e) {
-      console.error("fsGetPrograms:", e.code, e.message);
-      return null;
+      if (e?.code === "permission-denied") {
+        console.warn("fsGetPrograms: permission denied for uid", uid, "— Firestore rule needed: allow coach read on users/{uid}/data/programs");
+      } else {
+        console.error("fsGetPrograms:", e.code, e.message);
+      }
+      return null;                          // null = read failed (rules or network)
     }
   }
   async function fsSavePrograms(uid, list) {
@@ -1875,6 +1879,21 @@ import "./styles.css";
         status: "pending",
         createdAt: serverTimestamp(),
       });
+      // Try to find the recipient's UID via publicProfiles to push a notification
+      try {
+        const q = query(collection(fbDb, "publicProfiles"), where("email", "==", toEmail.toLowerCase().trim()));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const toUid = snap.docs[0].id;
+          fsPushNotification(toUid, {
+            type: "friend_request",
+            fromUid,
+            name: fromName,
+            photoURL: fromPhotoURL || null,
+            text: `${fromName} sent you a friend request`,
+          });
+        }
+      } catch (_) { /* notification is best-effort */ }
       return { ok: true };
     } catch (e) {
       console.error("fsSendInvitation:", e);
@@ -2140,9 +2159,154 @@ import "./styles.css";
       const docs = snap.docs.map(d => d.data());
       return docs.sort((a, b) => (b.startTime || 0) - (a.startTime || 0)).slice(0, 60);
     } catch (e) {
-      return [];
+      if (e?.code === "permission-denied") {
+        console.warn("fsGetFriendSessions: permission denied for uid", friendUid, "— Firestore rule needed: allow coach read on users/{uid}/sessions");
+      } else {
+        console.error("fsGetFriendSessions:", e.code, e.message);
+      }
+      return null; // null = failed (rules or network); [] would mean exists-but-empty
     }
   }
+
+  /* ─── Coaching ──────────────────────────────────────────────────────────────── */
+  async function fsSendCoachRequest(fromUid, fromName, fromPhotoURL, toUid, toEmail, toName) {
+    try {
+      const docId     = `${fromUid}_${toUid}`;
+      const reverseId = `${toUid}_${fromUid}`;
+
+      // Firestore rules deny reads of non-existent documents (resource is null → rule error).
+      // Wrap each read individually — permission-denied on a non-existent doc = treat as absent.
+      const safeGet = async (id) => {
+        try {
+          const snap = await getDoc(doc(fbDb, "coachRequests", id));
+          return snap.exists() ? snap.data() : null;
+        } catch (e) {
+          // permission-denied here means the doc doesn't exist (null resource in rule)
+          // OR we genuinely can't read it — either way, not a blocking condition for creation
+          return null;
+        }
+      };
+
+      const [fwdData, revData] = await Promise.all([safeGet(docId), safeGet(reverseId)]);
+
+      if (
+        (fwdData && ["pending","accepted"].includes(fwdData.status)) ||
+        (revData && ["pending","accepted"].includes(revData.status))
+      ) return { ok: false, reason: "already_exists" };
+
+      await setDoc(doc(fbDb, "coachRequests", docId), {
+        fromUid, fromName, fromPhotoURL: fromPhotoURL || null,
+        toUid, toEmail, toName: toName || "",
+        status: "pending",
+        createdAt: Date.now(),
+      });
+      // Notify the athlete about the incoming coaching request
+      fsPushNotification(toUid, {
+        type: "coach_request",
+        fromUid,
+        name: fromName,
+        photoURL: fromPhotoURL || null,
+        text: `${fromName} wants to be your coach`,
+      });
+      return { ok: true };
+    } catch (e) {
+      console.error("fsSendCoachRequest:", e);
+      return { ok: false };
+    }
+  }
+
+  async function fsAcceptCoachRequest(requestId) {
+    try {
+      const reqSnap = await getDoc(doc(fbDb, "coachRequests", requestId));
+      if (!reqSnap.exists()) return false;
+      const data = reqSnap.data();
+      const deterministicId = `${data.fromUid}_${data.toUid}`;
+
+      if (requestId === deterministicId) {
+        await updateDoc(doc(fbDb, "coachRequests", requestId), { status: "accepted" });
+      } else {
+        await setDoc(doc(fbDb, "coachRequests", deterministicId), { ...data, status: "accepted" });
+        deleteDoc(doc(fbDb, "coachRequests", requestId)).catch(() => {});
+      }
+      // Notify the coach that their request was accepted
+      fsPushNotification(data.fromUid, {
+        type: "coach_accepted",
+        fromUid: data.toUid,
+        name: data.toName || "Your athlete",
+        photoURL: null,
+        text: `${data.toName || "Your athlete"} accepted your coaching request`,
+      });
+      return true;
+    } catch (e) { console.error("fsAcceptCoachRequest:", e); return false; }
+  }
+
+  async function fsDeclineCoachRequest(requestId) {
+    try {
+      await updateDoc(doc(fbDb, "coachRequests", requestId), { status: "declined" });
+      return true;
+    } catch (e) { console.error("fsDeclineCoachRequest:", e); return false; }
+  }
+
+  async function fsWithdrawCoachRequest(requestId) {
+    try {
+      await deleteDoc(doc(fbDb, "coachRequests", requestId));
+      return true;
+    } catch (e) { console.error("fsWithdrawCoachRequest:", e); return false; }
+  }
+
+  async function fsStopCoaching(requestId) {
+    try {
+      await deleteDoc(doc(fbDb, "coachRequests", requestId));
+      return true;
+    } catch (e) { console.error("fsStopCoaching:", e); return false; }
+  }
+
+  // Sent requests where user is the coach (fromUid) with status=pending
+  function fsListenSentCoachRequests(uid, cb) {
+    const q = query(collection(fbDb, "coachRequests"), where("fromUid","==",uid), where("status","==","pending"));
+    return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => cb([]));
+  }
+
+  // Incoming requests where user is the athlete (toUid) with status=pending
+  function fsListenIncomingCoachRequests(uid, cb) {
+    const q = query(collection(fbDb, "coachRequests"), where("toUid","==",uid), where("status","==","pending"));
+    return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => cb([]));
+  }
+
+  // All accepted coaching relations involving this user (as coach or athlete)
+  function fsListenCoachRelations(uid, cb) {
+    let asCoach = [], asAthlete = [];
+    const merge = () => cb([...asCoach, ...asAthlete]);
+    const u1 = onSnapshot(
+      query(collection(fbDb, "coachRequests"), where("fromUid","==",uid), where("status","==","accepted")),
+      snap => { asCoach = snap.docs.map(d => ({ id: d.id, ...d.data() })); merge(); }, () => {}
+    );
+    const u2 = onSnapshot(
+      query(collection(fbDb, "coachRequests"), where("toUid","==",uid), where("status","==","accepted")),
+      snap => { asAthlete = snap.docs.map(d => ({ id: d.id, ...d.data() })); merge(); }, () => {}
+    );
+    return () => { u1(); u2(); };
+  }
+
+  // Get all coach requests involving two specific users (any direction, any status)
+  async function fsGetCoachRequestBetween(uid1, uid2) {
+    try {
+      const [s1, s2] = await Promise.all([
+        getDocs(query(collection(fbDb, "coachRequests"), where("fromUid","==",uid1), where("toUid","==",uid2))),
+        getDocs(query(collection(fbDb, "coachRequests"), where("fromUid","==",uid2), where("toUid","==",uid1))),
+      ]);
+      return [...s1.docs, ...s2.docs].map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) { return []; }
+  }
+
+  async function fsGetFriendPrograms(friendUid) {
+    return fsGetPrograms(friendUid);
+  }
+
+  async function fsSaveCoachPrograms(athleteUid, list) {
+    return fsSavePrograms(athleteUid, list);
+  }
+
   function fsListenInvitationsReceived(userEmail, cb) {
     const q = query(
       collection(fbDb, "invitations"),
@@ -2312,10 +2476,14 @@ import "./styles.css";
   async function fsGetMeasurements(uid) {
     try {
       const snap = await getDoc(doc(fbDb, "users", uid, "data", "measurements"));
-      return snap.exists() ? snap.data().list : null;
+      return snap.exists() ? (snap.data().list || []) : [];
     } catch (e) {
-      console.error("fsGetMeasurements:", e.code, e.message);
-      return null;
+      if (e?.code !== "permission-denied") {
+        console.error("fsGetMeasurements:", e.code, e.message);
+      } else {
+        console.warn("fsGetMeasurements: permission denied for uid", uid, "— check Firestore rules for coach access to users/{uid}/data/measurements");
+      }
+      return null; // null = failed (vs [] = exists but empty)
     }
   }
   async function fsSaveMeasurements(uid, list) {
@@ -2365,7 +2533,7 @@ import "./styles.css";
       <button
         onClick={disabled ? undefined : onClick}
         style={{
-          border: "none",
+          border: `1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`,
           borderRadius: 13,
           cursor: disabled ? "not-allowed" : "pointer",
           fontFamily: "'Bebas Neue',sans-serif",
@@ -2373,11 +2541,14 @@ import "./styles.css";
           fontSize: 18,
           fontWeight: 700,
           padding: "15px 22px",
-          transition: "opacity .2s",
+          transition: "opacity .2s, box-shadow .2s",
           opacity: disabled ? 0.3 : 1,
-          background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
+          background: disabled
+            ? `color-mix(in srgb, ${th.accentBg} 30%, transparent)`
+            : `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          boxShadow: disabled ? "none" : `0 3px 16px color-mix(in srgb, ${th.accentBg} 42%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)`,
           color: th.accentT,
           ...style,
         }}
@@ -3201,7 +3372,8 @@ import "./styles.css";
             borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
             marginTop:"auto",
             display:"flex", flexDirection:"column", overflow:"hidden",
-            maxHeight:"72vh",
+            height:"72vh",
+            minHeight:"72vh",
             pointerEvents:"auto",
             animation: epClosing ? "epSlideDown 0.34s cubic-bezier(0.4,0,1,1) forwards" : "epSlideUp 0.42s cubic-bezier(0.32,0.72,0,1) forwards",
           }}>
@@ -3392,18 +3564,23 @@ import "./styles.css";
           {pending.length > 0 && (
             <div
               style={{
-                padding: "12px 18px 20px",
-                borderTop: `1px solid ${th.border}`,
+                position: "sticky",
+                bottom: 0,
+                padding: "12px 18px 18px",
+                background: "transparent",
+                pointerEvents: "none",
               }}
             >
+              <div style={{ pointerEvents: "auto" }}>
               <button
                 onClick={confirmAdd}
                 style={{
                   width: "100%",
-                  background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                  border: "none",
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  boxShadow: `0 4px 20px color-mix(in srgb, ${th.accentBg} 42%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)`,
+                  border: `1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`,
                   borderRadius: 13,
                   padding: "14px",
                   cursor: "pointer",
@@ -3416,6 +3593,7 @@ import "./styles.css";
               >
                 ADD {pending.length} EXERCISE{pending.length > 1 ? "S" : ""}
               </button>
+              </div>
             </div>
           )}
         </div>
@@ -5107,14 +5285,15 @@ import "./styles.css";
         {/* Accent top bar */}
         <div style={{ height: 3, background: th.accentBg }} />
         <div style={{ padding: "16px 16px 14px" }}>
-          {/* Step content */}
+          {/* Step content — fixed height so card never resizes between slides */}
+          <div style={{ position:"relative", height:108, overflow:"hidden" }}>
           <div
             key={step}
             style={{
+              position:"absolute", inset:0, overflowY:"auto",
               animation: leaving
                 ? (dir > 0 ? "obSlideOut 0.16s ease-in forwards" : "obSlideOutR 0.16s ease-in forwards")
                 : (dir > 0 ? "obSlideIn 0.22s cubic-bezier(0,0,0.2,1) forwards" : "obSlideInR 0.22s cubic-bezier(0,0,0.2,1) forwards"),
-              minHeight: 84,
             }}
           >
             <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
@@ -5129,6 +5308,7 @@ import "./styles.css";
                 <div style={{ fontSize: 12, textAlign: "left", color: th.muted, lineHeight: 1.5 }}>{s.body}</div>
               </div>
             </div>
+          </div>
           </div>
           {/* Footer: dots + navigation */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop: 14 }}>
@@ -5152,17 +5332,19 @@ import "./styles.css";
               )}
               {!isLast ? (
                 <button onClick={() => goTo(step + 1)} style={{
-                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-                  border: "none", borderRadius: 9, color: th.accentT,
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                  backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                  boxShadow: `0 2px 10px color-mix(in srgb, ${th.accentBg} 36%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)`,
+                  border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
                 }}>Next →</button>
               ) : (
                 <button onClick={onDismiss} style={{
-                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-                  border: "none", borderRadius: 9, color: th.accentT,
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                  backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                  boxShadow: `0 2px 10px color-mix(in srgb, ${th.accentBg} 36%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)`,
+                  border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
                 }}>Got it ✔</button>
@@ -5195,7 +5377,7 @@ import "./styles.css";
           <div style={{ ...S.label, textAlign:"left" }}>DASHBOARDS</div>
           <div style={{ display:"flex", gap:6 }}>
             <button onClick={() => dismiss(onCancel)} style={{ background:"none", border:`1px solid ${th.inputB}`, borderRadius:9, color:th.muted, padding:"6px 12px", cursor:"pointer", fontSize:12, fontFamily:"'Outfit',sans-serif", fontWeight:700 }}>Cancel</button>
-            <button onClick={() => dismiss(() => onSave(order))} style={{ background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:9, color:th.accentT, padding:"6px 14px", cursor:"pointer", fontSize:12, fontFamily:"'Outfit',sans-serif", fontWeight:700 }}>SAVE</button>
+            <button onClick={() => dismiss(() => onSave(order))} style={{ background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 70%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 88%, transparent) 100%)`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 38%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`, border:`1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`, borderRadius:9, color:th.accentT, padding:"6px 14px", cursor:"pointer", fontSize:12, fontFamily:"'Outfit',sans-serif", fontWeight:700 }}>SAVE</button>
           </div>
         </div>
 
@@ -6399,23 +6581,942 @@ import "./styles.css";
   }
 
   /* ─── Friend Dashboard Sheet ─────────────────────────────────────────────────── */
-  function FriendDashboardSheet({ friend, user, competitions, onClose, onGetFriendSessions, onCompete }) {
+  /* ─── Coach: inline program editor inside FriendDashboardSheet ─────────────── */
+  function CoachProgramEditor({ program, onSave, onCancel }) {
     const th = useTheme();
     const S = useS();
-    const [sessions, setSessions] = useState(null);
-    const [loading, setLoading]   = useState(true);
-    const [closing, setClosing]   = useState(false);
+    const [name, setName]       = useState(program.name || "");
+    const [exs, setExs]         = useState(() =>
+      (program.exs || []).map(e => e.sets ? e : e.type === "cardio" ? e : { ...e, sets: Array.from({ length: e.s || 4 }, () => ({ reps: e.r||10, weight: e.w||20 })) })
+    );
+    const [showPicker, setShowPicker] = useState(false);
+    const [expandedEx, setExpandedEx] = useState(null);
+    const [saving, setSaving]   = useState(false);
 
+    const addEx = (dbId) => {
+      const db = DB.find(e => e.id === dbId);
+      setExs(p => [...p, db?.type === "cardio"
+        ? { id: dbId, type: "cardio", duration: 0, calories: 0, intensity: 0 }
+        : { id: dbId, sets: Array.from({ length: 4 }, () => ({ reps: 10, weight: 20 })) }
+      ]);
+    };
+    const removeEx = id => setExs(p => p.filter(e => e.id !== id));
+    const updateSet = (id, si, f, v) => setExs(p => p.map(e => e.id !== id ? e : { ...e, sets: e.sets.map((s, i) => i !== si ? s : { ...s, [f]: Math.max(0, parseFloat(v)||0) }) }));
+    const updateNumSets = (id, delta) => setExs(p => p.map(e => {
+      if (e.id !== id || !e.sets) return e;
+      const n = Math.max(1, Math.min(10, e.sets.length + delta));
+      const last = e.sets[e.sets.length-1] || { reps:10, weight:20 };
+      return { ...e, sets: n > e.sets.length ? [...e.sets, ...Array.from({length:n-e.sets.length},()=>({reps:last.reps,weight:last.weight}))] : e.sets.slice(0,n) };
+    }));
+
+    const doSave = async () => {
+      setSaving(true);
+      await onSave({ ...program, name: name.trim() || program.name, exs });
+      setSaving(false);
+    };
+
+    return (
+      <div style={{ borderTop:`1px solid ${th.border}`, paddingTop:16, marginTop:4 }}>
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:11, color:th.muted, letterSpacing:"1.5px", fontWeight:700, marginBottom:6 }}>PROGRAM NAME</div>
+          <input value={name} onChange={e => setName(e.target.value)} style={{ ...S.input, fontSize:14 }} placeholder="Program name" />
+        </div>
+        <div style={{ fontSize:11, color:th.muted, letterSpacing:"1.5px", fontWeight:700, marginBottom:8 }}>EXERCISES ({exs.length})</div>
+        {exs.map((ex, i) => {
+          const dbEx = DB.find(d => d.id === ex.id);
+          const isExp = expandedEx === ex.id;
+          return (
+            <div key={`${ex.id}-${i}`} style={{ ...S.card, marginBottom:6, overflow:"visible" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", cursor:"pointer" }} onClick={() => setExpandedEx(isExp ? null : ex.id)}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:th.text, textAlign:"left" }}>{dbEx?.name || ex.id}</div>
+                  {dbEx?.muscle && <div style={{ fontSize:11, color:th.dim, textAlign:"left" }}>{dbEx.muscle}</div>}
+                </div>
+                {ex.sets && <div style={{ fontSize:11, color:th.accentFg, fontWeight:700 }}>{ex.sets.length} sets</div>}
+                <div style={{ color:th.muted, fontSize:14, transition:"transform .2s", transform: isExp ? "rotate(180deg)" : "none" }}>▾</div>
+                <button onClick={e => { e.stopPropagation(); removeEx(ex.id); }}
+                  style={{ background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:6, width:24, height:24, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:11 }}>✕</button>
+              </div>
+              {isExp && ex.sets && (
+                <div style={{ padding:"0 12px 12px", borderTop:`1px solid ${th.border}` }}>
+                  <div style={{ display:"flex", gap:8, marginBottom:6, marginTop:10 }}>
+                    {["REPS","KG"].map(h => (
+                      <div key={h} style={{ flex:1, fontSize:10, color:th.dim, letterSpacing:"1px", fontWeight:700, textAlign:"center" }}>{h}</div>
+                    ))}
+                  </div>
+                  {ex.sets.map((s, si) => (
+                    <div key={si} style={{ display:"flex", gap:8, marginBottom:6, alignItems:"center" }}>
+                      <div style={{ fontSize:10, color:th.dim, width:20, textAlign:"center", flexShrink:0 }}>{si+1}</div>
+                      {["reps","weight"].map(f => (
+                        <input key={f} type="number" value={s[f] ?? ""} onChange={e => updateSet(ex.id, si, f, e.target.value)}
+                          style={{ ...S.input, flex:1, padding:"8px 10px", fontSize:14, textAlign:"center" }} />
+                      ))}
+                    </div>
+                  ))}
+                  <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                    <button onClick={() => updateNumSets(ex.id, -1)} disabled={ex.sets.length<=1}
+                      style={{ flex:1, background:th.row, border:`1px solid ${th.border}`, borderRadius:8, padding:"6px 0", cursor:"pointer", color:th.muted, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12 }}>− SET</button>
+                    <button onClick={() => updateNumSets(ex.id, 1)} disabled={ex.sets.length>=10}
+                      style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 15%, transparent)`, border:`1px solid color-mix(in srgb, ${th.accentBg} 40%, transparent)`, borderRadius:8, padding:"6px 0", cursor:"pointer", color:th.accentFg, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12 }}>+ SET</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <button onClick={() => setShowPicker(true)}
+          style={{
+            width:"100%", background:`color-mix(in srgb, rgba(91,156,246,0.1) 100%, transparent)`,
+            backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+            border:`1.5px dashed rgba(91,156,246,0.4)`,
+            borderRadius:14, padding:"13px 0", cursor:"pointer",
+            fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13,
+            color:"#5B9CF6", letterSpacing:"0.5px", marginBottom:14,
+            display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+          }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#5B9CF6" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          ADD EXERCISE
+        </button>
+        {showPicker && (
+          <ExercisePicker onAdd={id => { addEx(id); setShowPicker(false); }} onClose={() => setShowPicker(false)} />
+        )}
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={onCancel}
+            style={{ flex:1, background:th.row, backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 4px rgba(0,0,0,0.08)", border:`1.5px solid ${th.border}`, borderRadius:11, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.muted }}>CANCEL</button>
+          <button onClick={doSave} disabled={saving}
+            style={{ flex:2, background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 70%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 88%, transparent) 100%)`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 38%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`, border:`1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`, borderRadius:11, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT, opacity:saving?0.6:1 }}>
+            {saving ? "SAVING…" : "SAVE CHANGES"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function CoachProgramSheet({ program, athleteName, onSave, onClose, isNew = false }) {
+    const th = useTheme();
+    const S = useS();
+    const [name, setName]         = useState(program.name || "");
+    const [exs, setExs]           = useState(() =>
+      (program.exs || []).map(e => {
+        if (e.sets || e.type === "cardio") return e;
+        return { ...e, sets: Array.from({ length: e.s || 4 }, () => ({ reps: e.r || 10, weight: e.w || 20 })) };
+      })
+    );
+    const [showPicker, setShowPicker] = useState(false);
+    const [expandedEx, setExpandedEx] = useState(null);
+    const [saving, setSaving]         = useState(false);
+    const [closing, setClosing]       = useState(false);
+    const listRef = useRef(null);
+    const { dragIdx, insertIdx, droppedIdx, dropDir, start: dragStart } = useDragSort(exs, setExs);
+
+    const close = () => { setClosing(true); setTimeout(onClose, 340); };
+
+    const addEx = (dbId) => {
+      const db = DB.find(e => e.id === dbId);
+      setExs(prev => [...prev, db?.type === "cardio"
+        ? { id: dbId, type: "cardio", duration: 0, calories: 0, intensity: 0 }
+        : { id: dbId, sets: Array.from({ length: 4 }, () => ({ reps: 10, weight: 20 })) }
+      ]);
+    };
+    const removeEx = (id) => setExs(prev => prev.filter(e => e.id !== id));
+    const updateSet = (id, sIdx, f, v) =>
+      setExs(prev => prev.map(e => e.id !== id ? e : {
+        ...e, sets: e.sets.map((s, i) => i !== sIdx ? s : { ...s, [f]: Math.max(0, parseFloat(v) || 0) })
+      }));
+    const updateNumSets = (id, delta) =>
+      setExs(prev => prev.map(e => {
+        if (e.id !== id || !e.sets) return e;
+        const n = Math.max(1, Math.min(10, e.sets.length + delta));
+        const last = e.sets[e.sets.length - 1] || { reps: 10, weight: 20 };
+        return { ...e, sets: n > e.sets.length
+          ? [...e.sets, ...Array.from({ length: n - e.sets.length }, () => ({ reps: last.reps, weight: last.weight }))]
+          : e.sets.slice(0, n) };
+      }));
+
+    const handleSave = async () => {
+      if (!name.trim() || exs.length === 0) return;
+      setSaving(true);
+      await onSave({ ...program, name: name.trim(), exs });
+      setSaving(false);
+      close();
+    };
+
+    return createPortal(
+      <>
+        <style>{`
+          @keyframes cpSheetIn  { from{transform:translateY(100%);opacity:.6} to{transform:translateY(0);opacity:1} }
+          @keyframes cpSheetOut { from{transform:translateY(0);opacity:1}     to{transform:translateY(100%);opacity:0} }
+          @keyframes cpBdIn  { from{opacity:0} to{opacity:1} }
+          @keyframes cpBdOut { from{opacity:1} to{opacity:0} }
+        `}</style>
+
+        {/* Backdrop */}
+        <div onClick={close} style={{
+          position:"fixed", inset:0, zIndex:78,
+          background:"rgba(0,0,0,0.6)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+          animation: closing ? "cpBdOut .34s ease forwards" : "cpBdIn .26s ease forwards",
+        }} />
+
+        {/* Sheet */}
+        <div style={{
+          position:"fixed", inset:0, zIndex:79,
+          display:"flex", flexDirection:"column",
+          maxWidth:480, margin:"0 auto", pointerEvents:"none",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:`color-mix(in srgb, ${th.card} 96%, transparent)`,
+            backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+            borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
+            marginTop:"calc(48px + env(safe-area-inset-top, 0px))",
+            display:"flex", flexDirection:"column", flex:1, overflow:"hidden",
+            pointerEvents:"auto",
+            animation: closing ? "cpSheetOut .34s cubic-bezier(0.4,0,1,1) forwards" : "cpSheetIn .42s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
+
+            {/* ── Header ── */}
+            <div style={{ flexShrink:0, borderBottom:`1px solid ${th.border}`, padding:"10px 16px 14px" }}>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
+              </div>
+              <div style={{ display:"flex", alignItems:"center" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, color:th.dim, letterSpacing:"1.5px", fontWeight:700 }}>{isNew ? "NEW PROGRAM" : "EDITING PROGRAM"}</div>
+                  <div style={{ fontSize:13, color:th.muted, marginTop:2 }}><span style={{ fontWeight:700, color:th.sub }}>{athleteName}</span>'s workout</div>
+                </div>
+                <button onClick={close} style={{
+                  background:"none", border:"none", color:th.muted,
+                  fontSize:22, cursor:"pointer", lineHeight:1,
+                  padding:"4px 6px", flexShrink:0,
+                }}>✕</button>
+              </div>
+            </div>
+
+            {/* ── Scrollable body ── */}
+            <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"20px 16px 0" }}>
+              {/* Program name */}
+              <div style={{ ...S.label, marginBottom:7 }}>PROGRAM NAME</div>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Push Day"
+                style={{ ...S.input, marginBottom:18 }}
+              />
+
+              {/* Exercise list header */}
+              <div style={{ ...S.label, marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span>EXERCISES ({exs.length})</span>
+                <span style={{ fontSize:12, color:th.dim, fontWeight:400, letterSpacing:0 }}>hold ⠿ to reorder</span>
+              </div>
+
+              {/* Drag-sortable exercise list */}
+              <div ref={listRef} style={{ position:"relative", textAlign:"left" }}>
+                {exs.map((ex, exI) => (
+                  <ExerciseEditCard
+                    key={ex.id}
+                    ex={ex} exI={exI}
+                    isOpen={expandedEx === ex.id}
+                    isOver={insertIdx === exI && dragIdx !== null && insertIdx !== dragIdx}
+                    isDragging={dragIdx === exI}
+                    wasDropped={droppedIdx === exI}
+                    dropDir={dropDir}
+                    onToggleOpen={() => setExpandedEx(expandedEx === ex.id ? null : ex.id)}
+                    onRemoveEx={() => removeEx(ex.id)}
+                    onUpdateNumSets={delta => updateNumSets(ex.id, delta)}
+                    onUpdateSet={(sIdx, f, v) => updateSet(ex.id, sIdx, f, v)}
+                    onAddSet={() => updateNumSets(ex.id, 1)}
+                    onRemoveSet={sIdx => setExs(prev => prev.map(e => e.id !== ex.id ? e : { ...e, sets: e.sets.filter((_, i) => i !== sIdx) }))}
+                    onDragStart={dragStart}
+                    listRef={listRef}
+                  />
+                ))}
+                {insertIdx === exs.length && dragIdx !== null && <DropLine />}
+              </div>
+
+              {/* Add exercise */}
+              <button
+                onClick={() => setShowPicker(true)}
+                style={{
+                  width:"100%", background:`color-mix(in srgb, rgba(91,156,246,0.1) 100%, transparent)`,
+                  backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                  border:`1.5px dashed rgba(91,156,246,0.4)`,
+                  borderRadius:14, padding:"13px 0", cursor:"pointer",
+                  fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13,
+                  color:"#5B9CF6", letterSpacing:"0.5px",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                  marginTop:4, marginBottom:100,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#5B9CF6" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                ADD EXERCISE
+              </button>
+            </div>
+
+            {/* ── Sticky save bar ── */}
+            <div style={{
+              position:"absolute", bottom:0, left:0, right:0,
+              padding:`12px 16px calc(env(safe-area-inset-bottom, 0px) + 16px)`,
+            }}>
+              <button
+                onClick={handleSave}
+                disabled={saving || !name.trim() || exs.length === 0}
+                style={{
+                  width:"100%",
+                  background: (!name.trim() || exs.length === 0)
+                    ? `color-mix(in srgb, ${th.accentBg} 25%, transparent)`
+                    : `color-mix(in srgb, ${th.accentBg} 70%, transparent)`,
+                  backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                  border: `1px solid color-mix(in srgb, ${th.accentBg} ${(!name.trim() || exs.length === 0) ? "20%" : "50%"}, transparent)`,
+                  borderRadius:14, padding:"15px 0", cursor: saving ? "default" : "pointer",
+                  fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, letterSpacing:"0.5px",
+                  color: (!name.trim() || exs.length === 0) ? `${th.accentT}55` : th.accentT,
+                  opacity: saving ? 0.6 : 1,
+                  transition:"all .2s",
+                }}
+              >
+                {saving ? "SAVING…" : isNew ? "CREATE PROGRAM" : "SAVE CHANGES"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Exercise picker — rendered at zIndex 82/83 to sit above CoachProgramSheet (78/79) */}
+        {showPicker && createPortal(
+          <>
+            {/* Extra backdrop above the sheet */}
+            <div
+              onClick={() => setShowPicker(false)}
+              style={{ position:"fixed", inset:0, zIndex:82, background:"rgba(0,0,0,0.35)" }}
+            />
+            <div style={{ position:"fixed", inset:0, zIndex:83, pointerEvents:"none" }}>
+              <ExercisePicker
+                onAdd={id => { addEx(id); setShowPicker(false); }}
+                onClose={() => setShowPicker(false)}
+                added={exs.map(e => e.id)}
+              />
+            </div>
+          </>,
+          document.body
+        )}
+      </>,
+      document.body
+    );
+  }
+
+  function FriendDashboardSheet({ friend, user, competitions, onClose, onGetFriendSessions, onCompete, coachRelations, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching }) {
+    const th = useTheme();
+    const S = useS();
+    const [sessions, setSessions]               = useState(null);
+    const [loading, setLoading]                 = useState(true);
+    const [closing, setClosing]                 = useState(false);
+    const [innerTab, setInnerTab]               = useState("dashboards");
+    const [friendPrograms, setFriendPrograms]     = useState(null);
+    const [progsLoading, setProgsLoading]         = useState(false);
+    const [progsLoaded, setProgsLoaded]           = useState(false);   // true once fetch attempted
+    const [friendMeasurements, setFriendMeasurements] = useState(null); // friend body measurements
+    const [measLoading, setMeasLoading]             = useState(false);
+    const [editingProgId, setEditingProgId]     = useState(null); // kept for createNewProg compat
+    const [openProgram, setOpenProgram]         = useState(null); // program open in CoachProgramSheet
+    const [editingProgs, setEditingProgs]       = useState(false); // edit mode to remove programs
+    const [creatingNewProg, setCreatingNewProg] = useState(false);
+    const [awardPage, setAwardPage]             = useState(0);    // pagination for friend awards
+    const [coachBtnState, setCoachBtnState]     = useState("idle"); // idle|sending|pending|active
+    const [selHistSession, setSelHistSession]   = useState(null);
+    const [showCoachRules, setShowCoachRules]   = useState(false);
+    const [showStopCoach, setShowStopCoach]     = useState(false);
+    const [stoppingCoach, setStoppingCoach]     = useState(false);
+    const [permissionError, setPermissionError] = useState(false); // set if any cross-user read fails
+    const [reloadKey, setReloadKey]             = useState(0);      // increment to force re-fetch
+
+    // Determine coaching relationship state
+    const coachRelation = coachRelations?.find(r =>
+      (r.fromUid === user?.id && r.toUid === friend.uid) ||
+      (r.fromUid === friend.uid && r.toUid === user?.id)
+    );
+    const isCoachingActive = !!coachRelation && coachRelation.status === "accepted";
+    const iAmCoach = isCoachingActive && coachRelation.fromUid === user?.id;
+
+    // Load sessions
     useEffect(() => {
       let cancelled = false;
+      setPermissionError(false); // reset on friend change
       onGetFriendSessions(friend.uid).then(s => {
-        if (!cancelled) { setSessions(s); setLoading(false); }
+        if (cancelled) return;
+        if (s === null) {
+          // Read failed (permission-denied or network)
+          setSessions([]);
+          setPermissionError(true);
+        } else {
+          setSessions(s);
+        }
+        setLoading(false);
       });
       return () => { cancelled = true; };
-    }, [friend.uid]);
+    }, [friend.uid, reloadKey]);
+
+    // Set coachBtnState based on relations on mount
+    useEffect(() => {
+      if (!coachRelations) return;
+      const rel = coachRelations.find(r =>
+        (r.fromUid === user?.id && r.toUid === friend.uid) ||
+        (r.fromUid === friend.uid && r.toUid === user?.id)
+      );
+      if (rel?.status === "accepted") setCoachBtnState("active");
+      else if (rel?.status === "pending") setCoachBtnState("pending");
+      else setCoachBtnState("idle");
+    }, [coachRelations, friend.uid]);
+
+    // Load friend programs when coaching active + workouts tab
+    useEffect(() => {
+      if (!isCoachingActive || !iAmCoach || innerTab !== "workouts") return;
+      if (progsLoaded) return; // already attempted (success or fail)
+      setProgsLoading(true);
+      onGetFriendPrograms(friend.uid).then(list => {
+        if (list === null) {
+          setFriendPrograms([]);
+          setPermissionError(true);
+        } else {
+          setFriendPrograms(Array.isArray(list) ? list : []);
+        }
+        setProgsLoaded(true);
+        setProgsLoading(false);
+      }).catch(() => {
+        setFriendPrograms([]);
+        setPermissionError(true);
+        setProgsLoaded(true);
+        setProgsLoading(false);
+      });
+    }, [isCoachingActive, iAmCoach, innerTab, friend.uid, progsLoaded]);
+
+    // Load friend measurements when coaching active (needed for body comp / trends / relative strength)
+    useEffect(() => {
+      if (!isCoachingActive || !iAmCoach) return;
+      if (friendMeasurements !== null) return;
+      setMeasLoading(true);
+      fsGetMeasurements(friend.uid).then(meas => {
+        if (meas === null) {
+          setFriendMeasurements([]);
+          setPermissionError(true);
+        } else {
+          setFriendMeasurements(Array.isArray(meas) ? meas : []);
+        }
+        setMeasLoading(false);
+      }).catch(() => {
+        setFriendMeasurements([]);
+        setPermissionError(true);
+        setMeasLoading(false);
+      });
+    }, [isCoachingActive, iAmCoach, friend.uid]);
+
+    // ── Auto-repair: if permission error + coaching doc has old random ID, migrate it ──
+    // Old coach requests were created with addDoc (random ID). Firestore rules use
+    // exists(coachRequests/{coachUid}_{athleteUid}) — so random IDs fail the check.
+    // This migrates the doc to the deterministic ID transparently on first open.
+    useEffect(() => {
+      if (!permissionError || !coachRelation || !iAmCoach) return;
+      const expectedId = `${coachRelation.fromUid}_${coachRelation.toUid}`;
+      if (coachRelation.id === expectedId) return; // already deterministic — real rules problem
+
+      console.log("Coach relation migration: rewriting", coachRelation.id, "→", expectedId);
+      const { id: _drop, ...coachData } = coachRelation;
+      setDoc(doc(fbDb, "coachRequests", expectedId), { ...coachData, status: "accepted" })
+        .then(() => {
+          // Delete the old random-ID doc (best-effort)
+          deleteDoc(doc(fbDb, "coachRequests", coachRelation.id)).catch(() => {});
+          // Reset all loaded states so data fetches retry with the new doc in place
+          setPermissionError(false);
+          setProgsLoaded(false);
+          setFriendPrograms(null);
+          setFriendMeasurements(null);
+          setLoading(true);
+          setReloadKey(k => k + 1); // re-triggers sessions useEffect
+        })
+        .catch(err => console.error("Coach relation migration failed:", err?.code, err?.message));
+    }, [permissionError, coachRelation?.id, iAmCoach]);
 
     const close = () => { setClosing(true); setTimeout(onClose, 340); };
     const initials = (friend.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+    const handleCoachBtnClick = () => {
+      if (coachBtnState === "idle")    { setShowCoachRules(true); return; }
+      if (coachBtnState === "active")  { setShowStopCoach(true);  return; }
+      if (coachBtnState === "pending") { setShowStopCoach(true);  return; }
+    };
+
+    const confirmSendCoachRequest = async () => {
+      setShowCoachRules(false);
+      setCoachBtnState("sending");
+      const result = await onSendCoachRequest(friend.uid, friend.email, friend.name);
+      setCoachBtnState(result?.ok ? "pending" : "idle");
+    };
+
+    const confirmStopCoaching = async () => {
+      setStoppingCoach(true);
+      if (coachRelation?.id) await onStopCoaching(coachRelation.id);
+      setStoppingCoach(false);
+      setShowStopCoach(false);
+      setCoachBtnState("idle");
+    };
+
+    const saveProgram = async (updated) => {
+      const isNew = !updated.id || !(friendPrograms||[]).find(p => p.id === updated.id);
+      const prog  = isNew ? { ...updated, id: uid() } : updated;
+      const newList = isNew
+        ? [...(friendPrograms || []), prog]
+        : (friendPrograms || []).map(p => p.id === prog.id ? prog : p);
+      await onSaveCoachPrograms(friend.uid, newList);
+      setFriendPrograms(newList);
+      setEditingProgId(null);
+      setCreatingNewProg(false);
+    };
+
+    // ── Separate dashboard JSX for normal friendship vs coach view ──
+    // Normal friendship: streak calendar, calories, intensity, PRs, weekly volume only
+    // Coach view: all dashboards
+
+    // ── Pre-compute competition label (stable, no inner component) ──
+    const comp = competitions?.find(c =>
+      (c.fromUid === user?.id && c.toUid === friend.uid) ||
+      (c.toUid === user?.id && c.fromUid === friend.uid)
+    );
+    const compLabel = comp?.status === "active"
+      ? <span style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:6, height:6, borderRadius:"50%", background:"#D4AF37", display:"inline-block", animation:"pulse 1.5s ease-in-out infinite" }} />COMPETING</span>
+      : comp?.status === "pending" ? "PENDING" : "COMPETE";
+
+    // ── Inline JSX vars — NOT inner components (avoids React remount on every render) ──
+    // Shared data for both dashboard views
+    const noSessionsJSX = loading ? (
+      <div style={{ textAlign:"center", padding:"48px 0", color:th.dim, fontSize:14 }}>Loading…</div>
+    ) : !sessions || sessions.length === 0 ? (
+      <div style={{ textAlign:"center", padding:"48px 0" }}>
+        <div style={{ fontSize:32, marginBottom:12 }}>🏋️</div>
+        <div style={{ color:th.muted, fontSize:14 }}>No workout history yet.</div>
+      </div>
+    ) : null;
+
+    // Compute shared stats once (avoids duplicate heavy computation)
+    const dashStats = (!loading && sessions && sessions.length > 0) ? (() => {
+      const todayMs = new Date(); todayMs.setHours(0,0,0,0);
+      const sessionDays = new Set(sessions.map(s => { const d=new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
+      let streak=0; for(let i=0;i<=365;i++){const d=new Date(todayMs);d.setDate(d.getDate()-i);if(sessionDays.has(d.getTime()))streak++;else if(i>0)break;}
+      const last7 = sessions.filter(s=>(s.startTime||0)>=Date.now()-7*864e5).length;
+      const now2 = new Date(); const monthStart = new Date(now2.getFullYear(),now2.getMonth(),1).getTime();
+      const thisMonth = sessions.filter(s=>(s.startTime||0)>=monthStart).length;
+      const prMap={};
+      sessions.forEach(s=>(s.exercises||[]).forEach(ex=>{const id=ex.id||ex.exId;if(!id)return;(ex.sets||[]).filter(st=>st.done&&(st.weight||0)>0).forEach(st=>{if(!prMap[id]||st.weight>prMap[id].w){const dbEx=DB.find(d=>d.id===id);prMap[id]={w:st.weight,reps:st.reps,name:dbEx?.name||ex.name||id,t:s.startTime||0,muscle:dbEx?.muscle};}});} ));
+      return { streak, last7, thisMonth, allPrs: Object.values(prMap).sort((a,b)=>b.w-a.w) };
+    })() : null;
+
+    // ── Normal friendship: streak calendar, calories, intensity, PRs, weekly volume ──
+    const dashboardsJSX = noSessionsJSX || (() => {
+      const { streak, last7, thisMonth, allPrs } = dashStats;
+      return (
+        <>
+          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+            {[
+              { num: streak || 0, unit:"days", ctx:"streak",       noData: !streak },
+              { num: last7,       unit:"workouts", ctx:"last 7 days",  noData: false },
+              { num: thisMonth,   unit:"workouts", ctx:"this month",   noData: false },
+            ].map(({num, unit, ctx, noData}) => (
+              <div key={ctx} style={{ flex:1, background:th.sect, borderRadius:12, padding:"12px 6px 10px", textAlign:"center" }}>
+                <div className="bebas" style={{ fontSize:30, color:th.accentFg, lineHeight:1 }}>{noData ? "—" : num}</div>
+                <div style={{ fontSize:11, color:th.accentFg, fontWeight:700, letterSpacing:"0.3px", marginTop:4, opacity:noData?0.35:0.8 }}>{unit}</div>
+                <div style={{ fontSize:10, color:th.dim, letterSpacing:"0.3px", marginTop:2, lineHeight:1.2 }}>{ctx}</div>
+              </div>
+            ))}
+          </div>
+          <StreakDashboard sessions={sessions} />
+          <IntensityDashboard sessions={sessions} sessionVol={sessionVol} />
+          <CaloriesDashboard sessions={sessions} />
+          <WeeklyVolumeDashboard sessions={sessions} sessionVol={sessionVol} />
+          {allPrs.length ? <PRsDashboard allPrs={allPrs} /> : null}
+        </>
+      );
+    })();
+
+    // ── Coach view: all dashboards ──
+    const coachDashboardsJSX = noSessionsJSX || (() => {
+      const { streak, last7, thisMonth, allPrs } = dashStats;
+      const fm = Array.isArray(friendMeasurements) ? friendMeasurements : [];
+      const hasMeas = fm.length > 0;
+      // measLoading: still waiting on Firebase read — show placeholder instead of hiding dashboards
+      return (
+        <>
+          {/* ── Quick summary tiles ── */}
+          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+            {[
+              { num: streak || 0, unit:"days", ctx:"streak",       noData: !streak },
+              { num: last7,       unit:"workouts", ctx:"last 7 days",  noData: false },
+              { num: thisMonth,   unit:"workouts", ctx:"this month",   noData: false },
+            ].map(({num, unit, ctx, noData}) => (
+              <div key={ctx} style={{ flex:1, background:th.sect, borderRadius:12, padding:"12px 6px 10px", textAlign:"center" }}>
+                <div className="bebas" style={{ fontSize:30, color:th.accentFg, lineHeight:1 }}>{noData ? "—" : num}</div>
+                <div style={{ fontSize:11, color:th.accentFg, fontWeight:700, letterSpacing:"0.3px", marginTop:4, opacity:noData?0.35:0.8 }}>{unit}</div>
+                <div style={{ fontSize:10, color:th.dim, letterSpacing:"0.3px", marginTop:2, lineHeight:1.2 }}>{ctx}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Streak & training frequency ── */}
+          <StreakDashboard sessions={sessions} />
+          <MusclesTrainedDashboard sessions={sessions} />
+          <IntensityDashboard sessions={sessions} sessionVol={sessionVol} />
+          <CaloriesDashboard sessions={sessions} />
+          <WeeklyVolumeDashboard sessions={sessions} sessionVol={sessionVol} />
+          {allPrs.length ? <PRsDashboard allPrs={allPrs} /> : null}
+
+          {/* ── Body composition (needs measurements) ── */}
+          {measLoading ? (
+            <div style={{ ...S.card, padding:"20px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:32, height:32, borderRadius:"50%", background:th.row, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:16 }}>⚖️</div>
+              <div>
+                <div style={{ fontSize:13, color:th.text, fontWeight:700 }}>Body Composition</div>
+                <div style={{ fontSize:12, color:th.dim, marginTop:2 }}>Loading measurements…</div>
+              </div>
+            </div>
+          ) : !hasMeas ? (
+            <div style={{ ...S.card, padding:"16px", marginBottom:10, opacity:0.55 }}>
+              <div style={{ ...S.label, marginBottom:6 }}>BODY COMPOSITION & TRENDS</div>
+              <div style={{ fontSize:12, color:th.dim }}>{friend.name.split(" ")[0]} hasn't logged body measurements yet.</div>
+            </div>
+          ) : null}
+          {!measLoading && hasMeas && (() => {
+            const latest = fm[0];
+            const prev = fm[1] || null;
+            const delta = (f) => {
+              if (!prev || prev[f] == null || latest[f] == null) return null;
+              const d = (latest[f] - prev[f]).toFixed(1);
+              return { d, sign: d > 0 ? "+" : "", col: f === "fat" ? (d < 0 ? "#1db954" : "#CC1F42") : (d > 0 ? "#1db954" : "#CC1F42") };
+            };
+            return (
+              <div style={{ ...S.card, padding:16, marginBottom:10, textAlign:"left" }}>
+                <div style={{ ...S.label, marginBottom:12 }}>BODY COMPOSITION</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+                  {[{ f:"weight", l:"WEIGHT", unit:"kg" }, { f:"muscle", l:"MUSCLE", unit:"%" }, { f:"fat", l:"BODY FAT", unit:"%" }].map(m => {
+                    const val = latest[m.f]; const d = delta(m.f);
+                    return (
+                      <div key={m.f} style={{ background:th.sect, borderRadius:10, padding:"12px 8px", textAlign:"center" }}>
+                        <div className="bebas" style={{ fontSize:22, color:th.accentFg, lineHeight:1 }}>{val != null ? val + m.unit : "—"}</div>
+                        <div style={{ fontSize:10, color:th.dim, letterSpacing:"1.5px", marginTop:2 }}>{m.l}</div>
+                        {d && <div style={{ fontSize:11, color:d.col, fontWeight:700, marginTop:3 }}>{d.sign}{d.d}{m.unit}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Body trends chart ── */}
+          {!measLoading && hasMeas && (
+            <div style={{ ...S.card, padding:16, marginBottom:10, textAlign:"left" }}>
+              <div style={{ ...S.label, marginBottom:12 }}>BODY TRENDS</div>
+              <BodyTrendChart measurements={fm} />
+            </div>
+          )}
+
+          {/* ── Muscle recovery ── */}
+          {sessions.length > 0 && (() => {
+            const now = Date.now();
+            const muscleData = {};
+            ALL_MUSCLES.forEach(m => { muscleData[m] = { lastMs:0, vol72h:0 }; });
+            sessions.forEach(s => {
+              const sTime = s.startTime || 0;
+              const hoursAgo = (now - sTime) / 3600000;
+              (s.exercises||[]).forEach(ex => {
+                if (!ex.muscle || !muscleData[ex.muscle]) return;
+                const md = muscleData[ex.muscle];
+                if (sTime > md.lastMs) md.lastMs = sTime;
+                if (hoursAgo <= 72) (ex.sets||[]).filter(st=>st.done).forEach(st => { md.vol72h += (st.reps||0) * Math.max(st.weight||1,1); });
+              });
+            });
+            const maxVol = Math.max(...Object.values(muscleData).map(d => d.vol72h), 1);
+            const scored = ALL_MUSCLES.map(m => {
+              const { lastMs, vol72h } = muscleData[m];
+              if (!lastMs) return { m, score:0 };
+              const hoursAgo = (now - lastMs) / 3600000;
+              const score = Math.min(1, Math.max(0, 1 - hoursAgo/72)*0.6 + (vol72h/maxVol)*0.4);
+              return { m, score, hoursAgo };
+            });
+            const trained = scored.filter(s => s.hoursAgo != null);
+            if (!trained.length) return null;
+            const getColor = (score) => {
+              if (score >= 0.7)  return { bg:"#CC1F4222", border:"#CC1F42", text:"#CC1F42" };
+              if (score >= 0.35) return { bg:"#E8612C22", border:"#E8612C", text:"#E8612C" };
+              if (score > 0)     return { bg:`${th.accentBg}18`, border:th.accentBg, text:th.accentFg };
+              return { bg:"transparent", border:"transparent", text:th.dim };
+            };
+            return (
+              <div style={{ ...S.card, padding:16, marginBottom:10, textAlign:"left" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                  <div style={{ ...S.label }}>MUSCLE RECOVERY</div>
+                  <div style={{ fontSize:11, color:th.dim }}>72h window</div>
+                </div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:3 }}>
+                  {scored.map(({ m, score, hoursAgo }) => {
+                    const c = getColor(score);
+                    if (!hoursAgo || score === 0) return <div key={m} style={{ padding:"3px 7px", borderRadius:6, fontSize:11, color:th.dim }}>{m}</div>;
+                    return <div key={m} style={{ padding:"3px 7px", borderRadius:6, fontSize:11, fontWeight:700, border:`1px solid ${c.border}`, color:c.text, background:c.bg }}>{m}</div>;
+                  })}
+                </div>
+                <div style={{ display:"flex", gap:12, marginTop:10, flexWrap:"wrap" }}>
+                  {[{ label:"High fatigue", col:"#CC1F42" }, { label:"Recovering", col:"#E8612C" }, { label:"Low fatigue", col:th.accentBg }, { label:"Rested", col:th.dim }].map(({label,col}) => (
+                    <div key={label} style={{ display:"flex", alignItems:"center", gap:5 }}><div style={{ width:7, height:7, borderRadius:"50%", background:col }} /><span style={{ fontSize:10, color:th.dim }}>{label}</span></div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Strength & volume analysis ── */}
+          <StrengthProgression sessions={sessions} />
+          <SetsByMuscleGroup sessions={sessions} />
+          <ACWRDashboard sessions={sessions} sessionVol={sessionVol} />
+          {!measLoading && <RelativeStrengthDashboard sessions={sessions} measurements={fm} />}
+          <TrainingDensityDashboard sessions={sessions} sessionVol={sessionVol} />
+          <SessionPaceDashboard sessions={sessions} sessionVol={sessionVol} />
+        </>
+      );
+    })();
+
+    const workoutsJSX = progsLoading ? (
+      <div style={{ textAlign:"center", padding:"48px 0", color:th.dim, fontSize:14 }}>Loading programs…</div>
+    ) : !progsLoaded ? (
+      <div style={{ textAlign:"center", padding:"48px 0", color:th.dim, fontSize:14 }}>Switch to the Workouts tab to load programs.</div>
+    ) : (
+      <>
+        {/* ── EDIT / DONE toggle — only shown when there are programs ── */}
+        {(friendPrograms || []).length > 0 && (
+          <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12 }}>
+            <button
+              onClick={() => setEditingProgs(e => !e)}
+              style={{
+                background: editingProgs ? `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 55%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 72%, transparent) 100%)` : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
+                backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
+                boxShadow: editingProgs ? `0 2px 10px color-mix(in srgb, ${th.accentBg} 28%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)` : "inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 4px rgba(0,0,0,0.07)",
+                border: editingProgs
+                  ? `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`
+                  : `1.5px solid ${th.border}`,
+                borderRadius:20, padding:"4px 12px", cursor:"pointer",
+                fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:11,
+                color: editingProgs ? "#fff" : th.muted,
+                letterSpacing:"0.5px", transition:"background .2s, box-shadow .2s, border-color .2s",
+              }}
+            >{editingProgs ? "DONE" : "EDIT"}</button>
+          </div>
+        )}
+
+        {/* ── Existing program cards — tappable, opens full sheet editor ── */}
+        {(friendPrograms || []).length === 0 && !creatingNewProg && (
+          <div style={{ textAlign:"center", padding:"32px 0 20px" }}>
+            <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
+            <div style={{ color:th.muted, fontSize:14 }}>{friend.name.split(" ")[0]} has no programs yet.</div>
+            <div style={{ color:th.dim, fontSize:12, marginTop:6 }}>Create one below to get started.</div>
+          </div>
+        )}
+        {(friendPrograms || []).map(p => (
+          <div
+            key={p.id}
+            id={`coach-prog-${p.id}`}
+            onClick={() => !editingProgs && setOpenProgram(p)}
+            style={{
+              ...S.card, marginBottom:10,
+              overflow: editingProgs ? "visible" : "hidden",
+              cursor: editingProgs ? "default" : "pointer",
+              transition:"opacity .15s", position:"relative",
+              WebkitTapHighlightColor:"transparent",
+            }}
+            onPointerDown={e => { if (!editingProgs) e.currentTarget.style.opacity = "0.7"; }}
+            onPointerUp={e => e.currentTarget.style.opacity = "1"}
+            onPointerLeave={e => e.currentTarget.style.opacity = "1"}
+          >
+            {/* Delete badge — visible in edit mode */}
+            {editingProgs && (
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  const el = document.getElementById(`coach-prog-${p.id}`);
+                  if (el) { el.style.animation = "removeSlide 0.31s ease-in forwards"; setTimeout(() => { const next = (friendPrograms||[]).filter(x=>x.id!==p.id); setFriendPrograms(next); onSaveCoachPrograms(friend.uid, next); }, 310); }
+                  else { const next = (friendPrograms||[]).filter(x=>x.id!==p.id); setFriendPrograms(next); onSaveCoachPrograms(friend.uid, next); }
+                }}
+                style={{
+                  position:"absolute", top:-8, right:-8, zIndex:50,
+                  background:"rgba(200,10,10,0.65)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                  border:"1px solid rgba(220,50,50,0.3)", borderRadius:"50%",
+                  width:24, height:24, minWidth:24, minHeight:24,
+                  padding:0, display:"flex", alignItems:"center", justifyContent:"center",
+                  cursor:"pointer", color:"#fff", fontSize:12, fontWeight:700, lineHeight:1,
+                                    animation:"coachXPop 0.38s cubic-bezier(0.34,1.5,0.64,1) forwards",
+                }}
+              >✕</button>
+            )}
+            <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}>
+              <ProgramIcon name={p.name} size={44} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:15, color:th.text, textAlign:"left" }}>{p.name}</div>
+                <div style={{ fontSize:11, color:th.muted, textAlign:"left", marginTop:2 }}>{(p.exs||[]).length} exercises</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:5 }}>
+                  {[...new Set((p.exs||[]).map(e => DB.find(d=>d.id===e.id)?.group).filter(Boolean))].slice(0,4).map(g => (
+                    <span key={g} style={S.tag(g)}>{g.toUpperCase()}</span>
+                  ))}
+                </div>
+              </div>
+              {/* Chevron — hidden in edit mode */}
+              {!editingProgs && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink:0, opacity:0.4 }}>
+                  <path d="M9 18l6-6-6-6" stroke={th.text} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* ── New program: opens as full CoachProgramSheet portal ── */}
+        {creatingNewProg && (
+          <CoachProgramSheet
+            program={{ id: null, name: "", exs: [] }}
+            athleteName={friend.name.split(" ")[0]}
+            isNew={true}
+            onSave={async (newProg) => {
+              await saveProgram(newProg);
+              setCreatingNewProg(false);
+            }}
+            onClose={() => setCreatingNewProg(false)}
+          />
+        )}
+
+        {/* CREATE NEW PROGRAM button */}
+        {!creatingNewProg && (
+          <button
+            onClick={() => setCreatingNewProg(true)}
+            style={{
+              width:"100%", background:`color-mix(in srgb, rgba(91,156,246,0.1) 100%, transparent)`,
+              backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+              border:`1.5px dashed rgba(91,156,246,0.4)`,
+              borderRadius:14, padding:"14px 0", cursor:"pointer",
+              fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13,
+              color:"#5B9CF6", letterSpacing:"0.5px", marginTop:4,
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#5B9CF6" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            CREATE NEW PROGRAM
+          </button>
+        )}
+
+        {/* ── CoachProgramSheet portal — full drag-drop editor ── */}
+        {openProgram && (
+          <CoachProgramSheet
+            program={openProgram}
+            athleteName={friend.name.split(" ")[0]}
+            onSave={async (updated) => {
+              await saveProgram(updated);
+              setOpenProgram(null);
+            }}
+            onClose={() => setOpenProgram(null)}
+          />
+        )}
+      </>
+    );
+
+    // ── Inline awards JSX for friend's history tab (NOT a component — avoids remount on every render) ──
+    // Uses awardPage state from the parent component for pagination.
+    const friendAwardsJSX = (() => {
+      if (!sessions || sessions.length === 0) return null;
+      const daySet = new Set(sessions.map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
+      const sortedDays = [...daySet].sort((a,b) => b-a);
+      let streak = 0;
+      let expected = new Date(); expected.setHours(0,0,0,0);
+      if (sortedDays.length && sortedDays[0] >= expected.getTime() - 86400000*2) {
+        for (const day of sortedDays) {
+          if (day >= expected.getTime() - 86400000) { streak++; expected = new Date(day); expected.setDate(expected.getDate()-1); }
+          else break;
+        }
+      }
+      const now2 = new Date();
+      const ms = new Date(now2.getFullYear(), now2.getMonth(), 1).getTime();
+      const mn = now2.toLocaleString("en-US", { month:"long" });
+      const daysMonth = new Set(sessions.filter(s=>(s.startTime||0)>=ms).map(s=>{const d=new Date(s.startTime||0);d.setHours(0,0,0,0);return d.getTime();})).size;
+      const dow = (now2.getDay()+6)%7;
+      const wkStart = new Date(now2); wkStart.setHours(0,0,0,0); wkStart.setDate(wkStart.getDate()-dow);
+      const daysWeek = new Set(sessions.filter(s=>(s.startTime||0)>=wkStart.getTime()).map(s=>{const d=new Date(s.startTime||0);d.setHours(0,0,0,0);return d.getTime();})).size;
+      const awards = [
+        { id:"streak7",  icon:"🔥", label:"7-Day Streak",    desc:"Train 7 days in a row",    earned: streak >= 7 },
+        { id:"streak14", icon:"⚡", label:"14-Day Streak",   desc:"Train 14 days in a row",   earned: streak >= 14 },
+        { id:"streak21", icon:"💎", label:"21-Day Streak",   desc:"Train 21 days in a row",   earned: streak >= 21 },
+        { id:"streak30", icon:"👑", label:"1-Month Streak",  desc:"Train 30 days in a row",   earned: streak >= 30 },
+        { id:"monthly",  icon:"📅", label:`${mn} Challenge`, desc:`20 workouts in ${mn}`,     earned: daysMonth >= 20 },
+        { id:"weekly",   icon:"🗓️", label:"Week Challenge",  desc:"5 workouts this week",     earned: daysWeek >= 5 },
+      ];
+      const PAGE = 3;
+      const totalPages = Math.ceil(awards.length / PAGE);
+      const slice = awards.slice(awardPage * PAGE, awardPage * PAGE + PAGE);
+      const earnedCount = awards.filter(a => a.earned).length;
+      return (
+        <div style={{ ...S.card, padding:"18px 18px 14px", marginBottom:14 }}>
+          <style>{`@keyframes awSlideL{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}} @keyframes awSlideR{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}`}</style>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+            <div style={{ ...S.label, textAlign:"left" }}>AWARDS</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:12, color:th.dim }}>{earnedCount}/{awards.length}</span>
+              {totalPages > 1 && (<>
+                <button onClick={() => setAwardPage(p => Math.max(0, p-1))} disabled={awardPage === 0}
+                  style={{ background:"none", border:"none", color: awardPage===0 ? th.inputB : th.accentFg, fontSize:28, cursor: awardPage===0?"default":"pointer", padding:"0 4px", lineHeight:1 }}>‹</button>
+                <button onClick={() => setAwardPage(p => Math.min(totalPages-1, p+1))} disabled={awardPage === totalPages-1}
+                  style={{ background:"none", border:"none", color: awardPage===totalPages-1 ? th.inputB : th.accentFg, fontSize:28, cursor: awardPage===totalPages-1?"default":"pointer", padding:"0 4px", lineHeight:1 }}>›</button>
+              </>)}
+            </div>
+          </div>
+          <div key={awardPage} style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, animation:"awSlideL 0.22s ease-out", minHeight:142 }}>
+            {slice.map(a => (
+              <div key={a.id} style={{
+                display:"flex", flexDirection:"column", alignItems:"center", gap:6, padding:"12px 8px",
+                background: a.earned ? `color-mix(in srgb, ${th.accentBg} 10%, ${th.sect})` : th.sect,
+                borderRadius:12,
+                border: a.earned ? `1.5px solid color-mix(in srgb, ${th.accentBg} 40%, transparent)` : `1.5px solid ${th.border}`,
+                opacity: a.earned ? 1 : 0.38,
+              }}>
+                <div style={{ width:46, height:46, borderRadius:12, background:a.earned?`color-mix(in srgb, ${th.accentBg} 18%, ${th.card})`:th.row, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, boxShadow:a.earned?`0 2px 10px color-mix(in srgb, ${th.accentBg} 22%, transparent)`:"none" }}>{a.icon}</div>
+                <div style={{ fontSize:11, fontWeight:700, color:a.earned?th.accentBg:th.dim, textAlign:"center", lineHeight:1.3 }}>{a.label}</div>
+                <div style={{ fontSize:10, color:th.text, textAlign:"center", lineHeight:1.3 }}>{a.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })();
+
+    const historyJSX = loading ? (
+      <div style={{ textAlign:"center", padding:"48px 0", color:th.dim, fontSize:14 }}>Loading…</div>
+    ) : !sessions || sessions.length === 0 ? (
+      <div style={{ textAlign:"center", padding:"48px 0" }}>
+        <div style={{ fontSize:32, marginBottom:12 }}>🏋️</div>
+        <div style={{ color:th.muted, fontSize:14 }}>No sessions recorded yet.</div>
+      </div>
+    ) : (
+      <>
+        {sessions.map(s => {
+          const ic = intColor(s.intensity || 0, th);
+          return (
+            <div key={s.id || s.startTime} style={{ ...S.card, marginBottom:8, overflow:"hidden" }}>
+              <div style={{ padding:"13px 14px", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div style={{ flex:1, cursor:"pointer" }} onClick={() => setSelHistSession(s)}>
+                  <div style={{ fontWeight:700, fontSize:15, color:th.text, textAlign:"left", marginBottom:3 }}>{s.name}</div>
+                  <div style={{ fontSize:12, color:th.muted, textAlign:"left" }}>{fmtDate(s.startTime)} · {s.doneSets}/{s.totalSets} sets · {s.duration||"?"}min{s.calories ? ` · ${s.calories}kcal` : ""}</div>
+                  <div style={{ fontSize:11, color:th.accentFg, fontWeight:700, marginTop:2, textAlign:"left" }}>tap for details →</div>
+                </div>
+                {s.intensity != null && (
+                  <div style={{ background:th.sect, borderRadius:9, padding:"7px 11px", textAlign:"center", flexShrink:0, marginLeft:10 }}>
+                    <div className="bebas" style={{ fontSize:26, color:ic, lineHeight:1 }}>{s.intensity}</div>
+                    <div style={{ fontSize:8, color:th.dim, letterSpacing:"0.8px" }}>INTENSITY</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
 
     return (
       <>
@@ -6424,6 +7525,10 @@ import "./styles.css";
           @keyframes fdSheetOut { from{transform:translateY(0);opacity:1}     to{transform:translateY(100%);opacity:0} }
           @keyframes fdBdIn  { from{opacity:0} to{opacity:1} }
           @keyframes fdBdOut { from{opacity:1} to{opacity:0} }
+          @keyframes coachPulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+          @keyframes coachXPop  { 0%{transform:scale(0) rotate(-45deg);opacity:0} 65%{transform:scale(1.25) rotate(5deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
+          @keyframes removeSlide { to{transform:translateX(-100%);opacity:0} }
+          @keyframes sheetUp { from{transform:translateY(100%);opacity:.5} to{transform:translateY(0);opacity:1} }
         `}</style>
 
         {/* Backdrop */}
@@ -6432,6 +7537,19 @@ import "./styles.css";
           background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
           animation: closing ? "fdBdOut .34s ease forwards" : "fdBdIn .26s ease forwards",
         }} />
+
+        {/* Session detail overlay when in history tab */}
+        {selHistSession && (
+          <div style={{ position:"fixed", inset:0, zIndex:73, background:`color-mix(in srgb, ${th.card} 96%, transparent)`, backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", overflowY:"auto" }}>
+            <div style={{ padding:"16px 16px 8px", borderBottom:`1px solid ${th.border}`, display:"flex", alignItems:"center", gap:12 }}>
+              <button onClick={() => setSelHistSession(null)} style={{ background:"none", border:"none", color:th.accentFg, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, cursor:"pointer", padding:"4px 0" }}>← BACK</button>
+              <div className="bebas" style={{ fontSize:20, letterSpacing:1, color:th.text }}>{selHistSession.name}</div>
+            </div>
+            <div style={{ padding:"16px 16px calc(48px + env(safe-area-inset-bottom,0px))", flex:1 }}>
+              <SessionDetailView session={selHistSession} onBack={() => setSelHistSession(null)} onOrigin="coachHistory" />
+            </div>
+          </div>
+        )}
 
         {/* Sheet */}
         <div style={{
@@ -6449,108 +7567,262 @@ import "./styles.css";
             animation: closing ? "fdSheetOut .34s cubic-bezier(0.4,0,1,1) forwards" : "fdSheetIn .42s cubic-bezier(0.32,0.72,0,1) forwards",
           }}>
 
-            {/* Header */}
-            <div style={{ flexShrink:0, borderBottom:`1px solid ${th.border}`, padding:"14px 16px 10px" }}>
-              {/* Pill */}
+            {/* ── Header ── */}
+            <div style={{ flexShrink:0, borderBottom:`1px solid ${th.border}`, padding:"14px 16px 12px" }}>
+              {/* Pill handle */}
               <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
                 <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+
+              {/* Friend identity row */}
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
                 {friend.photoURL ? (
-                  <img src={friend.photoURL} alt={friend.name} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                  <img src={friend.photoURL} alt={friend.name} style={{ width:44, height:44, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
                 ) : (
-                  <div style={{ width:46, height:46, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+                  <div style={{ width:44, height:44, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
                     {initials}
                   </div>
                 )}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div className="bebas" style={{ fontSize:26, textAlign: "left",letterSpacing:2, color:th.text, lineHeight:1 }}>{friend.name}</div>
-                  <div style={{ fontSize:12, textAlign:"left", color:th.muted, marginTop:2 }}>{friend.email}</div>
+                  <div className="bebas" style={{ fontSize:24, textAlign:"left", letterSpacing:2, color:th.text, lineHeight:1 }}>{friend.name}</div>
+                  <div style={{ fontSize:11, textAlign:"left", color:th.muted, marginTop:2 }}>{friend.email}</div>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-                  <button
-                    onClick={onCompete}
-                    style={{
-                      background:`color-mix(in srgb, rgba(212,175,55,0.2) 100%, transparent)`,
-                      backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
-                      border:`1.5px solid rgba(212,175,55,0.5)`,
-                      borderRadius:10, padding:"7px 12px", cursor:"pointer",
-                      fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
-                      color:"#D4AF37", letterSpacing:"0.5px",
-                      transition:"background .2s, color .2s",
-                    }}
-                  >{(() => {
-                    const comp = competitions && competitions.find(c =>
-                      (c.fromUid === user?.id && c.toUid === friend.uid) ||
-                      (c.toUid   === user?.id && c.fromUid === friend.uid)
-                    );
-                    if (comp?.status === "active") return (
-                      <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <span style={{ width:7, height:7, borderRadius:"50%", background:"#D4AF37", display:"inline-block", animation:"pulse 1.5s ease-in-out infinite", flexShrink:0 }} />
-                        COMPETING
-                      </span>
-                    );
-                    if (comp?.status === "pending") return "PENDING";
-                    return "COMPETE";
-                  })()}</button>
-                  <button onClick={close} style={{ background:"none", border:"none", color:th.muted, fontSize:26, cursor:"pointer", lineHeight:1, padding:"4px 6px" }}>✕</button>
-                </div>
+                <button onClick={close} style={{ background:"none", border:"none", color:th.muted, fontSize:24, cursor:"pointer", lineHeight:1, padding:"4px 6px", flexShrink:0 }}>✕</button>
               </div>
+
+              {/* Action buttons row — COMPETE on left, COACH REQUEST on right */}
+              <div style={{ display:"flex", gap:8 }}>
+                {/* COMPETE */}
+                <button onClick={onCompete} style={{
+                  flex:1,
+                  background:"linear-gradient(135deg, rgba(212,175,55,0.45) 0%, rgba(168,130,20,0.6) 100%)",
+                  backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                  boxShadow:"0 2px 12px rgba(212,175,55,0.28), inset 0 1px 0 rgba(255,255,255,0.16)",
+                  border:`1.5px solid rgba(212,175,55,0.65)`,
+                  borderRadius:11, padding:"9px 0", cursor:"pointer",
+                  fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
+                  color:"#fff", letterSpacing:"0.5px",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+                  textShadow:"0 1px 2px rgba(100,80,0,0.5)",
+                }}>{compLabel}</button>
+
+                {/* COACH REQUEST — hidden if this user is already the athlete */}
+                {!(coachRelation && coachRelation.fromUid === friend.uid) && (
+                  <button
+                    onClick={handleCoachBtnClick}
+                    disabled={coachBtnState === "sending"}
+                    style={{
+                      flex:1,
+                      background: coachBtnState === "idle"
+                        ? "linear-gradient(135deg, rgba(91,156,246,0.72) 0%, rgba(60,110,218,0.88) 100%)"
+                        : `rgba(91,156,246,0.12)`,
+                      backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                      boxShadow: coachBtnState === "idle" ? "0 2px 12px rgba(91,156,246,0.32), inset 0 1px 0 rgba(255,255,255,0.18)" : "none",
+                      border: coachBtnState === "active"
+                        ? `1.5px solid rgba(91,156,246,0.55)`
+                        : coachBtnState === "pending"
+                        ? `1.5px solid rgba(91,156,246,0.3)`
+                        : `1.5px solid rgba(91,156,246,0.65)`,
+                      borderRadius:11, padding:"9px 0",
+                      cursor: coachBtnState === "sending" ? "default" : "pointer",
+                      fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
+                      color: coachBtnState === "pending" ? `rgba(91,156,246,0.55)` : coachBtnState === "idle" ? "#fff" : "#5B9CF6",
+                      letterSpacing:"0.5px", transition:"all .2s",
+                      display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+                      opacity: coachBtnState === "pending" ? 0.7 : 1,
+                    }}
+                  >
+                    {coachBtnState === "sending" ? "…"
+                      : coachBtnState === "pending" ? "REQUEST PENDING"
+                      : coachBtnState === "active"
+                        ? <><span style={{ width:6, height:6, borderRadius:"50%", background:"#5B9CF6", display:"inline-block", animation:"coachPulse 2s ease-in-out infinite" }} />COACHING</>
+                        : "REQUEST COACHING"}
+                  </button>
+                )}
+              </div>
+
+              {/* ── Inner tabs (only when coaching is active and I am the coach) ── */}
+              {isCoachingActive && iAmCoach && (() => {
+                const tabs   = ["dashboards","workouts","history"];
+                const labels = ["DASHBOARDS","WORKOUTS","HISTORY"];
+                const idx    = tabs.indexOf(innerTab);
+                return (
+                  <div style={{ display:"flex", position:"relative", marginTop:10, padding:"3px", background:th.row, borderRadius:12 }}>
+                    <div style={{
+                      position:"absolute", top:3, bottom:3,
+                      width:`calc(${100/3}% - 2px)`,
+                      left: idx === 0 ? 3 : idx === 1 ? "calc(33.33%)" : "calc(66.66%)",
+                      background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                      borderRadius:9,
+                      transition:"left 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
+                      pointerEvents:"none",
+                    }} />
+                    {tabs.map((t, i) => (
+                      <button key={t} onClick={() => setInnerTab(t)} style={{
+                        flex:1, padding:"8px 0", border:"none", cursor:"pointer",
+                        borderRadius:9, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:10,
+                        letterSpacing:"0.5px", background:"transparent", position:"relative", zIndex:1,
+                        color: innerTab === t ? th.accentT : th.dim,
+                        transition:"color 0.22s ease",
+                      }}>{labels[i]}</button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
-            {/* Scrollable body */}
+            {/* ── Body ── */}
             <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"16px 16px calc(88px + env(safe-area-inset-bottom, 0px))" }}>
-              {loading ? (
-                <div style={{ textAlign:"center", padding:"48px 0", color:th.dim, fontSize:14 }}>Loading…</div>
-              ) : !sessions || sessions.length === 0 ? (
-                <div style={{ textAlign:"center", padding:"48px 0" }}>
-                  <div style={{ fontSize:32, marginBottom:12 }}>🏋️</div>
-                  <div style={{ color:th.muted, fontSize:14 }}>No workout history yet.</div>
+              {/* Permission-denied banner — shown when any cross-user Firestore read fails */}
+              {permissionError && isCoachingActive && iAmCoach && (
+                <div style={{
+                  background:"rgba(220,50,50,0.12)",
+                  border:"1.5px solid rgba(220,50,50,0.45)",
+                  borderRadius:12,
+                  padding:"12px 14px",
+                  marginBottom:14,
+                  display:"flex",
+                  gap:10,
+                  alignItems:"flex-start",
+                }}>
+                  <div style={{ fontSize:18, lineHeight:1.2, flexShrink:0 }}>⚠️</div>
+                  <div style={{ flex:1, textAlign:"left" }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#E04050", letterSpacing:"0.5px", marginBottom:4 }}>FIRESTORE ACCESS BLOCKED</div>
+                    <div style={{ fontSize:12, color:th.muted, lineHeight:1.55 }}>
+                      Coaching is accepted, but Firestore security rules are blocking reads of {friend.name.split(" ")[0]}'s data. The athlete's data is in Firebase, but your account lacks permission to read it.
+                      <br/><br/>
+                      <span style={{ fontWeight:600, color:th.sub }}>Fix:</span> add the <code style={{ background:th.sect, padding:"1px 5px", borderRadius:4, fontSize:11 }}>users/{`{userId}`}/data/{`{docId}`}</code> and <code style={{ background:th.sect, padding:"1px 5px", borderRadius:4, fontSize:11 }}>users/{`{userId}`}/sessions/{`{sessionId}`}</code> rules with an <code style={{ background:th.sect, padding:"1px 5px", borderRadius:4, fontSize:11 }}>exists()</code> check on <code style={{ background:th.sect, padding:"1px 5px", borderRadius:4, fontSize:11 }}>coachRequests/{`{coachUid}_{athleteUid}`}</code>. Browser console has the exact error.
+                    </div>
+                  </div>
                 </div>
-              ) : (
+              )}
+              {isCoachingActive && iAmCoach ? (
                 <>
-                  {/* ── Quick summary tiles ── */}
-                  {(() => {
-                    const todayMs = new Date(); todayMs.setHours(0,0,0,0);
-                    const sessionDays = new Set(sessions.map(s => { const d=new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
-                    let streak=0; for(let i=0;i<=365;i++){const d=new Date(todayMs);d.setDate(d.getDate()-i);if(sessionDays.has(d.getTime()))streak++;else if(i>0)break;}
-                    const last7 = sessions.filter(s=>(s.startTime||0)>=Date.now()-7*864e5).length;
-                    const now = new Date(); const monthStart = new Date(now.getFullYear(),now.getMonth(),1).getTime();
-                    const thisMonth = sessions.filter(s=>(s.startTime||0)>=monthStart).length;
-                    return (
-                      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-                        {[
-                          { label:"STREAK",       value: streak ? `${streak}d` : "—" },
-                          { label:"LAST 7 DAYS",  value: last7 },
-                          { label:"THIS MONTH",   value: thisMonth },
-                        ].map(({label,value}) => (
-                          <div key={label} style={{ flex:1, background:th.sect, borderRadius:12, padding:"14px 8px", textAlign:"center" }}>
-                            <div className="bebas" style={{ fontSize:28, color:th.accentFg, lineHeight:1 }}>{value}</div>
-                            <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px", marginTop:5 }}>{label}</div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                  <StreakDashboard sessions={sessions} />
-                  <MusclesTrainedDashboard sessions={sessions} />
-                  <IntensityDashboard sessions={sessions} sessionVol={sessionVol} />
-                  <CaloriesDashboard sessions={sessions} />
-                  <WeeklyVolumeDashboard sessions={sessions} sessionVol={sessionVol} />
-                  {(() => {
-                    const prMap={};
-                    sessions.forEach(s=>(s.exercises||[]).forEach(ex=>{const id=ex.id||ex.exId;if(!id)return;(ex.sets||[]).filter(st=>st.done&&(st.weight||0)>0).forEach(st=>{if(!prMap[id]||st.weight>prMap[id].w){const dbEx=DB.find(d=>d.id===id);prMap[id]={w:st.weight,reps:st.reps,name:dbEx?.name||ex.name||id,t:s.startTime||0,muscle:dbEx?.muscle};}});} ));
-                    const allPrs=Object.values(prMap).sort((a,b)=>b.w-a.w);
-                    return allPrs.length ? <PRsDashboard allPrs={allPrs} /> : null;
-                  })()}
-                  <SetsByMuscleGroup sessions={sessions} />
-                  <TrainingDensityDashboard sessions={sessions} sessionVol={sessionVol} />
-                  <SessionPaceDashboard sessions={sessions} sessionVol={sessionVol} />
+                  {innerTab === "dashboards" && coachDashboardsJSX}
+                  {innerTab === "workouts"   && workoutsJSX}
+                  {innerTab === "history"    && historyJSX}
                 </>
+              ) : (
+                dashboardsJSX
               )}
             </div>
           </div>
         </div>
+
+        {/* ── Coaching Rules Popup ─────────────────────────────────────────── */}
+        {showCoachRules && (
+          <div onClick={() => setShowCoachRules(false)} style={{
+            position:"fixed", inset:0, zIndex:80,
+            background:"rgba(0,0,0,0.65)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+            display:"flex", alignItems:"flex-end", justifyContent:"center",
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              width:"100%", maxWidth:480,
+              background:th.card, borderRadius:"24px 24px 0 0",
+              borderTop:`1px solid ${th.border}`,
+              padding:"20px 20px calc(32px + env(safe-area-inset-bottom,0px))",
+              animation:"fdSheetIn .38s cubic-bezier(0.32,0.72,0,1) forwards",
+            }}>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:18 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
+              </div>
+              <div style={{ textAlign:"center", marginBottom:20 }}>
+                <div style={{ fontSize:36, marginBottom:10 }}>
+                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Circle bg */}
+                    <circle cx="20" cy="20" r="19" stroke="#5B9CF6" strokeWidth="2" fill="rgba(91,156,246,0.10)"/>
+                    {/* Clipboard board */}
+                    <rect x="11" y="12" width="18" height="20" rx="2.5" stroke="#5B9CF6" strokeWidth="2" fill="rgba(91,156,246,0.08)"/>
+                    {/* Clip at top */}
+                    <rect x="15.5" y="10" width="9" height="5" rx="1.5" stroke="#5B9CF6" strokeWidth="1.8" fill="rgba(91,156,246,0.22)"/>
+                    {/* Content lines */}
+                    <line x1="14" y1="18" x2="26" y2="18" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round"/>
+                    <line x1="14" y1="22" x2="26" y2="22" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/>
+                    <line x1="14" y1="26" x2="22" y2="26" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.45"/>
+                  </svg>
+                </div>
+                <div className="bebas" style={{ fontSize:22, letterSpacing:2, color:th.text, marginBottom:6 }}>REQUEST COACHING</div>
+                <div style={{ fontSize:13, color:th.muted, lineHeight:1.65, maxWidth:290, margin:"0 auto" }}>
+                  Send a coaching request to <strong style={{ color:th.sub }}>{friend.name.split(" ")[0]}</strong>. Once they accept, you'll unlock full access to guide their training.
+                </div>
+              </div>
+              <div style={{ ...S.card, padding:"14px 16px", marginBottom:20 }}>
+                <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>COACH ACCESS INCLUDES</div>
+                {[
+                  { icon:"📊", label:"All Dashboards",   desc:"Full analytics: volume, density, pace, muscles trained, PRs and more" },
+                  { icon:"📋", label:"Workout Programs", desc:"View, edit and create training programs directly for your athlete" },
+                  { icon:"📅", label:"Session History",  desc:"Browse every logged session with full exercise and set details" },
+                ].map(({ icon, label, desc }) => (
+                  <div key={label} style={{ display:"flex", gap:12, marginBottom:10, alignItems:"flex-start" }}>
+                    <div style={{ fontSize:18, flexShrink:0, lineHeight:1.3 }}>{icon}</div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:th.text, textAlign:"left" }}>{label}</div>
+                      <div style={{ fontSize:11, color:th.muted, marginTop:2, textAlign:"left", lineHeight:1.45 }}>{desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => setShowCoachRules(false)}
+                  style={{ flex:1, background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:13, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}>CANCEL</button>
+                <button onClick={confirmSendCoachRequest}
+                  style={{ flex:2, background:"linear-gradient(135deg, rgba(91,156,246,0.72) 0%, rgba(60,110,218,0.88) 100%)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:"0 2px 14px rgba(91,156,246,0.38), inset 0 1px 0 rgba(255,255,255,0.18)", border:"1.5px solid rgba(91,156,246,0.65)", borderRadius:13, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:"#fff", letterSpacing:"0.5px" }}>
+                  SEND REQUEST TO {friend.name.split(" ")[0].toUpperCase()}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Stop Coaching Confirmation Popup ─────────────────────────────── */}
+        {showStopCoach && (
+          <div onClick={() => setShowStopCoach(false)} style={{
+            position:"fixed", inset:0, zIndex:80,
+            background:"rgba(0,0,0,0.6)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:"0 20px",
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              width:"100%", maxWidth:380,
+              background:th.card, borderRadius:20,
+              border:`1px solid ${th.border}`,
+              padding:"28px 22px 22px",
+              animation:"notifPop 0.3s cubic-bezier(0.34,1.4,0.64,1) forwards",
+            }}>
+              <div style={{ textAlign:"center", marginBottom:18 }}>
+                <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
+                  <svg width="36" height="36" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Circle bg */}
+                    <circle cx="20" cy="20" r="19" stroke="#5B9CF6" strokeWidth="2" fill="rgba(91,156,246,0.10)"/>
+                    {/* Clipboard board */}
+                    <rect x="11" y="12" width="18" height="20" rx="2.5" stroke="#5B9CF6" strokeWidth="2" fill="rgba(91,156,246,0.08)"/>
+                    {/* Clip at top */}
+                    <rect x="15.5" y="10" width="9" height="5" rx="1.5" stroke="#5B9CF6" strokeWidth="1.8" fill="rgba(91,156,246,0.22)"/>
+                    {/* Content lines */}
+                    <line x1="14" y1="18" x2="26" y2="18" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round"/>
+                    <line x1="14" y1="22" x2="26" y2="22" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/>
+                    <line x1="14" y1="26" x2="22" y2="26" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.45"/>
+                  </svg>
+                </div>
+                <div className="bebas" style={{ fontSize:20, letterSpacing:2, color:th.text, marginBottom:6 }}>
+                  {coachBtnState === "active" ? "STOP COACHING?" : "WITHDRAW REQUEST?"}
+                </div>
+                <div style={{ fontSize:13, color:th.muted, lineHeight:1.6 }}>
+                  {coachBtnState === "active"
+                    ? `You'll lose access to ${friend.name.split(" ")[0]}'s programs, dashboards and history. This can be requested again later.`
+                    : `Withdraw your coaching request to ${friend.name.split(" ")[0]}?`}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => setShowStopCoach(false)}
+                  style={{ flex:1, background:`color-mix(in srgb, ${th.inputB} 30%, transparent)`, backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 4px rgba(0,0,0,0.08)", border:`1.5px solid ${th.border}`, borderRadius:12, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.muted }}>CANCEL</button>
+                <button onClick={confirmStopCoaching} disabled={stoppingCoach}
+                  style={{ flex:1, background:"linear-gradient(135deg, rgba(220,50,50,0.72) 0%, rgba(170,25,25,0.88) 100%)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:"0 2px 14px rgba(200,30,30,0.35), inset 0 1px 0 rgba(255,255,255,0.14)", border:"1.5px solid rgba(220,50,50,0.6)", borderRadius:12, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:"#fff", opacity:stoppingCoach?0.5:1 }}>
+                  {stoppingCoach ? "…" : coachBtnState === "active" ? "STOP COACHING" : "WITHDRAW"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -6574,7 +7846,7 @@ import "./styles.css";
         {editing ? (
           <button
             onClick={onRemove}
-            style={{ background:th.del, border:`1px solid ${th.delB}`, borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:14, lineHeight:1, flexShrink:0 }}
+            style={{ background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:14, lineHeight:1, flexShrink:0 }}
           >✕</button>
         ) : (
           <div style={{ display:"flex", gap:6, flexShrink:0 }}>
@@ -6591,7 +7863,7 @@ import "./styles.css";
             >COMPETE</button>
             <button
               onClick={onViewDashboard}
-              style={{ background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12, color:th.accentT, letterSpacing:"0.5px" }}
+              style={{ background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 85%, transparent) 100%)`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`, border:`1.5px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`, borderRadius:10, padding:"8px 12px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12, color:th.accentT, letterSpacing:"0.5px" }}
             >VIEW →</button>
           </div>
         )}
@@ -6821,9 +8093,9 @@ import "./styles.css";
                   </div>
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={async () => { await onDeclineCompeteInvite(comp.id); close(); }}
-                      style={{ flex:1, background:th.del, border:`1px solid ${th.delB}`, borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}>DECLINE</button>
+                      style={{ flex:1, background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}>DECLINE</button>
                     <button onClick={async () => { await onAcceptCompeteInvite(comp.id); }}
-                      style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT }}>ACCEPT ✔</button>
+                      style={{ flex:1, background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 85%, transparent) 100%)`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`, border:`1.5px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`, borderRadius:12, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT }}>ACCEPT ✔</button>
                   </div>
                 </div>
               )}
@@ -6839,7 +8111,7 @@ import "./styles.css";
                   </div>
                   <button
                     onClick={async () => { await onWithdrawCompeteInvite(comp.id); close(); }}
-                    style={{ background:th.del, border:`1px solid ${th.delB}`, borderRadius:12, padding:"11px 24px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}
+                    style={{ background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:12, padding:"11px 24px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}
                   >WITHDRAW INVITATION</button>
                 </div>
               )}
@@ -6965,12 +8237,13 @@ import "./styles.css";
                         }}
                         style={{
                           width:"100%",
-                          background:`color-mix(in srgb, rgba(212,175,55,0.2) 100%, transparent)`,
+                          background:"linear-gradient(135deg, rgba(212,175,55,0.42) 0%, rgba(168,130,20,0.58) 100%)",
                           backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
-                          border:`1.5px solid rgba(212,175,55,0.5)`,
+                          boxShadow:"0 2px 10px rgba(212,175,55,0.28), inset 0 1px 0 rgba(255,255,255,0.15)",
+                          border:`1.5px solid rgba(212,175,55,0.65)`,
                           borderRadius:14, padding:"15px 0", cursor: sending?"default":"pointer",
                           fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14,
-                          letterSpacing:"0.5px", color:"#D4AF37",
+                          letterSpacing:"0.5px", color:"#fff", textShadow:"0 1px 2px rgba(100,80,0,0.4)",
                           transition:"background .2s, color .2s",
                           opacity: sending ? 0.6 : 1,
                         }}
@@ -7000,10 +8273,12 @@ import "./styles.css";
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
             <rect x="2" y="3" width="18" height="5" rx="2.5" stroke={th.accentFg} strokeWidth="1.8"/>
             <line x1="7" y1="5.5" x2="15" y2="5.5" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+            <rect x="2" y="11" width="18" height="8" rx="2.5" stroke={th.accentFg} strokeWidth="1.8" opacity="0.5"/>
+            <line x1="7" y1="15" x2="15" y2="15" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round" opacity="0.5"/>
           </svg>
         ),
         title: "Feed & Friends Tabs",
-        body: "The Sharing tab has two sections. FEED shows your friends' recent workouts, shared programs, and reactions. FRIENDS shows your connections and the monthly Iron Board leaderboard.",
+        body: "Sharing has two sections. FEED shows your friends' recent workouts, shared programs, and reactions. FRIENDS shows your connections, pending requests, and the monthly Iron Board leaderboard.",
       },
       {
         icon: (
@@ -7015,7 +8290,22 @@ import "./styles.css";
           </svg>
         ),
         title: "Add Friends",
-        body: "Tap the + bubble or INVITE A FRIEND to connect. Suggested users from the app appear automatically. Once accepted, you'll see each other's workouts in your feeds.",
+        body: "Tap the + bubble or INVITE A FRIEND to connect. Once accepted you'll see each other's workouts in your feeds. Pending invites and coach requests appear in the Friends tab, above the leaderboard.",
+      },
+      {
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <rect x="3" y="4" width="12" height="15" rx="2" stroke={th.accentFg} strokeWidth="1.8"/>
+            <rect x="7.5" y="2.5" width="5" height="3" rx="0.8" stroke={th.accentFg} strokeWidth="1.5"/>
+            <line x1="5.5" y1="9" x2="12.5" y2="9" stroke={th.accentFg} strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="5.5" y1="12" x2="12.5" y2="12" stroke={th.accentFg} strokeWidth="1.5" strokeLinecap="round" opacity="0.7"/>
+            <line x1="5.5" y1="15" x2="10" y2="15" stroke={th.accentFg} strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
+            <circle cx="18" cy="16.5" r="3" stroke="#5B9CF6" strokeWidth="1.6"/>
+            <path d="M15 20c0-1.6 1.3-3 3-3s3 1.4 3 3" stroke="#5B9CF6" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+        title: "Request Coaching",
+        body: "Tap a friend's profile and hit REQUEST COACHING to become their coach. Once they accept, you unlock their full dashboards, session history, and workout programs — and can edit or create programs for them.",
       },
       {
         icon: (
@@ -7032,21 +8322,22 @@ import "./styles.css";
       {
         icon: (
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
-            <polygon points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round" transform="translate(0 0) scale(0.55) translate(10 16)"/>
+            <polygon points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3" stroke="#D4AF37" strokeWidth="1.8" strokeLinejoin="round"/>
           </svg>
         ),
-        title: "React & Comment",
-        body: "Tap the ★ on any feed post to react — your friend gets notified. Tap the comment bubble to leave a message. Tap a star count to see who reacted.",
+        title: "Iron Board & Compete",
+        body: "The Friends tab shows the monthly Iron Board — top 3 ranked by intensity, calories, consistency and volume. Tap a friend bubble to view their dashboards and send a 7-day competition challenge.",
       },
       {
         icon: (
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
-            <path d="M11 2l2.4 6.8H20l-5.5 4 2.1 6.8L11 15.6l-5.6 4 2.1-6.8L2 8.8h6.6z" stroke="#D4AF37" strokeWidth="1.8" strokeLinejoin="round"/>
+            <path d="M11 2l2.4 6.8H20l-5.5 4 2.1 6.8L11 15.6l-5.6 4 2.1-6.8L2 8.8h6.6z" stroke={th.accentFg} strokeWidth="1.5" strokeLinejoin="round" opacity="0.7"/>
+            <circle cx="17" cy="5" r="3.5" fill={`color-mix(in srgb, ${th.accentBg} 25%, transparent)`} stroke={th.accentFg} strokeWidth="1.6"/>
+            <path d="M15.6 5l1 1 2-2" stroke={th.accentFg} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         ),
-        title: "Iron Board & Compete",
-        body: "Switch to Friends tab to see the monthly Iron Board — a live leaderboard ranking you and friends by intensity, calories, consistency and volume. Tap a friend bubble to open their dashboard and send a 7-day challenge.",
+        title: "Notifications",
+        body: "The bell icon at the top right shows friend requests, coach requests, competition invites, program reactions, and accepted coaching — all in one place.",
       },
     ];
 
@@ -7074,14 +8365,15 @@ import "./styles.css";
         {/* Accent top bar */}
         <div style={{ height: 3, background: th.accentBg }} />
         <div style={{ padding: "16px 16px 14px" }}>
-          {/* Step content */}
+          {/* Step content — fixed height so card never resizes between slides */}
+          <div style={{ position:"relative", height:108, overflow:"hidden" }}>
           <div
             key={step}
             style={{
+              position:"absolute", inset:0, overflowY:"auto",
               animation: leaving
                 ? (dir > 0 ? "obSlideOut 0.16s ease-in forwards" : "obSlideOutR 0.16s ease-in forwards")
                 : (dir > 0 ? "obSlideIn 0.22s cubic-bezier(0,0,0.2,1) forwards" : "obSlideInR 0.22s cubic-bezier(0,0,0.2,1) forwards"),
-              minHeight: 84,
             }}
           >
             <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
@@ -7095,6 +8387,7 @@ import "./styles.css";
                 <div style={{ fontSize: 12, textAlign: "left", color: th.muted, lineHeight: 1.55 }}>{s.body}</div>
               </div>
             </div>
+          </div>
           </div>
           {/* Footer: dots + nav */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop: 14 }}>
@@ -7118,17 +8411,19 @@ import "./styles.css";
               )}
               {!isLast ? (
                 <button onClick={() => goTo(step + 1)} style={{
-                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-                  border: "none", borderRadius: 9, color: th.accentT,
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                  backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                  boxShadow: `0 2px 10px color-mix(in srgb, ${th.accentBg} 36%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)`,
+                  border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
                 }}>Next →</button>
               ) : (
                 <button onClick={onDismiss} style={{
-                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-                  border: "none", borderRadius: 9, color: th.accentT,
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                  backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                  boxShadow: `0 2px 10px color-mix(in srgb, ${th.accentBg} 36%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)`,
+                  border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
                 }}>Got it ✔</button>
@@ -7549,9 +8844,10 @@ import "./styles.css";
       ...friends.map(f => ({ uid:f.uid, name:f.name, photoURL:f.photoURL, isMe:false })),
     ].map(e => ({ ...e, score: boardScores[e.uid] ?? null }))
      .filter(e => e.score !== null)
-     .sort((a,b) => b.score - a.score);
+     .sort((a,b) => b.score - a.score)
+     .slice(0, 3); // always cap at top 3
 
-    // Always pad to at least 3 entries with empty placeholder slots
+    // Pad to exactly 3 with empty placeholder slots
     const entries = [...rawEntries];
     while (entries.length < 3) {
       entries.push({ uid:`empty-${entries.length}`, name:"", photoURL:null, isMe:false, score:0, isEmpty:true });
@@ -7603,7 +8899,7 @@ import "./styles.css";
               )}
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:700, fontSize:15, color: e.isMe ? th.accentFg : th.text }}>{e.isMe ? "You" : e.name.split(" ")[0]}</div>
-                <div style={{ fontSize:11, color:th.dim, marginTop:1 }}>{monthName}</div>
+
               </div>
               <div style={{ textAlign:"right", flexShrink:0 }}>
                 <div className="bebas" style={{ fontSize:22, letterSpacing:1, color: isTop ? "#D4AF37" : e.isMe ? th.accentFg : th.text, lineHeight:1 }}>{e.score}</div>
@@ -7655,7 +8951,7 @@ import "./styles.css";
     );
   }
 
-  function SharingView({ user, sessions: mySessions, pendingInvitations, sentInvitations, friends, onSendInvite, onAcceptInvite, onDeclineInvite, onGetFriendSessions, onRemoveFriend, onToggleStar, starNotifications, unreadStars, onMarkNotifsRead, competitions, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite, settings, onUpdateSettings, onSaveSharedProgram }) {
+  function SharingView({ user, sessions: mySessions, pendingInvitations, sentInvitations, friends, onSendInvite, onAcceptInvite, onDeclineInvite, onGetFriendSessions, onRemoveFriend, onToggleStar, starNotifications, unreadStars, onMarkNotifsRead, competitions, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite, settings, onUpdateSettings, onSaveSharedProgram, pendingCoachRequests, sentCoachRequests, coachRelations, onAcceptCoachRequest, onDeclineCoachRequest, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching }) {
     const th = useTheme();
     const S = useS();
     const [inviteEmail, setInviteEmail] = useState("");
@@ -7673,6 +8969,8 @@ import "./styles.css";
     const [dashFriend, setDashFriend] = useState(null);
     const [competeFriend, setCompeteFriend] = useState(null);
     const [editFriends, setEditFriends] = useState(false);
+    const [confirmRemoveFriend, setConfirmRemoveFriend] = useState(null);
+    const [pendingCoachAccept, setPendingCoachAccept] = useState(null); // coach request to show rules before accepting
     // Feed: map of friendUid → their recent sessions
     const [feedData, setFeedData] = useState({});
     const [feedLoading, setFeedLoading] = useState(false);
@@ -7847,71 +9145,11 @@ import "./styles.css";
         `}</style>
 
         {/* ── Sharing onboarding guide ── */}
-        {/* Show onboarding if user hasn't seen v2 of the sharing guide */}
-        {!settings?.hasSharingOnboardedV2 && (
-          <SharingOnboarding onDismiss={() => onUpdateSettings?.({ ...settings, hasSharingOnboarded: true, hasSharingOnboardedV2: true })} />
+        {/* Show onboarding if user hasn't seen v3 of the sharing guide (coaching update) */}
+        {!settings?.hasSharingOnboardedV3 && (
+          <SharingOnboarding onDismiss={() => onUpdateSettings?.({ ...settings, hasSharingOnboarded: true, hasSharingOnboardedV2: true, hasSharingOnboardedV3: true })} />
         )}
 
-        {/* ── Pending invitations received ── */}
-        {pendingInvitations.length > 0 && (
-          <div style={{ marginBottom: 20,textAlign:"left", animation: "sharingFadeUp 0.3s ease both" }}>
-            <div style={{ ...S.label, marginBottom: 10 }}>PENDING FOR YOU ({pendingInvitations.length})</div>
-            {pendingInvitations.map(inv => (
-              <div key={inv.id} style={{ ...S.card, padding: "14px 16px", marginBottom: 8 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                  <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
-                    {(inv.fromName||"?")[0].toUpperCase()}
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:700, fontSize:15, color:th.text }}>{inv.fromName}</div>
-                    <div style={{ fontSize:13, color:th.muted, marginTop:1 }}>{inv.fromEmail}</div>
-                    <div style={{ fontSize:13, color:th.dim, marginTop:2 }}>Wants to share workout progress</div>
-                  </div>
-                  {/* X decline */}
-                  <button onClick={() => handleAction(inv.id, inv, "decline")} disabled={actioning[inv.id]}
-                    style={{ background:"rgba(220,50,50,0.45)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:14, lineHeight:1, flexShrink:0, opacity: actioning[inv.id]?0.4:1 }}>✕</button>
-                  {/* Accept */}
-                  <button onClick={() => handleAction(inv.id, inv, "accept")} disabled={actioning[inv.id]}
-                    style={{ background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT, flexShrink:0, opacity: actioning[inv.id]?0.4:1 }}>{actioning[inv.id] ? "…" : "ACCEPT"}</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── Pending competition invitations received ── */}
-        {competitions.filter(c => c.toUid === user.id && c.status === "pending").map(c => {
-          const f = friends.find(fr => fr.uid === c.fromUid);
-          const initials = (c.fromName||"?")[0].toUpperCase();
-          return (
-            <div key={c.id} style={{ ...S.card, padding:"14px 16px", marginBottom:8, animation:"sharingFadeUp 0.3s ease both" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
-                {f?.photoURL ? (
-                  <img src={f.photoURL} alt={c.fromName} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
-                ) : (
-                  <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, #E8612C 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:"#E8612C", flexShrink:0 }}>
-                    {initials}
-                  </div>
-                )}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:700, textAlign:"left", fontSize:15, color:th.text }}>{c.fromName}</div>
-                  <div style={{ fontSize:13, textAlign:"left", color:"#E8612C", marginTop:1, fontWeight:600 }}>COMPETE INVITATION</div>
-                </div>
-              </div>
-              <div style={{ fontSize:13, textAlign:"left", color:th.muted, marginBottom:12, lineHeight:1.5 }}>
-                Challenges you to a 7-day workout competition. Score is based on intensity, calories and consistency.
-              </div>
-              <div style={{ display:"flex", gap:8 }}>
-                <button onClick={async () => { await onDeclineCompeteInvite(c.id); }}
-                  style={{ flex:1, background:th.del, border:`1px solid ${th.delB}`, borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.delText }}>DECLINE</button>
-                <button onClick={async () => { await onAcceptCompeteInvite(c.id); }}
-                  style={{ flex:1, background:`color-mix(in srgb, ${th.accentBg} 80%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.accentT }}>ACCEPT</button>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* ── Tab switcher: FEED | FRIENDS — smooth sliding rounded pill ── */}
         {(() => {
           const tabs = ["feed","friends"];
           const idx = tabs.indexOf(sharingTab);
@@ -7922,7 +9160,8 @@ import "./styles.css";
                 position:"absolute", top:3, bottom:3,
                 width:"calc(50% - 3px)",
                 left: idx === 0 ? 3 : "calc(50%)",
-                background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
+                background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                boxShadow:`0 2px 10px color-mix(in srgb, ${th.accentBg} 32%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`,
                 borderRadius:11,
                 transition:"left 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
                 pointerEvents:"none",
@@ -7942,30 +9181,140 @@ import "./styles.css";
           );
         })()}
 
+        {/* ── Pending invitations / requests received — BELOW TAB, FRIENDS TAB ONLY ── */}
+        {sharingTab === "friends" && pendingInvitations.length > 0 && (
+          <div style={{ marginBottom:20, textAlign:"left", animation:"sharingFadeUp 0.3s ease both" }}>
+            <div style={{ ...S.label, marginBottom:10 }}>PENDING FOR YOU ({pendingInvitations.length})</div>
+            {pendingInvitations.map(inv => (
+              <div key={inv.id} style={{ ...S.card, padding:"14px 16px", marginBottom:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+                    {(inv.fromName||"?")[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:15, color:th.text }}>{inv.fromName}</div>
+                    <div style={{ fontSize:13, color:th.muted, marginTop:1 }}>{inv.fromEmail}</div>
+                    <div style={{ fontSize:13, color:th.dim, marginTop:2 }}>Wants to share workout progress</div>
+                  </div>
+                  <button onClick={() => handleAction(inv.id, inv, "decline")} disabled={actioning[inv.id]}
+                    style={{ background:"linear-gradient(135deg, rgba(220,50,50,0.45) 0%, rgba(170,25,25,0.58) 100%)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:"0 2px 10px rgba(200,30,30,0.25), inset 0 1px 0 rgba(255,255,255,0.10)", border:"1.5px solid rgba(220,50,50,0.45)", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:14, lineHeight:1, flexShrink:0, opacity:actioning[inv.id]?0.4:1 }}>✕</button>
+                  <button onClick={() => handleAction(inv.id, inv, "accept")} disabled={actioning[inv.id]}
+                    style={{ background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 85%, transparent) 100%)`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`, border:`1.5px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.accentT, flexShrink:0, opacity:actioning[inv.id]?0.4:1 }}>{actioning[inv.id] ? "…" : "ACCEPT"}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Pending competition invitations received — FRIENDS TAB ONLY ── */}
+        {sharingTab === "friends" && competitions.filter(c => c.toUid === user.id && c.status === "pending").map(c => {
+          const f = friends.find(fr => fr.uid === c.fromUid);
+          const initials = (c.fromName||"?")[0].toUpperCase();
+          return (
+            <div key={c.id} style={{ ...S.card, padding:"14px 16px", marginBottom:8, animation:"sharingFadeUp 0.3s ease both" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
+                {f?.photoURL ? (
+                  <img src={f.photoURL} alt={c.fromName} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                ) : (
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:`color-mix(in srgb, #E8612C 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:"#E8612C", flexShrink:0 }}>{initials}</div>
+                )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, textAlign:"left", fontSize:15, color:th.text }}>{c.fromName}</div>
+                  <div style={{ fontSize:13, textAlign:"left", color:"#E8612C", marginTop:1, fontWeight:600 }}>COMPETE INVITATION</div>
+                </div>
+              </div>
+              <div style={{ fontSize:13, textAlign:"left", color:th.muted, marginBottom:12, lineHeight:1.5 }}>Challenges you to a 7-day workout competition.</div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={async () => { await onDeclineCompeteInvite(c.id); }}
+                  style={{ flex:1, background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.delText }}>DECLINE</button>
+                <button onClick={async () => { await onAcceptCompeteInvite(c.id); }}
+                  style={{ flex:1, background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 85%, transparent) 100%)`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`, border:`1.5px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`, borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.accentT }}>ACCEPT</button>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* ── Pending coaching requests received — FRIENDS TAB ONLY ── */}
+        {sharingTab === "friends" && (pendingCoachRequests || []).map(req => {
+          const f = friends.find(fr => fr.uid === req.fromUid);
+          const initials = (req.fromName||"?")[0].toUpperCase();
+          return (
+            <div key={req.id} style={{ ...S.card, padding:"14px 16px", marginBottom:8, animation:"sharingFadeUp 0.3s ease both", borderColor:`rgba(91,156,246,0.35)` }}>
+              <div style={{ height:3, background:"#5B9CF6", borderRadius:"4px 4px 0 0", margin:"-14px -16px 12px" }} />
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+                {(req.fromPhotoURL || f?.photoURL) ? (
+                  <img src={req.fromPhotoURL || f.photoURL} alt={req.fromName} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                ) : (
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:`rgba(91,156,246,0.15)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:"#5B9CF6", flexShrink:0 }}>{initials}</div>
+                )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, textAlign:"left", fontSize:15, color:th.text }}>{req.fromName}</div>
+                  <div style={{ fontSize:13, textAlign:"left", color:"#5B9CF6", marginTop:1, fontWeight:600, display:"flex", alignItems:"center", gap:5 }}>
+                    COACHING REQUEST
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize:13, textAlign:"left", color:th.muted, marginBottom:12, lineHeight:1.6 }}>
+                <span style={{ fontWeight:600, color:th.sub }}>{req.fromName}</span> wants to be your coach.
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={async () => { await onDeclineCoachRequest(req.id); }}
+                  style={{ flex:1, background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}>DECLINE</button>
+                <button onClick={() => setPendingCoachAccept(req)}
+                  style={{ flex:2, background:"linear-gradient(135deg, rgba(91,156,246,0.72) 0%, rgba(60,110,218,0.88) 100%)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:"0 2px 14px rgba(91,156,246,0.38), inset 0 1px 0 rgba(255,255,255,0.18)", border:"1.5px solid rgba(91,156,246,0.65)", borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:"#fff" }}>ACCEPT AS COACH</button>
+              </div>
+            </div>
+          );
+        })}
+
         {/* ── Horizontal friends bubble row ── */}
+        {sharingTab === "friends" && (
+          <>
+            {/* Sent friend invitations awaiting response */}
+            {sentInvitations.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>AWAITING RESPONSE</div>
+                {sentInvitations.map(inv => (
+                  <div key={inv.id} style={{ ...S.card, padding:"12px 16px", marginBottom:8, textAlign:"left", display:"flex", alignItems:"center", gap:12 }}>
+                    <div style={{ width:34, height:34, borderRadius:"50%", background:th.row, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:th.dim }}>⏳</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:15, color:th.text, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{inv.toEmail}</div>
+                      <div style={{ fontSize:13, color:th.dim, marginTop:1 }}>Invitation pending</div>
+                    </div>
+                    <button onClick={() => handleAction(inv.id, inv, "decline")} disabled={actioning[inv.id]}
+                      style={{ background:"rgba(220,50,50,0.15)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:15, lineHeight:1, flexShrink:0, opacity:actioning[inv.id]?0.4:1 }}
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+          </>
+        )}
+
+        {/* ── Horizontal friends bubble row (existing friends only) ── */}
         {sharingTab === "friends" && friends.length > 0 && (
           <div style={{ marginBottom: 20 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <div style={S.label}>FRIENDS ({friends.length})</div>
               <button onClick={() => setEditFriends(e => !e)}
                 style={{
-                  background: editFriends
-                    ? `color-mix(in srgb, ${th.accentBg} 14%, transparent)`
-                    : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
+                  background: editFriends ? `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 55%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 72%, transparent) 100%)` : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
+                  backdropFilter: "blur(14px)",
+                  WebkitBackdropFilter: "blur(14px)",
+                  boxShadow: editFriends ? `0 2px 10px color-mix(in srgb, ${th.accentBg} 28%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)` : "inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 4px rgba(0,0,0,0.07)",
                   border: editFriends
-                    ? `1px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`
-                    : `1px solid ${th.border}`,
+                    ? `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`
+                    : `1.5px solid ${th.border}`,
                   borderRadius: 20,
-                  color: editFriends ? th.accentFg : th.muted,
+                  color: editFriends ? "#fff" : th.muted,
                   fontSize: 11,
                   cursor: "pointer",
                   fontFamily: "'Outfit',sans-serif",
                   fontWeight: 700,
                   letterSpacing: "0.5px",
                   padding: "4px 12px",
-                  transition: "background .2s, color .2s, border-color .2s",
+                  transition: "background .2s, box-shadow .2s, border-color .2s",
                 }}>
                 {editFriends ? "DONE" : "EDIT"}
               </button>
@@ -8002,7 +9351,7 @@ import "./styles.css";
                     )}
                     {/* Remove X badge in edit mode — floats above avatar, delete-account style */}
                     {editFriends && (
-                      <button onClick={e => { e.stopPropagation(); onRemoveFriend(f.uid); }}
+                      <button onClick={e => { e.stopPropagation(); setConfirmRemoveFriend(f); }}
                         style={{
                           position: "absolute",
                           top: -4,
@@ -8054,6 +9403,13 @@ import "./styles.css";
             onClose={() => setDashFriend(null)}
             onGetFriendSessions={onGetFriendSessions}
             onCompete={() => { setDashFriend(null); setTimeout(() => setCompeteFriend(dashFriend), 360); }}
+            coachRelations={coachRelations}
+            onSendCoachRequest={(friendUid, friendEmail, friendName) =>
+              onSendCoachRequest(friendUid, friendEmail, friendName)
+            }
+            onGetFriendPrograms={onGetFriendPrograms}
+            onSaveCoachPrograms={onSaveCoachPrograms}
+            onStopCoaching={onStopCoaching}
           />,
           document.body
         )}
@@ -8102,6 +9458,115 @@ import "./styles.css";
           document.body
         )}
 
+        {/* ── Remove friend confirmation popup ── */}
+        {confirmRemoveFriend && (
+          <div onClick={() => setConfirmRemoveFriend(null)} style={{
+            position:"fixed", inset:0, zIndex:80,
+            background:"rgba(0,0,0,0.6)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:"0 20px",
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              width:"100%", maxWidth:360,
+              background:th.card, borderRadius:20,
+              border:`1px solid ${th.border}`,
+              padding:"28px 22px 22px",
+              animation:"notifPop 0.3s cubic-bezier(0.34,1.4,0.64,1) forwards",
+            }}>
+              <div style={{ textAlign:"center", marginBottom:18 }}>
+                {confirmRemoveFriend.photoURL ? (
+                  <img src={confirmRemoveFriend.photoURL} alt={confirmRemoveFriend.name}
+                    style={{ width:56, height:56, borderRadius:"50%", objectFit:"cover", margin:"0 auto 12px" }} />
+                ) : (
+                  <div style={{ width:56, height:56, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, fontWeight:700, color:th.accentFg, margin:"0 auto 12px" }}>
+                    {(confirmRemoveFriend.name||"?")[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="bebas" style={{ fontSize:20, letterSpacing:2, color:th.text, marginBottom:6 }}>REMOVE FRIEND?</div>
+                <div style={{ fontSize:13, color:th.muted, lineHeight:1.6 }}>
+                  Remove <strong style={{ color:th.sub }}>{confirmRemoveFriend.name.split(" ")[0]}</strong> from your friends list? You'll no longer see each other's activity and will need to re-invite to reconnect.
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => setConfirmRemoveFriend(null)}
+                  style={{ flex:1, background:`color-mix(in srgb, ${th.inputB} 30%, transparent)`, backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 4px rgba(0,0,0,0.08)", border:`1.5px solid ${th.border}`, borderRadius:12, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.muted }}>CANCEL</button>
+                <button onClick={() => { onRemoveFriend(confirmRemoveFriend.uid); setConfirmRemoveFriend(null); }}
+                  style={{ flex:1, background:"linear-gradient(135deg, rgba(220,50,50,0.72) 0%, rgba(170,25,25,0.88) 100%)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:"0 2px 14px rgba(200,30,30,0.35), inset 0 1px 0 rgba(255,255,255,0.14)", border:"1.5px solid rgba(220,50,50,0.6)", borderRadius:12, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:"#fff" }}>REMOVE</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Athlete coaching rules popup — shown before confirming acceptance ── */}
+        {pendingCoachAccept && createPortal(
+          <div onClick={() => setPendingCoachAccept(null)} style={{
+            position:"fixed", inset:0, zIndex:85,
+            background:"rgba(0,0,0,0.65)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+            display:"flex", alignItems:"flex-end", justifyContent:"center",
+          }}>
+            <style>{`@keyframes sheetUpLocal { from{transform:translateY(100%);opacity:.5} to{transform:translateY(0);opacity:1} }`}</style>
+            <div onClick={e => e.stopPropagation()} style={{
+              width:"100%", maxWidth:480,
+              background:th.card, borderRadius:"24px 24px 0 0",
+              borderTop:`1px solid ${th.border}`,
+              padding:"20px 20px calc(32px + env(safe-area-inset-bottom,0px))",
+              animation:"sheetUpLocal .44s cubic-bezier(0.32,0.72,0,1) forwards",
+            }}>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:18 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
+              </div>
+              <div style={{ textAlign:"center", marginBottom:20 }}>
+                {/* Coaching icon — whistle / trainer */}
+                <div style={{ fontSize:36, marginBottom:10 }}>
+                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Circle bg */}
+                    <circle cx="20" cy="20" r="19" stroke="#5B9CF6" strokeWidth="2" fill="rgba(91,156,246,0.10)"/>
+                    {/* Clipboard board */}
+                    <rect x="11" y="12" width="18" height="20" rx="2.5" stroke="#5B9CF6" strokeWidth="2" fill="rgba(91,156,246,0.08)"/>
+                    {/* Clip at top */}
+                    <rect x="15.5" y="10" width="9" height="5" rx="1.5" stroke="#5B9CF6" strokeWidth="1.8" fill="rgba(91,156,246,0.22)"/>
+                    {/* Content lines */}
+                    <line x1="14" y1="18" x2="26" y2="18" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round"/>
+                    <line x1="14" y1="22" x2="26" y2="22" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/>
+                    <line x1="14" y1="26" x2="22" y2="26" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.45"/>
+                  </svg>
+                </div>
+                <div className="bebas" style={{ fontSize:22, letterSpacing:2, color:th.text, marginBottom:6 }}>ACCEPT COACHING?</div>
+                <div style={{ fontSize:13, color:th.muted, lineHeight:1.65, maxWidth:290, margin:"0 auto" }}>
+                  <strong style={{ color:th.sub }}>{pendingCoachAccept.fromName.split(" ")[0]}</strong> will become your coach. Here's what they'll be able to access:
+                </div>
+              </div>
+              <div style={{ ...S.card, padding:"14px 16px", marginBottom:20 }}>
+                <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>COACH ACCESS INCLUDES</div>
+                {[
+                  { icon:"📊", label:"All Dashboards",   desc:"Full analytics: volume, density, pace, muscles trained, PRs and more" },
+                  { icon:"📋", label:"Workout Programs", desc:"They can view, edit and create training programs on your behalf" },
+                  { icon:"📅", label:"Session History",  desc:"Every session you've logged with full exercise and set details" },
+                ].map(({ icon, label, desc }) => (
+                  <div key={label} style={{ display:"flex", gap:12, marginBottom:10, alignItems:"flex-start" }}>
+                    <div style={{ fontSize:18, flexShrink:0, lineHeight:1.3 }}>{icon}</div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:th.text, textAlign:"left" }}>{label}</div>
+                      <div style={{ fontSize:11, color:th.muted, marginTop:2, textAlign:"left", lineHeight:1.45 }}>{desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize:12, color:th.dim, textAlign:"center", marginBottom:18, lineHeight:1.5 }}>
+                You can end the coaching relationship at any time from the coaching button in their profile.
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={async () => { await onDeclineCoachRequest(pendingCoachAccept.id); setPendingCoachAccept(null); }}
+                  style={{ flex:1, background:"linear-gradient(135deg, rgba(200,40,40,0.14) 0%, rgba(160,20,20,0.22) 100%)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", boxShadow:"0 1px 8px rgba(200,40,40,0.18), inset 0 1px 0 rgba(255,255,255,0.08)", border:`1.5px solid rgba(200,40,40,0.4)`, borderRadius:13, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.delText }}>DECLINE</button>
+                <button onClick={async () => { await onAcceptCoachRequest(pendingCoachAccept.id); setPendingCoachAccept(null); }}
+                  style={{ flex:2, background:"linear-gradient(135deg, rgba(91,156,246,0.72) 0%, rgba(60,110,218,0.88) 100%)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:"0 2px 14px rgba(91,156,246,0.38), inset 0 1px 0 rgba(255,255,255,0.18)", border:"1.5px solid rgba(91,156,246,0.65)", borderRadius:13, padding:"13px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:"#fff", letterSpacing:"0.5px" }}>
+                  ACCEPT {pendingCoachAccept.fromName.split(" ")[0].toUpperCase()} AS COACH
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
         {/* ── Empty state (no friends yet) ── */}
         {friends.length === 0 && pendingInvitations.length === 0 && (
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", paddingTop:24, paddingBottom:8, animation:"sharingFadeUp 0.4s cubic-bezier(0,0,0.2,1) forwards" }}>
@@ -8122,6 +9587,38 @@ import "./styles.css";
           </div>
         )}
 
+        {/* ── Coaching requests sent — before leaderboard ── */}
+        {sharingTab === "friends" && (sentCoachRequests||[]).length > 0 && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>COACHING REQUESTS</div>
+            {(sentCoachRequests||[]).map(req => {
+              const f = friends.find(fr => fr.uid === req.toUid);
+              const initials = (req.toName||"?")[0].toUpperCase();
+              return (
+                <div key={req.id} style={{ ...S.card, padding:"12px 16px", marginBottom:8, textAlign:"left", display:"flex", alignItems:"center", gap:12 }}>
+                  {(f?.photoURL) ? (
+                    <img src={f.photoURL} alt={req.toName} style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                  ) : (
+                    <div style={{ width:34, height:34, borderRadius:"50%", background:`rgba(91,156,246,0.12)`, border:`1px solid rgba(91,156,246,0.25)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#5B9CF6", flexShrink:0 }}>
+                      {initials}
+                    </div>
+                  )}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:15, color:th.text, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{req.toName || req.toEmail}</div>
+                    <div style={{ fontSize:12, color:"#5B9CF6", marginTop:1, fontWeight:600, display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ width:5, height:5, borderRadius:"50%", background:"#5B9CF6", display:"inline-block", opacity:0.7 }} />
+                      Coach request pending
+                    </div>
+                  </div>
+                  <button onClick={async () => { await fsWithdrawCoachRequest(req.id); }}
+                    style={{ background:"rgba(220,50,50,0.15)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:15, lineHeight:1, flexShrink:0 }}
+                  >✕</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* ── Iron Board leaderboard under friends tab ── */}
         {sharingTab === "friends" && friends.length > 0 && (
           <IronBoard user={user} friends={friends} mySessions={mySessions} onGetFriendSessions={onGetFriendSessions} boardScores={boardScores} setBoardScores={setBoardScores} />
@@ -8130,7 +9627,7 @@ import "./styles.css";
         {/* ── Invite button / panel — only shown when no friends yet ── */}
         {sharingTab === "friends" && (!showInvitePanel && friends.length === 0 ? (
           <button onClick={() => { setShowInvitePanel(true); setInviteStatus("idle"); setInviteError(""); }}
-            style={{ width:"100%", background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`, backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"none", borderRadius:16, padding:"16px 20px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color:th.accentT, letterSpacing:"0.5px", marginBottom:20, animation:"sharingFadeUp 0.45s cubic-bezier(0,0,0.2,1) 0.05s both" }}>
+            style={{ width:"100%", background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 70%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 88%, transparent) 100%)`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 38%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`, border:`1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`, borderRadius:16, padding:"16px 20px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color:th.accentT, letterSpacing:"0.5px", marginBottom:20, animation:"sharingFadeUp 0.45s cubic-bezier(0,0,0.2,1) 0.05s both" }}>
             <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
               <circle cx="9" cy="7.5" r="3.5" stroke={th.accentT} strokeWidth="2" />
               <path d="M1 19.5c0-4.418 3.582-8 8-8" stroke={th.accentT} strokeWidth="2" strokeLinecap="round" />
@@ -8230,7 +9727,7 @@ import "./styles.css";
                     />
                   {inviteStatus === "error" && <div style={{ fontSize:13, color:"#CC1F42", marginBottom:10 }}>{inviteError}</div>}
                   <button onClick={handleSendInvite} disabled={!inviteEmail.trim() || inviteStatus === "sending"}
-                    style={{ width:"100%", background: inviteEmail.trim() ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : th.inputB, border:"none", borderRadius:12, padding:"13px 0", cursor: inviteEmail.trim() ? "pointer" : "default", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color: inviteEmail.trim() ? th.accentT : th.dim, transition:"background .2s, color .2s", letterSpacing:"0.5px" }}>
+                    style={{ width:"100%", background: inviteEmail.trim() ? `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)` : th.inputB, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow: inviteEmail.trim() ? `0 2px 14px color-mix(in srgb, ${th.accentBg} 38%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)` : "none", border: inviteEmail.trim() ? `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)` : `1.5px solid ${th.inputB}`, borderRadius:12, padding:"13px 0", cursor: inviteEmail.trim() ? "pointer" : "default", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:15, color: inviteEmail.trim() ? th.accentT : th.dim, transition:"background .2s, box-shadow .2s, border-color .2s", letterSpacing:"0.5px" }}>
                     {inviteStatus === "sending" ? "SENDING…" : "SEND INVITE →"}
                   </button>
                 </>
@@ -8241,28 +9738,7 @@ import "./styles.css";
           document.body
         )}
 
-        {/* ── Sent invitations awaiting response ── */}
-        {sentInvitations.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>AWAITING RESPONSE</div>
-            {sentInvitations.map(inv => (
-              <div key={inv.id} style={{ ...S.card, padding:"12px 16px", marginBottom:8, textAlign:"left", display:"flex", alignItems:"center", gap:12 }}>
-                <div style={{ width:34, height:34, borderRadius:"50%", background:th.row, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:th.dim }}>⏳</div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:15, color:th.text, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{inv.toEmail}</div>
-                  <div style={{ fontSize:13, color:th.dim, marginTop:1 }}>Invitation pending</div>
-                </div>
-                <button
-                  onClick={() => handleAction(inv.id, inv, "decline")}
-                  disabled={actioning[inv.id]}
-                  style={{ background:"rgba(220,50,50,0.15)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:th.delText, fontSize:15, lineHeight:1, flexShrink:0, opacity:actioning[inv.id]?0.4:1 }}
-                >✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── Activity Feed ── */}
+        {/* ── Tab switcher: FEED | FRIENDS — smooth sliding rounded pill ── */}
         {sharingTab === "feed" && (
           <div style={{ marginBottom: 20 }}>
             {friends.length === 0 ? (
@@ -8593,14 +10069,15 @@ import "./styles.css";
         {/* Accent top bar */}
         <div style={{ height: 3, background: th.accentBg }} />
         <div style={{ padding: "16px 16px 14px" }}>
-          {/* Step content */}
+          {/* Step content — fixed height so card never resizes between slides */}
+          <div style={{ position:"relative", height:108, overflow:"hidden" }}>
           <div
             key={step}
             style={{
+              position:"absolute", inset:0, overflowY:"auto",
               animation: leaving
                 ? (dir > 0 ? "obSlideOut 0.16s ease-in forwards" : "obSlideOutR 0.16s ease-in forwards")
                 : (dir > 0 ? "obSlideIn 0.22s cubic-bezier(0,0,0.2,1) forwards" : "obSlideInR 0.22s cubic-bezier(0,0,0.2,1) forwards"),
-              minHeight: 84,
             }}
           >
             <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
@@ -8615,6 +10092,7 @@ import "./styles.css";
                 <div style={{ fontSize: 12, textAlign: "left", color: th.muted, lineHeight: 1.5 }}>{s.body}</div>
               </div>
             </div>
+          </div>
           </div>
           {/* Footer: dots + navigation */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop: 14 }}>
@@ -8638,17 +10116,19 @@ import "./styles.css";
               )}
               {!isLast ? (
                 <button onClick={() => goTo(step + 1)} style={{
-                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-                  border: "none", borderRadius: 9, color: th.accentT,
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                  backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                  boxShadow: `0 2px 10px color-mix(in srgb, ${th.accentBg} 36%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)`,
+                  border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
                 }}>Next →</button>
               ) : (
                 <button onClick={onDismiss} style={{
-                  background: `color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-                  border: "none", borderRadius: 9, color: th.accentT,
+                  background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
+                  backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                  boxShadow: `0 2px 10px color-mix(in srgb, ${th.accentBg} 36%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)`,
+                  border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
                 }}>Got it ✔</button>
@@ -8697,22 +10177,25 @@ import "./styles.css";
             <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:20 }}>
               <button onClick={() => setEditing(e => !e)} style={{
                 background: editing
-                  ? `color-mix(in srgb, ${th.accentBg} 14%, transparent)`
+                  ? `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 55%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 72%, transparent) 100%)`
                   : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
+                backdropFilter: "blur(14px)",
+                WebkitBackdropFilter: "blur(14px)",
+                boxShadow: editing
+                  ? `0 2px 10px color-mix(in srgb, ${th.accentBg} 28%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)`
+                  : "inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 4px rgba(0,0,0,0.07)",
                 border: editing
-                  ? `1px solid color-mix(in srgb, ${th.accentBg} 50%, transparent)`
-                  : `1px solid ${th.border}`,
+                  ? `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`
+                  : `1.5px solid ${th.border}`,
                 borderRadius: 20,
-                color: editing ? th.accentFg : th.muted,
+                color: editing ? "#fff" : th.muted,
                 fontSize: 11,
                 cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
                 fontWeight: 700,
                 letterSpacing: "0.5px",
                 padding: "4px 12px",
-                transition: "background .2s, color .2s, border-color .2s",
+                transition: "background .2s, box-shadow .2s, border-color .2s",
               }}>{editing ? "DONE" : "EDIT"}</button>
             </div>
             {programs.map((p) => (
@@ -8771,13 +10254,14 @@ import "./styles.css";
                           setTimeout(() => r.remove(), 560);
                         }}
                         style={{
-                          background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                          backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
-                          border:"none", borderRadius:"50%",
+                          background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 70%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 88%, transparent) 100%)`,
+                          backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                          boxShadow:`0 2px 12px color-mix(in srgb, ${th.accentBg} 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)`,
+                          border:`1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`, borderRadius:"50%",
                           width:48, height:48, minWidth:48,
                           display:"flex", alignItems:"center", justifyContent:"center",
                           cursor:"pointer", color: th.accentFg,
-                          transition:"opacity .15s",
+                          transition:"opacity .15s, box-shadow .2s",
                         }}>
                         <svg width="22" height="22" viewBox="0 0 18 18" style={{ width:22, height:22, minWidth:22, flexShrink:0, display:"block" }}>
                           <polygon points="4,2 16,9 4,16" fill={th.accentT}/>
@@ -9188,26 +10672,19 @@ import "./styles.css";
           <button
             onClick={() => setShowPicker(true)}
             style={{
-              width: "100%",
-              background: "none",
-              border: `1px dashed ${th.text}`,
-              borderRadius: 13,
-              padding: 13,
-              cursor: "pointer",
-              color: th.muted,
-              fontSize: 14,
-              fontFamily: "'Outfit',sans-serif",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              marginTop: 4,
+              width:"100%",
+              background:`color-mix(in srgb, rgba(91,156,246,0.1) 100%, transparent)`,
+              backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+              border:`1.5px dashed rgba(91,156,246,0.4)`,
+              borderRadius:14, padding:"13px 0", cursor:"pointer",
+              fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13,
+              color:"#5B9CF6", letterSpacing:"0.5px",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              marginTop:4,
             }}
           >
-            <span style={{ color: th.accentFg, fontSize: 18, fontWeight: 700 }}>
-              +
-            </span>{" "}
-            Add Exercise
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#5B9CF6" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            ADD EXERCISE
           </button>
           {showBuildGuide && (
             <div style={{ marginTop: 12 }}>
@@ -9256,15 +10733,14 @@ import "./styles.css";
                 focusable="false"
                 style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, maxWidth: 22, maxHeight: 22, display: "block", flex: "0 0 22px", overflow: "visible" }}
               >
-                <circle cx="18" cy="5" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" vectorEffect="non-scaling-stroke"/>
-                <circle cx="6" cy="12" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" vectorEffect="non-scaling-stroke"/>
-                <circle cx="18" cy="19" r="3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" vectorEffect="non-scaling-stroke"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+                {/* Share tray — open-top box with centred up-arrow, universally recognised */}
+                <path d="M8.5 8.5H6C5.44772 8.5 5 8.94772 5 9.5V19C5 19.5523 5.44772 20 6 20H18C18.5523 20 19 19.5523 19 19V9.5C19 8.94772 18.5523 8.5 18 8.5H15.5" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+                <path d="M12 14V3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+                <path d="M9 6L12 3L15 6" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>
               </svg>
             </button>
           )}
-          {/* SAVE button — subtle secondary, frosted glass with accent border */}
+          {/* SAVE button — blue glass, identical to Request Coaching style */}
           <button
             onClick={() => {
               if (!name.trim() || exs.length === 0) return;
@@ -9274,11 +10750,12 @@ import "./styles.css";
             style={{
               flex: 1,
               background: (!name.trim() || exs.length === 0)
-                ? `color-mix(in srgb, ${th.card} 40%, transparent)`
-                : `color-mix(in srgb, ${th.accentBg} 12%, ${th.card})`,
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              border: `1.5px solid ${(!name.trim() || exs.length === 0) ? th.inputB : `color-mix(in srgb, ${th.accentBg} 60%, transparent)`}`,
+                ? "rgba(91,156,246,0.08)"
+                : "linear-gradient(135deg, rgba(91,156,246,0.75) 0%, rgba(60,120,220,0.82) 100%)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              boxShadow: (!name.trim() || exs.length === 0) ? "none" : "0 2px 16px rgba(91,156,246,0.35), inset 0 1px 0 rgba(255,255,255,0.18)",
+              border: `1.5px solid ${(!name.trim() || exs.length === 0) ? "rgba(91,156,246,0.18)" : "rgba(91,156,246,0.6)"}`,
               borderRadius: 14,
               padding: "15px 0",
               cursor: (!name.trim() || exs.length === 0) ? "default" : "pointer",
@@ -9286,8 +10763,8 @@ import "./styles.css";
               fontWeight: 700,
               fontSize: 14,
               letterSpacing: "0.5px",
-              color: (!name.trim() || exs.length === 0) ? th.dim : th.accentFg,
-              transition: "background .2s, color .2s, border-color .2s",
+              color: (!name.trim() || exs.length === 0) ? "rgba(91,156,246,0.3)" : "#fff",
+              transition: "background .2s, box-shadow .2s, border-color .2s",
             }}
           >
             SAVE
@@ -9305,12 +10782,13 @@ import "./styles.css";
               flex: 1,
               background: (!name.trim() || exs.length === 0)
                 ? `color-mix(in srgb, ${th.accentBg} 25%, transparent)`
-                : `color-mix(in srgb, ${th.accentBg} 70%, transparent)`,
+                : `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 85%, transparent) 100%)`,
               backdropFilter: "blur(16px)",
               WebkitBackdropFilter: "blur(16px)",
-              border: `1px solid ${(!name.trim() || exs.length === 0)
+              boxShadow: (!name.trim() || exs.length === 0) ? "none" : `0 2px 14px color-mix(in srgb, ${th.accentBg} 38%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)`,
+              border: `1.5px solid ${(!name.trim() || exs.length === 0)
                 ? `color-mix(in srgb, ${th.accentBg} 20%, transparent)`
-                : `color-mix(in srgb, ${th.accentBg} 50%, transparent)`}`,
+                : `color-mix(in srgb, ${th.accentBg} 55%, transparent)`}`,
               borderRadius: 14,
               padding: "15px 0",
               cursor: (!name.trim() || exs.length === 0) ? "default" : "pointer",
@@ -9319,7 +10797,7 @@ import "./styles.css";
               fontSize: 14,
               letterSpacing: "0.5px",
               color: (!name.trim() || exs.length === 0) ? `${th.accentT}44` : th.accentT,
-              transition: "background .2s, color .2s, border-color .2s",
+              transition: "background .2s, box-shadow .2s, border-color .2s",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -9747,26 +11225,19 @@ import "./styles.css";
           <button
             onClick={() => setShowPicker(true)}
             style={{
-              width: "100%",
-              background: "none",
-              border: `1px dashed ${th.inputB}`,
-              borderRadius: 13,
-              padding: 13,
-              cursor: "pointer",
-              color: th.muted,
-              fontSize: 14,
-              fontFamily: "'Outfit',sans-serif",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              marginTop: 4,
+              width:"100%",
+              background:`color-mix(in srgb, rgba(91,156,246,0.1) 100%, transparent)`,
+              backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+              border:`1.5px dashed rgba(91,156,246,0.4)`,
+              borderRadius:14, padding:"13px 0", cursor:"pointer",
+              fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13,
+              color:"#5B9CF6", letterSpacing:"0.5px",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              marginTop:4,
             }}
           >
-            <span style={{ color: th.accentFg, fontSize: 18, fontWeight: 700 }}>
-              +
-            </span>{" "}
-            Add Exercise
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#5B9CF6" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            ADD EXERCISE
           </button>
         </div>
         <div style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
@@ -13097,7 +14568,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.7.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.8.0 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             DEVELOPED BY AZAD
@@ -13300,28 +14771,22 @@ import "./styles.css";
           <button
             onClick={() => setShowPicker(true)}
             style={{
-              width: "100%",
-              background: "none",
-              border: `1px dashed ${th.text}`,
-              borderRadius: 13,
-              padding: 13,
-              cursor: "pointer",
-              color: th.muted,
-              fontSize: 15,
-              fontFamily: "'Outfit',sans-serif",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              marginTop: 4,
+              width:"100%",
+              background:`color-mix(in srgb, rgba(91,156,246,0.1) 100%, transparent)`,
+              backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+              border:`1.5px dashed rgba(91,156,246,0.4)`,
+              borderRadius:14, padding:"13px 0", cursor:"pointer",
+              fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13,
+              color:"#5B9CF6", letterSpacing:"0.5px",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              marginTop:4,
             }}
           >
-            <span style={{ color: th.accentFg, fontSize: 20, fontWeight: 700 }}>
-              +
-            </span>{" "}
-            Add Exercise
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#5B9CF6" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            ADD EXERCISE
           </button>
-        </div>
+
+        </div>{/* close slide-up */}
 
         <div style={{ position: "sticky", bottom: 0, padding: "12px 0 20px" }}>
         <Btn
@@ -13359,6 +14824,13 @@ import "./styles.css";
       return () => clearInterval(t);
     }, [themeAuto]);
 
+    // Splash: ensure the full animation sequence (last word appears at ~1.37s) always completes
+    // before the splash is dismissed, regardless of how fast Firebase auth resolves.
+    useEffect(() => {
+      const t = setTimeout(() => setSplashDone(true), 1650);
+      return () => clearTimeout(t);
+    }, []);
+
     useEffect(() => {
       document.body.style.background = th.bg;
     }, [th.bg]);
@@ -13388,6 +14860,7 @@ import "./styles.css";
 
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
+    const [splashDone, setSplashDone]   = useState(false); // true after animation minimum elapsed
 
     // Unread feedback count (admin only)
     const [unreadFeedback, setUnreadFeedback] = useState(0);
@@ -13484,6 +14957,9 @@ import "./styles.css";
     const closeNotif = () => { setNotifClosing(true); setTimeout(() => { setNotifOpen(false); setNotifClosing(false); }, 220); };
     const [lastReadNotif, setLastReadNotif]            = useState(() => parseInt(localStorage.getItem("ib3-lastReadNotif") || "0"));
     const [competitions, setCompetitions]             = useState([]);
+    const [pendingCoachRequests, setPendingCoachRequests] = useState([]); // incoming coach requests (user is athlete)
+    const [sentCoachRequests, setSentCoachRequests]       = useState([]); // outgoing coach requests (user is coach, pending)
+    const [coachRelations, setCoachRelations]             = useState([]);  // accepted coach/athlete pairs
     const [sessions, setSessions] = useState([]);
     const [programs, setPrograms] = useState([]);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -13585,15 +15061,36 @@ import "./styles.css";
               gender: u.gender || fsSet.gender || null,
             } : u);
           }
-          // Measurements
-          const fsMeas = await fsGetMeasurements(user.id);
-          if (fsMeas && fsMeas.length > 0) {
-            setMeasurements(fsMeas);
-            saveMeasurementsLocal(user.id, fsMeas);
-          } else {
-            const localMeas = getMeasurements(user.id);
-            if (localMeas.length > 0)
-              await fsSaveMeasurements(user.id, localMeas);
+          // ── Measurements sync — merge local + Firebase, keep newest per date ──────
+          // This ensures Firebase always has the complete set so coaches can read it.
+          const [fsMeas, localMeas] = await Promise.all([
+            fsGetMeasurements(user.id),
+            Promise.resolve(getMeasurements(user.id)),
+          ]);
+
+          const fsArr    = Array.isArray(fsMeas)    ? fsMeas    : [];
+          const localArr = Array.isArray(localMeas) ? localMeas : [];
+
+          // Build a map keyed by date string, local entries take precedence when dates collide
+          const merged = new Map();
+          [...fsArr, ...localArr].forEach(m => {
+            if (m?.date) merged.set(m.date, m);
+          });
+          const mergedList = [...merged.values()].sort((a, b) =>
+            new Date(b.date) - new Date(a.date)
+          );
+
+          const needsFirebasePush =
+            mergedList.length > fsArr.length ||  // local has entries Firebase is missing
+            mergedList.length > 0 && fsArr.length === 0; // Firebase is empty
+
+          if (mergedList.length > 0) {
+            setMeasurements(mergedList);
+            saveMeasurementsLocal(user.id, mergedList);
+            // Always push the merged result to Firebase so it's up-to-date for coaches
+            if (needsFirebasePush || fsArr.length === 0) {
+              await fsSaveMeasurements(user.id, mergedList);
+            }
           }
         } catch (e) {
           console.error("Firestore sync error:", e.code, e.message);
@@ -13642,7 +15139,9 @@ import "./styles.css";
     const saveMeasurements = (data) => {
       setMeasurements(data);
       saveMeasurementsLocal(user.id, data);
-      fsSaveMeasurements(user.id, data);
+      fsSaveMeasurements(user.id, data).catch(e =>
+        console.error("saveMeasurements Firebase write failed:", e?.code, e?.message)
+      );
     };
 
     // saveSessions — updates local state + cache; individual session push done in handleSaveSession
@@ -13720,6 +15219,9 @@ import "./styles.css";
         .then(() => console.log("Public profile registered for", user.email))
         .catch(e => console.warn("Profile register failed:", e));
       const unsubCompete  = fsListenCompetitions(user.id, setCompetitions);
+      const unsubCoachReqs  = fsListenIncomingCoachRequests(user.id, setPendingCoachRequests);
+      const unsubCoachSent  = fsListenSentCoachRequests(user.id, setSentCoachRequests);
+      const unsubCoachRels  = fsListenCoachRelations(user.id, setCoachRelations);
 
       // Listen for star reactions on user's sessions
       const notifCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -13763,7 +15265,7 @@ import "./styles.css";
         }
       );
 
-      return () => { unsubReceived(); unsubSent(); unsubFriends(); unsubCompete(); unsubReactions(); unsubNotifs(); };
+      return () => { unsubReceived(); unsubSent(); unsubFriends(); unsubCompete(); unsubReactions(); unsubNotifs(); unsubCoachReqs(); unsubCoachSent(); unsubCoachRels(); };
     }, [user?.id, user?.email]);
     // ── Timer: accumulator-based so pause is a hard freeze ──────────────────────
     const elapsedBeforeRunRef = useRef(0); // whole seconds accumulated before current run segment
@@ -13902,7 +15404,7 @@ import "./styles.css";
     const startTimer = useCallback(() => {}, []);
     const stopTimer = clearWorkoutInterval;
 
-    if (authLoading)
+    if (authLoading || !splashDone)
       return (
         <ThemeCtx.Provider value={th}>
           <div style={{ position: "fixed", inset: 0, background: "#0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
@@ -13919,7 +15421,7 @@ import "./styles.css";
               background: "linear-gradient(to top, rgba(200,240,48,0.06), transparent)",
             }} />
             {/* Logo — identical to AuthView */}
-            <div style={{ position: "relative", textAlign: "left", padding: "0 28px", width: "100%", maxWidth: 360, animation: "splashIn 0.55s cubic-bezier(0.34,1.2,0.64,1) both" }}>
+            <div style={{ position: "relative", textAlign: "left", padding: "0 28px", width: "100%", maxWidth: 360 }}>
               <style>{`
                 @keyframes splashIn {
                   from { opacity: 0; transform: scale(0.88) translateY(20px); }
@@ -13929,12 +15431,30 @@ import "./styles.css";
                   from { opacity: 1; }
                   to   { opacity: 0; }
                 }
+                @keyframes ironBodyReveal {
+                  0%   { opacity: 0; filter: blur(18px); transform: scale(0.96) translateY(12px); }
+                  40%  { opacity: 1; filter: blur(4px);  transform: scale(1.01) translateY(0); }
+                  100% { opacity: 1; filter: blur(0px);  transform: scale(1) translateY(0); }
+                }
+                @keyframes wordFadeUp {
+                  from { opacity: 0; transform: translateY(10px); }
+                  to   { opacity: 1; transform: translateY(0); }
+                }
               `}</style>
-              <div className="bebas" style={{ fontSize: 70, color: "#c8f030", lineHeight: 0.85, marginBottom: 8 }}>
+              <div className="bebas" style={{
+                fontSize: 70, color: "#c8f030", lineHeight: 0.85, marginBottom: 8,
+                animation: "ironBodyReveal 0.9s cubic-bezier(0.22,1,0.36,1) 0.1s both",
+              }}>
                 IRON<br />BODY
               </div>
-              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginBottom: 0, letterSpacing: "3px", fontFamily: "'Outfit',sans-serif" }}>
-                TRACK · LIFT · PROGRESS
+              <div style={{ display:"flex", alignItems:"center", gap:0, fontFamily:"'Outfit',sans-serif", fontSize:12, letterSpacing:"3px", color:"rgba(255,255,255,0.45)" }}>
+                {["TRACK","·","LIFT","·","PROGRESS"].map((word, i) => (
+                  <span key={word + i} style={{
+                    display:"inline-block",
+                    marginRight: word === "·" ? 0 : 0,
+                    animation: `wordFadeUp 0.45s cubic-bezier(0.22,1,0.36,1) ${0.65 + i * 0.18}s both`,
+                  }}>{word}{i < 4 ? "\u00A0" : ""}</span>
+                ))}
               </div>
             </div>
           </div>
@@ -14373,10 +15893,14 @@ import "./styles.css";
                   <button
                     onClick={toggleWorkoutPause}
                     style={{
-                      background: paused ? th.pause : "transparent",
-                      border: `1px solid ${paused ? th.pauseB : th.inputB}`,
+                      background: paused
+                        ? "linear-gradient(135deg, rgba(232,97,44,0.55) 0%, rgba(180,55,10,0.72) 100%)"
+                        : "rgba(255,255,255,0.06)",
+                      backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                      boxShadow: paused ? "0 2px 10px rgba(232,97,44,0.35), inset 0 1px 0 rgba(255,255,255,0.18)" : "inset 0 1px 0 rgba(255,255,255,0.10)",
+                      border: `1.5px solid ${paused ? "rgba(232,97,44,0.65)" : "rgba(255,255,255,0.14)"}`,
                       borderRadius: 9,
-                      color: paused ? "#E8612C" : th.muted,
+                      color: paused ? "#fff" : th.muted,
                       fontSize: 10,
                       padding: "6px 10px",
                       cursor: "pointer",
@@ -14389,12 +15913,12 @@ import "./styles.css";
                   <button
                     onClick={handleAbandon}
                     style={{
-                      background: "rgba(220, 50, 50, 0.15)",
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      border: "1px solid rgba(220, 50, 50, 0.3)",
+                      background: "linear-gradient(135deg, rgba(200,40,40,0.38) 0%, rgba(155,20,20,0.52) 100%)",
+                      backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                      boxShadow: "0 2px 8px rgba(200,30,30,0.30), inset 0 1px 0 rgba(255,255,255,0.12)",
+                      border: "1.5px solid rgba(220,50,50,0.55)",
                       borderRadius: 9,
-                      color: th.delText,
+                      color: "#fff",
                       fontSize: 10,
                       padding: "6px 10px",
                       cursor: "pointer",
@@ -14413,10 +15937,10 @@ import "./styles.css";
                       handleFinishWorkout(active.exercises);
                     }}
                     style={{
-                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      border: "none",
+                      background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 88%, transparent) 100%)`,
+                      backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                      boxShadow: `0 2px 14px color-mix(in srgb, ${th.accentBg} 42%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)`,
+                      border: `1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`,
                       borderRadius: 9,
                       color: th.accentT,
                       fontSize: 11,
@@ -14474,9 +15998,10 @@ import "./styles.css";
                 width: "calc(100% - 80px)",
                 maxWidth: 380,
                 zIndex: 15,
-                background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                backdropFilter: "blur(14px)",
-                WebkitBackdropFilter: "blur(14px)",
+                background: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 70%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 90%, transparent) 100%)`,
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: `1.5px solid color-mix(in srgb, ${th.accentBg} 55%, transparent)`,
                 borderRadius: 50,
                 cursor: "pointer",
                 display: "flex",
@@ -14487,7 +16012,7 @@ import "./styles.css";
                 animation: pillPressing
                   ? "pillPress 0.22s cubic-bezier(0.4,0,1,1) forwards"
                   : "pillFadeIn 0.35s cubic-bezier(0,0,0.2,1) forwards",
-                boxShadow: `0 0 0 0 color-mix(in srgb, ${th.accentBg} 60%, transparent)`,
+                boxShadow: `0 4px 24px color-mix(in srgb, ${th.accentBg} 45%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)`,
               }}
             >
               <style>{`
@@ -15028,6 +16553,17 @@ import "./styles.css";
                   const updated = [...programs, newProg];
                   savePrograms(updated);
                 }}
+                pendingCoachRequests={pendingCoachRequests}
+                sentCoachRequests={sentCoachRequests}
+                coachRelations={coachRelations}
+                onAcceptCoachRequest={fsAcceptCoachRequest}
+                onDeclineCoachRequest={fsDeclineCoachRequest}
+                onSendCoachRequest={(friendUid, friendEmail, friendName) =>
+                  fsSendCoachRequest(user.id, user.name || "Coach", user.photoURL || null, friendUid, friendEmail, friendName)
+                }
+                onGetFriendPrograms={fsGetFriendPrograms}
+                onSaveCoachPrograms={fsSaveCoachPrograms}
+                onStopCoaching={fsStopCoaching}
               />
             )}
           </div>
@@ -15448,11 +16984,15 @@ import "./styles.css";
                     : `${d} days ago`;
                   const iconBg = n.type === "compete_accepted" || n.type === "compete_invite"
                     ? "rgba(212,175,55,0.18)"
-                    : n.type === "friend_accepted"
-                    ? `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`
+                    : n.type === "coach_request" || n.type === "coach_accepted"
+                    ? "rgba(91,156,246,0.18)"
                     : `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`;
                   const icon = n.type === "compete_accepted" || n.type === "compete_invite"
                     ? <span style={{ fontSize:14 }}>🏆</span>
+                    : n.type === "coach_request" || n.type === "coach_accepted"
+                    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="19" rx="2" stroke="#5B9CF6" strokeWidth="2" fill="none"/><rect x="9" y="1.5" width="6" height="4" rx="1" stroke="#5B9CF6" strokeWidth="1.6" fill="rgba(91,156,246,0.25)"/><line x1="7" y1="10" x2="17" y2="10" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round"/><line x1="7" y1="14" x2="17" y2="14" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/><line x1="7" y1="18" x2="14" y2="18" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.45"/></svg>
+                    : n.type === "friend_request"
+                    ? <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7.5" r="3.5" stroke="#5B9CF6" strokeWidth="2"/><path d="M14 12.5c1.5.8 2.5 2.3 2.5 4M3 19.5c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/><path d="M17 7v4M19 9h-4" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/></svg>
                     : n.type === "friend_accepted"
                     ? <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7.5" r="3.5" stroke={th.accentFg} strokeWidth="2"/><path d="M3 19.5c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke={th.accentFg} strokeWidth="2" strokeLinecap="round"/></svg>
                     : <svg width="14" height="14" viewBox="0 0 22 22" fill={th.accentFg}><polygon points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3" stroke={th.accentFg} strokeWidth="1.4" strokeLinejoin="round"/></svg>;
