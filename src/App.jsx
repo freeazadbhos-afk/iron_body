@@ -1440,7 +1440,7 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false };
   const ALL_DASHBOARDS = [
     { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
     { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
@@ -3776,7 +3776,7 @@ import "./styles.css";
           isGuest: true,
         });
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false });
       } catch (e) {
         setErr(friendlyError(e.code));
       } finally {
@@ -3811,7 +3811,7 @@ import "./styles.css";
         });
         // 3. Seed default programs, but keep shortcuts empty so home tab is clean
         lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
-        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false });
+        lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false });
         // 4. Register public profile immediately so this user appears in others' suggestions
         fsRegisterPublicProfile(cred.user.uid, trimmedName, null, email.trim().toLowerCase());
         // 4. Reload Firebase user so displayName is fresh on next auth state change
@@ -4477,7 +4477,7 @@ import "./styles.css";
               <button onClick={() => setOpen(false)} style={{
                 display:"block", marginTop:12, background:"none", border:"none",
                 cursor:"pointer", fontSize:12, color:th.accentFg, fontWeight:700, padding:0,
-              }}>Got it ✔</button>
+              }}><span style={{color:"inherit"}}>Got it ✔︎</span></button>
             </div>
           </div>,
           document.body
@@ -5347,7 +5347,7 @@ import "./styles.css";
                   border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
-                }}>Got it ✔</button>
+                }}><span style={{color:"inherit"}}>Got it ✔︎</span></button>
               )}
             </div>
           </div>
@@ -8426,7 +8426,7 @@ import "./styles.css";
                   border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
-                }}>Got it ✔</button>
+                }}><span style={{color:"inherit"}}>Got it ✔︎</span></button>
               )}
             </div>
           </div>
@@ -10131,7 +10131,7 @@ import "./styles.css";
                   border: `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`, borderRadius: 9, color: th.accentT,
                   padding: "6px 16px", cursor: "pointer", fontSize: 12,
                   fontFamily: "'Outfit',sans-serif", fontWeight: 700,
-                }}>Got it ✔</button>
+                }}><span style={{color:"inherit"}}>Got it ✔︎</span></button>
               )}
             </div>
           </div>
@@ -10391,7 +10391,7 @@ import "./styles.css";
                   border:"none", borderRadius:9, color:th.accentT,
                   padding:"6px 16px", cursor:"pointer", fontSize:12,
                   fontFamily:"'Outfit',sans-serif", fontWeight:700,
-                }}>Got it ✔</button>
+                }}><span style={{color:"inherit"}}>Got it ✔︎</span></button>
               )}
             </div>
           </div>
@@ -15184,7 +15184,7 @@ import "./styles.css";
               }
               // Onboarding flags are sticky — once dismissed locally, never revert
               // even if a stale snapshot still has the old false value
-              ["hasDashOnboarded", "hasProgramOnboarded", "hasProgramBuildOnboarded", "hasSharingOnboarded", "hasSharingOnboardedV2"].forEach(k => {
+              ["hasDashOnboarded", "hasProgramOnboarded", "hasProgramBuildOnboarded", "hasSharingOnboarded", "hasSharingOnboardedV2", "hasSharingOnboardedV3"].forEach(k => {
                 if (prev[k] === true) merged[k] = true;
               });
               const changed =
@@ -15194,7 +15194,8 @@ import "./styles.css";
                 merged.hasProgramOnboarded      !== prev.hasProgramOnboarded      ||
                 merged.hasProgramBuildOnboarded !== prev.hasProgramBuildOnboarded ||
                 merged.hasSharingOnboarded      !== prev.hasSharingOnboarded ||
-                merged.hasSharingOnboardedV2    !== prev.hasSharingOnboardedV2;
+                merged.hasSharingOnboardedV2    !== prev.hasSharingOnboardedV2 ||
+                merged.hasSharingOnboardedV3    !== prev.hasSharingOnboardedV3;
               if (changed) {
                 lsSet(uKey(user.id, "settings"), merged);
                 return merged;
