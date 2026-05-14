@@ -3912,6 +3912,7 @@ import "./styles.css";
   }) {
     const th = useTheme();
     const S = useS();
+    const t = useT();
     const db = DB.find((d) => d.id === ex.id);
     const isCardio = db?.type === "cardio";
     const sets = ex.sets || [];
