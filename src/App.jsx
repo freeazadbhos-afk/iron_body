@@ -2695,7 +2695,7 @@ import "./styles.css";
   // strip() removes undefined values — Firestore rejects any field that is undefined
   function strip(obj) {
     return JSON.parse(
-      JSON.stringify(obj, (k, v) => (v === undefined ? null : v))
+      JSON.stringify(obj, (_k, v) => (v === undefined ? null : v))
     );
   }
 
@@ -2809,9 +2809,9 @@ import "./styles.css";
         toUid: toFriend.uid,
         toName: toFriend.name,
         program: {
-          id: program.id,
-          name: program.name,
-          exs: program.exs || [],
+          id: program?.id || uid(),
+          name: program?.name || "Workout",
+          exs: Array.isArray(program?.exs) ? program.exs : [],
         },
         ts: Date.now(),
       });
@@ -2820,7 +2820,7 @@ import "./styles.css";
         fromUid: fromUser.id,
         name: fromUser.name,
         photoURL: fromUser.photoURL || null,
-        text: `${fromUser.name} shared a workout program with you: ${program.name}`,
+        text: `${fromUser.name} shared a workout program with you: ${program?.name || "Workout"}`,
         programId: docRef.id,
       });
       return { ok: true, id: docRef.id };
@@ -3901,7 +3901,6 @@ import "./styles.css";
     isDragging,
     onToggleOpen,
     onRemoveEx,
-    onUpdateNumSets,
     onUpdateSet,
     onAddSet,
     onRemoveSet,
@@ -5808,7 +5807,7 @@ import "./styles.css";
             <svg key={selGroup+selId} viewBox={`0 0 ${W} ${H+20}`} width="100%" style={{ overflow:"visible", minHeight:80, animation:"tabSlideIn 0.2s ease-out" }}>
               <path d={areaPath} fill={group.col} opacity="0.07" />
               <path d={linePath} fill="none" stroke={group.col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              {pts.map((p,i) => (
+              {pts.map((_p,i) => (
                 <circle key={i} cx={xs[i]} cy={ys[i]} r={i===pts.length-1?R+1:R}
                   fill={i===pts.length-1?group.col:th.card} stroke={group.col} strokeWidth="1.5" />
               ))}
@@ -6056,18 +6055,10 @@ import "./styles.css";
 
   function HomeView({
     sessions,
-    programs,
-    active,
     user,
     settings,
-    elapsed,
     measurements,
-    onTemplate,
-    onUpdateProgram,
-    onOpenShortcut,
     onUpdateSettings,
-    onGoWorkout,
-    onViewSession,
   }) {
     const th = useTheme();
     const S = useS();
@@ -6548,7 +6539,7 @@ import "./styles.css";
             {(() => {
               const latest = measurements[0];
               const prev = measurements[1] || null;
-              const delta = (f, unit) => {
+              const delta = (f) => {
                 if (!prev || prev[f] == null || latest[f] == null) return null;
                 const d = (latest[f] - prev[f]).toFixed(1);
                 return {
@@ -6564,7 +6555,7 @@ import "./styles.css";
                     { f:"fat",    l:"BODY FAT %",  unit:"%" },
                   ].map((m) => {
                     const val = latest[m.f];
-                    const d = delta(m.f, m.unit);
+                    const d = delta(m.f);
                     return (
                       <div key={m.f} style={{ background:th.sect, borderRadius:10, padding:"12px 8px", textAlign:"center" }}>
                         <div className="bebas" style={{ fontSize:22, color:th.accentFg, lineHeight:1 }}>
@@ -7285,7 +7276,6 @@ import "./styles.css";
                     dropDir={dropDir}
                     onToggleOpen={() => setExpandedEx(expandedEx === ex.id ? null : ex.id)}
                     onRemoveEx={() => removeEx(ex.id)}
-                    onUpdateNumSets={delta => updateNumSets(ex.id, delta)}
                     onUpdateSet={(sIdx, f, v) => updateSet(ex.id, sIdx, f, v)}
                     onAddSet={() => updateNumSets(ex.id, 1)}
                     onRemoveSet={sIdx => setExs(prev => prev.map(e => e.id !== ex.id ? e : { ...e, sets: e.sets.filter((_, i) => i !== sIdx) }))}
@@ -7811,7 +7801,7 @@ import "./styles.css";
                 <div style={{ fontWeight:700, fontSize:15, color:th.text, textAlign:"left" }}>{p.name}</div>
                 <div style={{ fontSize:11, color:th.muted, textAlign:"left", marginTop:2 }}>{(p.exs||[]).length} exercises</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:5 }}>
-                  {[...new Set((p.exs||[]).map(e => DB.find(d=>d.id===e.id)?.group).filter(Boolean))].slice(0,4).map(g => (
+                  {[...new Set((p.exs||[]).map(e => DB.find(d=>d.id===e?.id)?.group).filter(Boolean))].slice(0,4).map(g => (
                     <span key={g} style={S.tag(g)}>{g.toUpperCase()}</span>
                   ))}
                 </div>
@@ -7934,7 +7924,7 @@ import "./styles.css";
               <div className="bebas" style={{ fontSize:20, letterSpacing:1, color:th.text }}>{selHistSession.name}</div>
             </div>
             <div style={{ padding:"16px 16px calc(48px + env(safe-area-inset-bottom,0px))", flex:1 }}>
-              <SessionDetailView session={selHistSession} onBack={() => setSelHistSession(null)} onOrigin="coachHistory" />
+              <SessionDetailView session={selHistSession} onOrigin="coachHistory" />
             </div>
           </div>
         )}
@@ -8851,7 +8841,7 @@ import "./styles.css";
 
               {/* Muscle group tags row — mirrors ExercisePicker filter row */}
               <div style={{ display:"flex", gap:5, overflowX:"auto", paddingBottom:12, scrollbarWidth:"none" }}>
-                {[...new Set((prog.exs||[]).map(e => DB.find(d=>d.id===e.id)?.group).filter(Boolean))].map(g => (
+                {[...new Set((prog.exs||[]).map(e => DB.find(d=>d.id===e?.id)?.group).filter(Boolean))].map(g => (
                   <span key={g} style={{
                     padding:"5px 13px", borderRadius:20, fontSize:12, fontWeight:700,
                     whiteSpace:"nowrap", flexShrink:0, fontFamily:"'Outfit',sans-serif",
@@ -8870,9 +8860,9 @@ import "./styles.css";
             }}>
               {(prog.exs||[]).length === 0 ? (
                 <div style={{ textAlign:"center", padding:"30px 0", color:th.dim, fontSize:13 }}>{t("No exercises.")}</div>
-              ) : (prog.exs||[]).map((ex, i) => {
+              ) : (prog.exs||[]).filter(Boolean).map((ex, i) => {
                 const dbEx = DB.find(d => d.id === ex.id);
-                const sets = ex.sets || [];
+                const sets = Array.isArray(ex.sets) ? ex.sets : [];
                 const firstSet = sets[0] || {};
                 return (
                   <div key={ex.id||i} style={{ ...S.card, padding:"12px 14px", marginBottom:8 }}>
@@ -9285,7 +9275,7 @@ import "./styles.css";
     );
   }
 
-  function SharingView({ user, sessions: mySessions, pendingInvitations, sentInvitations, friends, onSendInvite, onAcceptInvite, onDeclineInvite, onGetFriendSessions, onRemoveFriend, onToggleStar, starNotifications, unreadStars, onMarkNotifsRead, competitions, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite, settings, onUpdateSettings, onSaveSharedProgram, pendingCoachRequests, sentCoachRequests, coachRelations, onAcceptCoachRequest, onDeclineCoachRequest, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching }) {
+  function SharingView({ user, sessions: mySessions, pendingInvitations, sentInvitations, friends, onSendInvite, onAcceptInvite, onDeclineInvite, onGetFriendSessions, onRemoveFriend, onToggleStar, competitions, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite, settings, onUpdateSettings, onSaveSharedProgram, pendingCoachRequests, sentCoachRequests, coachRelations, onAcceptCoachRequest, onDeclineCoachRequest, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -10134,7 +10124,7 @@ import "./styles.css";
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontWeight:700, fontSize:15, color:th.text, marginBottom:3 }}>{sp.program?.name || t("Program")}</div>
                           <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:4 }}>
-                            {[...new Set((sp.program?.exs||[]).map(e => DB.find(d=>d.id===e.id)?.group).filter(Boolean))].slice(0,3).map(g => (
+                            {[...new Set((sp.program?.exs||[]).map(e => DB.find(d=>d.id===e?.id)?.group).filter(Boolean))].slice(0,3).map(g => (
                               <span key={g} style={S.tag(g)}>{g.toUpperCase()}</span>
                             ))}
                           </div>
@@ -10472,12 +10462,8 @@ import "./styles.css";
 
   function ProgramsView({
     programs,
-    active,
-    elapsed,
     onEdit,
-    onNew,
     onDelete,
-    onGoWorkout,
     onStart,
     settings,
     onUpdateSettings,
@@ -10529,7 +10515,9 @@ import "./styles.css";
                 transition: "background .2s, box-shadow .2s, border-color .2s",
               }}>{editing ? t("DONE") : t("EDIT")}</button>
             </div>
-            {programs.map((p) => (
+            {programs.map((p) => {
+              const programExs = Array.isArray(p.exs) ? p.exs : [];
+              return (
               <div key={p.id} id={"prog-card-" + p.id}
                 style={{ ...S.card, marginBottom:9, overflow:"visible", position:"relative",
                   // no wobble in edit mode
@@ -10553,13 +10541,13 @@ import "./styles.css";
                     }}>✕</button>
                 )}
                 <div style={{ padding:"15px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <div style={{ flex:1, cursor:"pointer", display:"flex", gap:12, alignItems:"flex-start" }} onClick={() => !editing && onEdit(p)}>
+                  <div style={{ flex:1, cursor:"pointer", display:"flex", gap:12, alignItems:"flex-start" }} onClick={() => !editing && onEdit({ ...p, exs: programExs })}>
                     <ProgramIcon name={p.name} size={44} />
                     <div>
                       <div style={{ fontWeight:700, fontSize:16, textAlign:"left", color:th.text, marginBottom:5 }}>{p.name}</div>
-                      <div style={{ fontSize:12, color:th.muted, marginBottom:8, textAlign:"left" }}>{p.exs.length} {t(p.exs.length === 1 ? "exercise" : "exercises")}</div>
+                      <div style={{ fontSize:12, color:th.muted, marginBottom:8, textAlign:"left" }}>{programExs.length} {t(programExs.length === 1 ? "exercise" : "exercises")}</div>
                       <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                        {[...new Set(p.exs.map(e => DB.find(d => d.id === e.id)?.group).filter(Boolean))].slice(0,4).map(g => (
+                        {[...new Set(programExs.map(e => DB.find(d => d.id === e?.id)?.group).filter(Boolean))].slice(0,4).map(g => (
                           <span key={g} style={S.tag(g)}>{g.toUpperCase()}</span>
                         ))}
                       </div>
@@ -10568,7 +10556,7 @@ import "./styles.css";
                   {!editing && (
                     <div style={{ position:"relative", flexShrink:0, marginLeft:12, width:48, height:48 }}>
                       <button
-                        onClick={() => onStart(p)}
+                        onClick={() => onStart({ ...p, exs: programExs })}
                         onPointerDown={e => {
                           const btn = e.currentTarget;
                           btn.style.animation = "none";
@@ -10600,7 +10588,8 @@ import "./styles.css";
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </>
         )}
       </div>
@@ -10730,7 +10719,7 @@ import "./styles.css";
     );
   }
 
-  function CreateProgramView({ program, onSave, onStart, onBack, settings, onUpdateSettings, friends, onShare }) {
+  function CreateProgramView({ program, onSave, onStart, settings, onUpdateSettings, friends, onShare }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -10907,7 +10896,7 @@ import "./styles.css";
                       {s.name}
                     </div>
                     <div style={{ fontSize: 10, color: th.muted }}>
-                      {s.exs.length} {t("exercises")}
+                      {(s.exs || []).length} {t("exercises")}
                     </div>
                   </button>
                 ))}
@@ -10974,7 +10963,6 @@ import "./styles.css";
                     setExpandedEx(expandedEx === ex.id ? null : ex.id)
                   }
                   onRemoveEx={() => removeEx(ex.id)}
-                  onUpdateNumSets={(delta) => updateNumSets(ex.id, delta)}
                   onUpdateSet={(sIdx, f, v) => updateSet(ex.id, sIdx, f, v)}
                   onAddSet={() => updateNumSets(ex.id, 1)}
                   onRemoveSet={(sIdx) =>
@@ -11121,7 +11109,7 @@ import "./styles.css";
   /* ═══════════════════════════════════════════════════════════════════════════════
     CREATE VIEW (pre-workout config)
   ═══════════════════════════════════════════════════════════════════════════════ */
-  function CreateView({ draft, onStart, onBack }) {
+  function CreateView({ draft, onStart }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -11692,16 +11680,7 @@ import "./styles.css";
   ═══════════════════════════════════════════════════════════════════════════════ */
   function WorkoutView({
     session,
-    elapsed,
-    paused,
-    pct,
-    doneSets,
-    totalSets,
-    onTogglePause,
-    onFinish,
-    onAbandon,
     onSaveActive,
-    onMinimize,
   }) {
     const th = useTheme();
     const S = useS();
@@ -12593,10 +12572,7 @@ import "./styles.css";
   /* ─── History & Session Detail ───────────────────────────────────────────────── */
   function HistoryView({
     sessions,
-    active,
-    elapsed,
     onViewDetail,
-    onGoWorkout,
     onDelete,
   }) {
     const th = useTheme();
@@ -12820,7 +12796,7 @@ import "./styles.css";
       </div>
     );
   }
-  function SessionDetailView({ session, onBack }) {
+  function SessionDetailView({ session }) {
     const th = useTheme();
     const S = useS();
     const vol = sessionVol(session);
@@ -13127,15 +13103,11 @@ import "./styles.css";
     themeAuto,
     lang,
     onLangChange,
-    active,
-    elapsed,
     onLogout,
     onUpdateUser,
     onThemeChange,
     onThemeAutoToggle,
-    onGoWorkout,
     onClearUnread,
-    onClose,
     onPhotoUpdate,
   }) {
     const th = useTheme();
@@ -14940,7 +14912,7 @@ import "./styles.css";
     ROOT APP
   ═══════════════════════════════════════════════════════════════════════════════ */
   /* ─── ShortcutDetailView — opens when tapping a shortcut card ───────────────── */
-  function ShortcutDetailView({ program, onSave, onStart, onBack }) {
+  function ShortcutDetailView({ program, onSave, onStart }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -15034,28 +15006,6 @@ import "./styles.css";
                     setExpandedEx(expandedEx === ex.id ? null : ex.id)
                   }
                   onRemoveEx={() => removeEx(ex.id)}
-                  onUpdateNumSets={(delta) => {
-                    const n = Math.max(
-                      1,
-                      Math.min(10, (ex.sets || []).length + delta)
-                    );
-                    const last = (ex.sets || [{}])[
-                      (ex.sets || []).length - 1
-                    ] || { reps: 10, weight: 20 };
-                    const sets =
-                      n > (ex.sets || []).length
-                        ? [
-                            ...(ex.sets || []),
-                            ...Array.from(
-                              { length: n - (ex.sets || []).length },
-                              () => ({ reps: last.reps, weight: last.weight })
-                            ),
-                          ]
-                        : (ex.sets || []).slice(0, n);
-                    updateExs(
-                      exs.map((e) => (e.id !== ex.id ? e : { ...e, sets }))
-                    );
-                  }}
                   onUpdateSet={(sIdx, f, v) =>
                     updateExs(
                       exs.map((e) =>
@@ -15318,7 +15268,7 @@ import "./styles.css";
     const [programs, setPrograms] = useState([]);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [active, setActive] = useState(null);
-    const [draft, setDraft] = useState(null);
+    const [draft] = useState(null);
     const [finished, setFinished] = useState(null);
     const [editingProg, setEditingProg] = useState(null);
     const [selSession, setSelSession] = useState(null);
@@ -15334,7 +15284,6 @@ import "./styles.css";
     const [measurements, setMeasurements] = useState([]);
     const [paused, setPaused] = useState(false);
     const [pillPressing, setPillPressing] = useState(false);
-    const [workoutExiting, setWorkoutExiting] = useState(false);
     const elRef = useRef(0);
     const [elapsed, setElapsed] = useState(0);
     const timerRef = useRef(null);
@@ -15829,8 +15778,10 @@ import "./styles.css";
         return;
       }
       // Convert program exs (new per-set format) to workout exercises and start directly
-      const exercises = prog.exs
+      const templateExs = Array.isArray(prog?.exs) ? prog.exs : [];
+      const exercises = templateExs
         .map((te) => {
+          if (!te) return null;
           const db = DB.find((e) => e.id === te.id);
           if (!db) return null;
           if (db.type === "cardio") {
@@ -15855,7 +15806,7 @@ import "./styles.css";
           }
           // te.sets is [{reps, weight}] — expand to full workout set objects
           const rawSets =
-            te.sets ||
+            Array.isArray(te.sets) ? te.sets :
             Array.from({ length: te.s || 4 }, () => ({
               reps: te.r || 10,
               weight: te.w || 20,
@@ -15876,7 +15827,7 @@ import "./styles.css";
           };
         })
         .filter(Boolean);
-      handleBeginWorkout({ name: prog.name, exercises, progId: prog.id || null });
+      handleBeginWorkout({ name: prog?.name || "Workout", exercises, progId: prog?.id || null });
     };
     const startWorkoutAfterCountdown = (data) => {
       const now = Date.now();
@@ -15955,7 +15906,9 @@ import "./styles.css";
       if (active?.progId) {
         const updatedPrograms = programs.map((p) => {
           if (p.id !== active.progId) return p;
-          const updatedExs = p.exs.map((pe) => {
+          const programExs = Array.isArray(p.exs) ? p.exs : [];
+          const updatedExs = programExs.map((pe) => {
+            if (!pe) return pe;
             const workoutEx = s.exercises.find((we) => we.exId === pe.id);
             if (!workoutEx || workoutEx.type === "cardio") return pe;
             const doneSets = workoutEx.sets.filter((st) => st.done);
@@ -15968,7 +15921,7 @@ import "./styles.css";
             return { ...pe, sets: newSets };
           });
           // Append any new non-cardio exercises added ad-hoc during the session
-          const progExIds = new Set(p.exs.map((pe) => pe.id));
+          const progExIds = new Set(programExs.map((pe) => pe?.id));
           const newlyAdded = s.exercises
             .filter((we) => !progExIds.has(we.exId) && we.type !== "cardio")
             .map((we) => {
@@ -16423,7 +16376,7 @@ import "./styles.css";
                     if (notifOpen) { closeNotif(); } else { setNotifOpen(true); }
                     if (unreadStars > 0) {
                       const now = Date.now();
-                      localStorage.setItem("ib3-lastReadNotif", String(now));
+                      lsSet("ib3-lastReadNotif", now);
                       setLastReadNotif(now);
                       setUnreadStars(0);
                     }
@@ -16695,7 +16648,6 @@ import "./styles.css";
               padding: "calc(68px + env(safe-area-inset-top, 0px)) 16px 0",
               minHeight: 0,
               animation:
-                workoutExiting      ? "pipExit 0.32s cubic-bezier(0.4,0,1,1) forwards" :
                 view === "workout"  ? "workoutFadeIn 0.45s cubic-bezier(0,0,0.2,1) forwards" :
                 view === "complete" ? "completeFadeIn 0.4s ease-out forwards" :
                 "tabFadeIn 0.22s ease-out forwards",
@@ -16704,60 +16656,22 @@ import "./styles.css";
             {view === "home" && (
               <HomeView
                 sessions={sessions}
-                programs={programs}
-                active={active}
                 user={user}
                 settings={settings}
-                elapsed={elapsed}
                 measurements={measurements}
-                onTemplate={handleTemplate}
-                onUpdateProgram={(p) =>
-                  savePrograms(programs.map((x) => (x.id === p.id ? p : x)))
-                }
-                onOpenShortcut={(p) => {
-                  setSelShortcut(p);
-                  setView("shortcutDetail");
-                }}
-                onNew={() => {
-                  setDraft({ name: "", exercises: [] });
-                  setView("create");
-                }}
-                onResume={() => setView("workout")}
                 onUpdateSettings={saveSettings}
-                onGoWorkout={() => setView("workout")}
-                onViewSession={(s) => {
-                  setSelSession(s);
-                  setSelSessionOrigin("home");
-                  setView("sessionDetail");
-                }}
               />
             )}
             {view === "create" && draft && (
               <CreateView
                 draft={draft}
                 onStart={handleBeginWorkout}
-                onBack={() => setView("home")}
               />
             )}
             {view === "workout" && active && (
               <WorkoutView
                 session={active}
-                elapsed={elapsed}
-                paused={paused}
-                pct={wPct}
-                doneSets={wDoneSets}
-                totalSets={wTotalSets}
-                onTogglePause={toggleWorkoutPause}
-                onFinish={handleFinishWorkout}
-                onAbandon={handleAbandon}
                 onSaveActive={saveActive}
-                onMinimize={() => {
-                  setWorkoutExiting(true);
-                  setTimeout(() => {
-                    setWorkoutExiting(false);
-                    setView("home");
-                  }, 320);
-                }}
               />
             )}
             {view === "complete" && finished && (
@@ -16770,20 +16684,13 @@ import "./styles.css";
             {view === "programs" && (
               <ProgramsView
                 programs={programs}
-                active={active}
-                elapsed={elapsed}
                 onEdit={(p) => {
                   setEditingProg(p);
-                  setView("editProgram");
-                }}
-                onNew={() => {
-                  setEditingProg(null);
                   setView("editProgram");
                 }}
                 onDelete={(id) =>
                   savePrograms(programs.filter((p) => p.id !== id))
                 }
-                onGoWorkout={() => setView("workout")}
                 onStart={handleTemplate}
                 settings={settings}
                 onUpdateSettings={saveSettings}
@@ -16806,7 +16713,6 @@ import "./styles.css";
                   // onSave already called by the button before onStart fires
                   handleTemplate(p);
                 }}
-                onBack={() => setView("programs")}
                 settings={settings}
                 onUpdateSettings={saveSettings}
                 friends={friends}
@@ -16816,21 +16722,17 @@ import "./styles.css";
             {view === "history" && (
               <HistoryView
                 sessions={sessions}
-                active={active}
-                elapsed={elapsed}
                 onViewDetail={(s) => {
                   setSelSession(s);
                   setSelSessionOrigin("history");
                   setView("sessionDetail");
                 }}
-                onGoWorkout={() => setView("workout")}
                 onDelete={handleDeleteSession}
               />
             )}
             {view === "sessionDetail" && selSession && (
               <SessionDetailView
                 session={selSession}
-                onBack={() => setView(selSessionOrigin || "history")}
                 onOrigin={selSessionOrigin}
               />
             )}
@@ -16847,7 +16749,6 @@ import "./styles.css";
                   setView("home");
                   handleTemplate(p);
                 }}
-                onBack={() => setView("home")}
               />
             )}
             {view === "sharing" && (
@@ -16866,24 +16767,6 @@ import "./styles.css";
                 onAcceptCompeteInvite={(compId) => fsAcceptCompeteInvite(compId, user.name)}
                 onDeclineCompeteInvite={fsDeclineCompeteInvite}
                 onWithdrawCompeteInvite={fsWithdrawCompeteInvite}
-                starNotifications={starNotifications}
-                unreadStars={unreadStars}
-                notifPopOpen={notifOpen}
-                onToggleNotifPop={() => {
-                  if (notifOpen) { closeNotif(); } else { setNotifOpen(true); }
-                  if (unreadStars > 0) {
-                    const now = Date.now();
-                    localStorage.setItem("ib3-lastReadNotif", String(now));
-                    setLastReadNotif(now);
-                    setUnreadStars(0);
-                  }
-                }}
-                onMarkNotifsRead={() => {
-                  const now = Date.now();
-                  localStorage.setItem("ib3-lastReadNotif", String(now));
-                  setLastReadNotif(now);
-                  setUnreadStars(0);
-                }}
                 onRemoveFriend={(friendUid) => fsRemoveFriend(user.id, friendUid)}
                 settings={settings}
                 onUpdateSettings={saveSettings}
@@ -17489,8 +17372,6 @@ import "./styles.css";
                     setLang(l);
                     if (user?.id) lsSet(uKey(user.id, "lang"), l);
                   }}
-                  active={active}
-                  elapsed={elapsed}
                   onLogout={handleLogout}
                   onUpdateUser={(u) => setUser(u)}
                   onThemeChange={(t) => setTheme(t)}
@@ -17498,9 +17379,7 @@ import "./styles.css";
                     setThemeAuto(auto);
                     if (auto) setTheme(getAutoTheme());
                   }}
-                  onGoWorkout={() => { closeProfile(); setTimeout(() => setView("workout"), 380); }}
                   onClearUnread={() => setUnreadFeedback(0)}
-                  onClose={closeProfile}
                   onPhotoUpdate={(updates) => fsPushProfileToFriends(user.id, updates, friends.map(f => f.uid))}
                 />
               </div>
