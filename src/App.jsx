@@ -296,6 +296,8 @@ import "./styles.css";
     "No exercises found.": "Egzersiz bulunamadı.",
     "Remove this exercise?": "Bu egzersizi kaldırmak istiyor musun?",
     "Remove set": "Seti kaldır",
+    "rep": "tekrar",
+    "WORKOUT IN PROGRESS": "DEVAM EDEN ANTRENMAN",
     "Add Exercises": "Egzersiz Ekle",
     "Tap 'Add Exercise' to browse and select exercises. You can add multiple at once — they'll appear as cards below.":
       "Egzersiz seçmek için 'Egzersiz Ekle'ye dokun. Birden fazla seçebilirsin — kart olarak aşağıda görünecekler.",
@@ -11692,6 +11694,7 @@ import "./styles.css";
     const [milestoneMsg, setMilestoneMsg] = useState(null);
     const [milestoneExIdx, setMilestoneExIdx] = useState(null);
     const lastMilestoneRef = useRef(0);
+    const milestoneTimerRef = useRef(null);
     const lastToggledExIdxRef = useRef(0);
     const MILESTONES = [
       { pct: 0.2, msgs: [t("20% done — keep moving!"), t("Great start, stay focused.")] },
@@ -11712,11 +11715,30 @@ import "./styles.css";
       if (!milestone) return;
       if (milestone.pct <= lastMilestoneRef.current) return;
       lastMilestoneRef.current = milestone.pct;
+      // Cancel any previous dismissal timer so a rapid burst of toggles
+      // (e.g. tapping the last few sets in quick succession) doesn't queue up
+      // multiple messages that flash in one after another and clip each other.
+      if (milestoneTimerRef.current) {
+        clearTimeout(milestoneTimerRef.current);
+        milestoneTimerRef.current = null;
+      }
       const msg = milestone.msgs[Math.floor(Math.random() * milestone.msgs.length)];
       setMilestoneMsg(msg);
       setMilestoneExIdx(lastToggledExIdxRef.current);
-      setTimeout(() => { setMilestoneMsg(null); setMilestoneExIdx(null); }, 2400);
+      milestoneTimerRef.current = setTimeout(() => {
+        setMilestoneMsg(null);
+        setMilestoneExIdx(null);
+        milestoneTimerRef.current = null;
+      }, 2400);
     }, [liveDone]);
+
+    // Clear any pending dismissal if the view unmounts mid-message
+    useEffect(() => () => {
+      if (milestoneTimerRef.current) {
+        clearTimeout(milestoneTimerRef.current);
+        milestoneTimerRef.current = null;
+      }
+    }, []);
 
     const upd = (newExs) => {
       const safeExs = (newExs || []).map(normalizeWorkoutExercise);
@@ -12096,7 +12118,7 @@ import "./styles.css";
                         <span
                           style={{ fontSize: 11, color: th.muted, flexShrink: 0 }}
                         >
-                          rep
+                          {t("rep")}
                         </span>
                         <WeightPicker
                           value={set.weight}
@@ -16150,7 +16172,7 @@ import "./styles.css";
                     }}
                   >
                     <span style={{ fontSize: 15, color: "#5B9CF6" }}>
-                      {wDoneSets}/{wTotalSets} sets
+                      {wDoneSets}/{wTotalSets} {tLang("sets")}
                     </span>
                     <span
                       style={{
@@ -16329,10 +16351,10 @@ import "./styles.css";
               <div className="pill-pulse" style={{ position:"absolute", inset:0, borderRadius:50, pointerEvents:"none" }} />
               <div style={{ minWidth: 0, flex: 1, position: "relative" }}>
                 <div style={{ color: th.accentT, fontWeight: 700, fontSize: 11, letterSpacing: "1.5px", whiteSpace: "nowrap" }}>
-                  WORKOUT IN PROGRESS
+                  {tLang("WORKOUT IN PROGRESS")}
                 </div>
                 <div style={{ color: th.accentT, opacity: 0.7, fontSize: 11, marginTop: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {active.name} · {wDoneSets}/{wTotalSets} sets
+                  {active.name} · {wDoneSets}/{wTotalSets} {tLang("sets")}
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
