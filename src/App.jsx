@@ -4871,7 +4871,7 @@ import "./styles.css";
             style={{
               background: "none",
               border: "none",
-              color: "rgba(255,255,255,50.35)",
+              color: "rgba(255,255,255,0.5)",
               fontSize: 15,
               fontFamily: "'Outfit',sans-serif",
               cursor: "pointer",
@@ -4891,7 +4891,7 @@ import "./styles.css";
             style={{
               background: "none",
               border: "none",
-              color: "rgba(255,255,255,100.25)",
+              color: "rgba(255,255,255,0.55)",
               fontSize: 12,
               cursor: "pointer",
               marginTop: 8,
@@ -7340,7 +7340,7 @@ import "./styles.css";
             />
             <div style={{ position:"fixed", inset:0, zIndex:83, pointerEvents:"none" }}>
               <ExercisePicker
-                onAdd={id => { addEx(id); setShowPicker(false); }}
+                onAdd={addEx}
                 onClose={() => setShowPicker(false)}
                 added={exs.map(e => e.id)}
               />
@@ -8933,6 +8933,8 @@ import "./styles.css";
     const [closing, setClosing] = useState(false);
     const [permError, setPermError] = useState(false);
     const listRef = useRef(null);
+    const mountedRef = useRef(true);
+    useEffect(() => () => { mountedRef.current = false; }, []);
     const close = () => { setClosing(true); setTimeout(onClose, 300); };
 
     const fmtAgo = (ts) => {
@@ -8967,7 +8969,8 @@ import "./styles.css";
       setSending(true);
       setText("");
       await fsPostComment(postId, user.id, user.name, user.photoURL, t);
-      setSending(false);
+      // Sheet may have been closed during the await — don't setState on unmount.
+      if (mountedRef.current) setSending(false);
     };
 
     return (
@@ -9155,13 +9158,16 @@ import "./styles.css";
       const initial = { [user.id]: myScore };
       setBoardScores(initial);
       if (!friends.length) { setLoading(false); return; }
+      let cancelled = false;
       Promise.all(friends.map(f => onGetFriendSessions(f.uid).then(s => ({ uid:f.uid, s }))))
         .then(results => {
+          if (cancelled) return;
           const scores = { [user.id]: myScore };
           results.forEach(({ uid, s }) => { scores[uid] = calcScore(s); });
           setBoardScores(scores);
           setLoading(false);
         });
+      return () => { cancelled = true; };
     }, [user.id, friends.map(f=>f.uid).join(",")]);
 
     const rawEntries = [
@@ -11811,9 +11817,15 @@ import "./styles.css";
       const key = `${eIdx}-${sIdx}`;
       setRemovingSetKey(key);
       setTimeout(() => {
-        upd(exercises.map((ex, i) =>
-          i !== eIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== sIdx) }
-        ));
+        // Functional update so any toggle/edit/remove that happened during the
+        // 300ms slide-out animation isn't clobbered with a stale array.
+        setExercises((prev) => {
+          const next = prev.map((ex, i) =>
+            i !== eIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== sIdx) }
+          ).map(normalizeWorkoutExercise);
+          onSaveActive({ ...session, exercises: next });
+          return next;
+        });
         setRemovingSetKey(null);
       }, 300);
     };
@@ -11823,7 +11835,13 @@ import "./styles.css";
       if (!window.confirm(t("Remove this exercise?"))) return;
       setRemovingExIdx(eIdx);
       setTimeout(() => {
-        upd(exercises.filter((_, i) => i !== eIdx));
+        // Functional update so intervening edits during the 320ms slide-out
+        // animation are preserved rather than overwritten with stale state.
+        setExercises((prev) => {
+          const next = prev.filter((_, i) => i !== eIdx).map(normalizeWorkoutExercise);
+          onSaveActive({ ...session, exercises: next });
+          return next;
+        });
         setRemovingExIdx(null);
       }, 320);
     };
@@ -14965,17 +14983,23 @@ import "./styles.css";
     const addEx = (dbId) => {
       const db = DB.find((e) => e.id === dbId);
       const isCardio = db?.type === "cardio";
-      updateExs([
-        ...exs,
-        isCardio
-          ? { id: dbId, type: "cardio", duration: 0, calories: 0, intensity: 0 }
-          : {
-              id: dbId,
-              sets: Array.from({ length: 4 }, () => ({ reps: 10, weight: 20 })),
-            },
-      ]);
+      const newItem = isCardio
+        ? { id: dbId, type: "cardio", duration: 0, calories: 0, intensity: 0 }
+        : { id: dbId, sets: Array.from({ length: 4 }, () => ({ reps: 10, weight: 20 })) };
+      // Functional update — ExercisePicker's confirmAdd does
+      // pending.forEach(id => onAdd(id)), so each call needs the latest list.
+      setExs((prev) => {
+        if (prev.some((e) => e.id === dbId)) return prev;
+        const next = [...prev, newItem];
+        onSave({ ...program, exs: next });
+        return next;
+      });
     };
-    const removeEx = (id) => updateExs(exs.filter((e) => e.id !== id));
+    const removeEx = (id) => setExs((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      onSave({ ...program, exs: next });
+      return next;
+    });
 
     return (
       <>
@@ -15301,6 +15325,7 @@ import "./styles.css";
     const [calDir, setCalDir] = useState(0); // -1=going back, +1=going fwd
     const [countdown, setCountdown] = useState(null); // null | 3 | 2 | 1 | 0
     const countdownDataRef = useRef(null); // stores workout data during countdown
+    const countdownIntervalRef = useRef(null); // setInterval handle so we can cancel on unmount
     const [calClosing, setCalClosing] = useState(false);
     const closeCal = () => { setCalClosing(true); setTimeout(() => { setShowCal(false); setCalClosing(false); }, 200); };
     const [measurements, setMeasurements] = useState([]);
@@ -15550,8 +15575,16 @@ import "./styles.css";
       const unsubCoachSent  = fsListenSentCoachRequests(user.id, setSentCoachRequests);
       const unsubCoachRels  = fsListenCoachRelations(user.id, setCoachRelations);
 
-      // Listen for star reactions on user's sessions
+      // Listen for star reactions on user's sessions. Both this listener and
+      // the social-notifications listener below feed `starNotifications` and
+      // need to compute `unreadStars` from the COMBINED merged list — not from
+      // their own slice in isolation. Otherwise whichever snapshot fires last
+      // overwrites the other's contribution to the unread badge.
       const notifCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const recomputeUnread = (list) => {
+        const lastRead = parseInt(ls("ib3-lastReadNotif", "0"), 10) || 0;
+        return list.filter(n => (n.ts || 0) > lastRead).length;
+      };
       const unsubReactions = onSnapshot(
         query(collection(fbDb, "reactions"), where("ownerUid", "==", user.id)),
         snap => {
@@ -15559,12 +15592,13 @@ import "./styles.css";
             .filter(r => (r.ts || 0) >= notifCutoff)
             .sort((a, b) => (b.ts || 0) - (a.ts || 0));
           setStarNotifications(prev => {
-            // Merge with social notifications (dedupe by id)
+            // Replace the "star" slice with the fresh reactions; keep "social".
             const social = prev.filter(n => n._type === "social");
-            return [...social, ...rxns.map(r => ({ ...r, _type: "star" }))];
+            const stars = rxns.map(r => ({ ...r, _type: "star" }));
+            const merged = [...social, ...stars].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            setUnreadStars(recomputeUnread(merged));
+            return merged;
           });
-          const lastRead = parseInt(ls("ib3-lastReadNotif", "0"), 10) || 0;
-          setUnreadStars(rxns.filter(r => (r.ts || 0) > lastRead).length);
         }
       );
 
@@ -15578,13 +15612,8 @@ import "./styles.css";
           setStarNotifications(prev => {
             const stars = prev.filter(n => n._type === "star");
             const merged = [...notifs, ...stars].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            setUnreadStars(recomputeUnread(merged));
             return merged;
-          });
-          const lastRead = parseInt(ls("ib3-lastReadNotif", "0"), 10) || 0;
-          setUnreadStars(prev => {
-            const starUnread = prev;
-            const socialUnread = notifs.filter(n => (n.ts || 0) > lastRead).length;
-            return starUnread + socialUnread;
           });
         }
       );
@@ -15879,10 +15908,12 @@ import "./styles.css";
       countdownDataRef.current = data;
       setCountdown(3);
       let n = 3;
-      const tick = setInterval(() => {
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = setInterval(() => {
         n -= 1;
         if (n <= 0) {
-          clearInterval(tick);
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
           setCountdown(null);
           startWorkoutAfterCountdown(countdownDataRef.current);
         } else {
