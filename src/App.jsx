@@ -894,7 +894,7 @@ import "./styles.css";
     "Win a 7-day challenge": "7 günlük bir meydan okumayı kazan",
     "{month} Challenge": "{month} Meydan Okuması",
     "20 workouts in {month}": "{month} ayında 20 antrenman",
-    "Week {n} Challenge": "{n}. Hafta Meydan Okuması",
+    "Perfect Week": "Mükemmel Hafta",
     "5 workouts this week": "Bu hafta 5 antrenman",
 
     // Suggestions / NEW PROGRAM editor (deduped subset)
@@ -2364,7 +2364,7 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false, earnedAwards: [] };
   const ALL_DASHBOARDS = [
     { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
     { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
@@ -2891,6 +2891,19 @@ import "./styles.css";
   // status: "pending" → "active" (immediately after accepted) → "finished"
   async function fsSendCompeteInvite(fromUid, fromName, toUid, toName) {
     try {
+      // Block duplicate invites in either direction: if an active or pending
+      // competition already exists between these two users, do not create a new one.
+      // Otherwise both sides keep generating counter-invites that never resolve.
+      const [s1, s2] = await Promise.all([
+        getDocs(query(collection(fbDb, "competitions"), where("fromUid","==",fromUid), where("toUid","==",toUid))),
+        getDocs(query(collection(fbDb, "competitions"), where("fromUid","==",toUid),   where("toUid","==",fromUid))),
+      ]);
+      const existing = [...s1.docs, ...s2.docs].find(d => {
+        const st = d.data()?.status;
+        return st === "pending" || st === "active";
+      });
+      if (existing) return { ok: false, reason: "exists", id: existing.id };
+
       const ref = await addDoc(collection(fbDb, "competitions"), {
         fromUid, fromName, toUid, toName,
         status: "pending",
@@ -3000,12 +3013,25 @@ import "./styles.css";
 
   // Comments stored at: comments/{postId}/messages/{messageId}
   // postId = `session_${ownerUid}_${sessionId}` or `program_${sharedProgId}`
-  async function fsPostComment(postId, authorUid, authorName, authorPhotoURL, text) {
+  async function fsPostComment(postId, authorUid, authorName, authorPhotoURL, text, ownerUid, contextName) {
     try {
       const ref = await addDoc(collection(fbDb, "comments", postId, "messages"), {
         authorUid, authorName, authorPhotoURL: authorPhotoURL || null,
         text: text.trim(), ts: Date.now(),
       });
+      // Notify post owner (skip self-comment)
+      if (ownerUid && ownerUid !== authorUid) {
+        const isSession = String(postId).startsWith("session_");
+        fsPushNotification(ownerUid, {
+          type: isSession ? "session_comment" : "program_comment",
+          fromUid: authorUid,
+          name: authorName,
+          photoURL: authorPhotoURL || null,
+          text: isSession
+            ? `${authorName} commented on your workout${contextName ? ` "${contextName}"` : ""}`
+            : `${authorName} commented on your program${contextName ? ` "${contextName}"` : ""}`,
+        });
+      }
       return { ok: true, id: ref.id };
     } catch (e) { console.warn("fsPostComment:", e.code); return { ok: false }; }
   }
@@ -7522,12 +7548,14 @@ import "./styles.css";
     // Coach view: all dashboards
 
     // ── Pre-compute competition label (stable, no inner component) ──
-    const comp = competitions?.find(c =>
-      (c.fromUid === user?.id && c.toUid === friend.uid) ||
-      (c.toUid === user?.id && c.fromUid === friend.uid)
-    );
-    const compLabel = comp?.status === "active"
-      ? <span style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:6, height:6, borderRadius:"50%", background:"#D4AF37", display:"inline-block", animation:"pulse 1.5s ease-in-out infinite" }} />{t("COMPETING")}</span>
+    // Prioritize active over pending over finished/declined so the button reflects the live state.
+    const compRank = (c) => c?.status === "active" ? 3 : c?.status === "pending" ? 2 : c?.status === "finished" ? 1 : 0;
+    const comp = (competitions || [])
+      .filter(c => (c.fromUid === user?.id && c.toUid === friend.uid) || (c.toUid === user?.id && c.fromUid === friend.uid))
+      .sort((a, b) => compRank(b) - compRank(a))[0];
+    const isCompActive = comp?.status === "active";
+    const compLabel = isCompActive
+      ? <span style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:6, height:6, borderRadius:"50%", background:"#D4AF37", display:"inline-block", animation:"coachPulse 2s ease-in-out infinite" }} />{t("COMPETING")}</span>
       : comp?.status === "pending" ? t("PENDING") : t("COMPETE");
 
     // ── Inline JSX vars — NOT inner components (avoids React remount on every render) ──
@@ -7554,6 +7582,76 @@ import "./styles.css";
       return { streak, last7, thisMonth, allPrs: Object.values(prMap).sort((a,b)=>b.w-a.w) };
     })() : null;
 
+    // ── Friend's awards (derived from their session history) ──
+    // Same logic as the user's own AwardsDashboard, but computed from the friend's
+    // sessions so the viewer can see what their friend has unlocked. Earned awards
+    // appear vibrant; not-yet-earned ones are dimmed — same visual treatment as the
+    // user's own profile awards card.
+    const friendAwards = (!loading && sessions) ? (() => {
+      const sessionDays = new Set((sessions || []).map(s => { const d=new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
+      const sortedDays = [...sessionDays].sort((a,b) => b - a);
+      let bestStreak = 0;
+      if (sortedDays.length) {
+        let run = 1; bestStreak = 1;
+        for (let i = 1; i < sortedDays.length; i++) {
+          const prev = new Date(sortedDays[i - 1]);
+          const expectedPrior = new Date(prev); expectedPrior.setDate(expectedPrior.getDate() - 1);
+          if (sortedDays[i] === expectedPrior.getTime()) { run++; if (run > bestStreak) bestStreak = run; }
+          else run = 1;
+        }
+      }
+      const now3 = new Date();
+      const monthStart = new Date(now3.getFullYear(), now3.getMonth(), 1).getTime();
+      const monthName = now3.toLocaleString("en-US", { month:"long" });
+      const daysThisMonth = new Set(
+        (sessions || []).filter(s => (s.startTime||0) >= monthStart)
+          .map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); })
+      ).size;
+      const dayOfWeek = (now3.getDay() + 6) % 7;
+      const weekStart = new Date(now3); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - dayOfWeek);
+      const daysThisWeek = new Set(
+        (sessions || []).filter(s => (s.startTime||0) >= weekStart.getTime())
+          .map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); })
+      ).size;
+      return [
+        { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),   earned: bestStreak >= 7 },
+        { id:"streak14", icon:"⚡", label:t("14-Day Streak"),  earned: bestStreak >= 14 },
+        { id:"streak21", icon:"💎", label:t("21-Day Streak"),  earned: bestStreak >= 21 },
+        { id:"streak30", icon:"👑", label:t("1-Month Streak"), earned: bestStreak >= 30 },
+        { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), earned: daysThisMonth >= 20 },
+        { id:"weekly",   icon:"🗓️", label:t("Perfect Week"), earned: daysThisWeek >= 5 },
+      ];
+    })() : [];
+
+    const friendAwardsJSX = friendAwards.length ? (
+      <div style={{ marginBottom:16 }}>
+        <div style={{ ...S.label, marginBottom:8, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span>{t("AWARDS")}</span>
+          <span style={{ fontSize:12, color:th.dim, fontWeight:600, letterSpacing:0 }}>
+            {friendAwards.filter(a => a.earned).length}/{friendAwards.length}
+          </span>
+        </div>
+        <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:4, scrollbarWidth:"none" }}>
+          <style>{`.friend-awards-row::-webkit-scrollbar{display:none}`}</style>
+          <div className="friend-awards-row" style={{ display:"flex", gap:8 }}>
+            {friendAwards.map(a => (
+              <div key={a.id} style={{
+                flexShrink:0, minWidth:88, display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+                padding:"10px 10px",
+                background: a.earned ? `color-mix(in srgb, ${th.accentBg} 10%, ${th.sect})` : th.sect,
+                borderRadius:12,
+                border: a.earned ? `1.5px solid color-mix(in srgb, ${th.accentBg} 40%, transparent)` : `1.5px solid ${th.border}`,
+                opacity: a.earned ? 1 : 0.38,
+              }}>
+                <div style={{ width:40, height:40, borderRadius:10, background: a.earned ? `color-mix(in srgb, ${th.accentBg} 18%, ${th.card})` : th.row, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, boxShadow: a.earned ? `0 2px 10px color-mix(in srgb, ${th.accentBg} 22%, transparent)` : "none" }}>{a.icon}</div>
+                <div style={{ fontSize:10, fontWeight:700, color: a.earned ? th.accentBg : th.dim, textAlign:"center", lineHeight:1.2, whiteSpace:"nowrap" }}>{a.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ) : null;
+
     // ── Normal friendship: streak calendar, calories, intensity, PRs, weekly volume ──
     const dashboardsJSX = noSessionsJSX || (() => {
       const { streak, last7, thisMonth, allPrs } = dashStats;
@@ -7572,6 +7670,7 @@ import "./styles.css";
               </div>
             ))}
           </div>
+          {friendAwardsJSX}
           <StreakDashboard sessions={sessions} />
           <IntensityDashboard sessions={sessions} sessionVol={sessionVol} />
           <CaloriesDashboard sessions={sessions} />
@@ -7603,6 +7702,7 @@ import "./styles.css";
               </div>
             ))}
           </div>
+          {friendAwardsJSX}
 
           {/* ── Streak & training frequency ── */}
           <StreakDashboard sessions={sessions} />
@@ -7972,22 +8072,27 @@ import "./styles.css";
 
               {/* Action buttons row — COMPETE on left, COACH REQUEST on right */}
               <div style={{ display:"flex", gap:8 }}>
-                {/* COMPETE */}
+                {/* COMPETE — when active, mirrors COACHING's tinted-pill style (gold) */}
                 <button onClick={onCompete} style={{
                   flex:1,
-                  background:"linear-gradient(135deg, rgba(212,175,55,0.45) 0%, rgba(168,130,20,0.6) 100%)",
+                  background: isCompActive
+                    ? "rgba(212,175,55,0.12)"
+                    : "linear-gradient(135deg, rgba(212,175,55,0.45) 0%, rgba(168,130,20,0.6) 100%)",
                   backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
-                  boxShadow:"0 2px 12px rgba(212,175,55,0.28), inset 0 1px 0 rgba(255,255,255,0.16)",
-                  border:`1.5px solid rgba(212,175,55,0.65)`,
+                  boxShadow: isCompActive ? "none" : "0 2px 12px rgba(212,175,55,0.28), inset 0 1px 0 rgba(255,255,255,0.16)",
+                  border: isCompActive ? `1.5px solid rgba(212,175,55,0.55)` : `1.5px solid rgba(212,175,55,0.65)`,
                   borderRadius:11, padding:"9px 0", cursor:"pointer",
                   fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
-                  color:"#fff", letterSpacing:"0.5px",
+                  color: isCompActive ? "#D4AF37" : "#fff",
+                  letterSpacing:"0.5px", transition:"all .2s",
                   display:"flex", alignItems:"center", justifyContent:"center", gap:5,
-                  textShadow:"0 1px 2px rgba(100,80,0,0.5)",
+                  textShadow: isCompActive ? "none" : "0 1px 2px rgba(100,80,0,0.5)",
                 }}>{compLabel}</button>
 
-                {/* COACH REQUEST — hidden if this user is already the athlete */}
-                {!(coachRelation && coachRelation.fromUid === friend.uid) && (
+                {/* COACH REQUEST — hidden only when friend has a pending request to coach me
+                    (that's handled inline in the Friends tab). When the relation is accepted, the
+                    athlete sees a "BEING COACHED" pulsing pill that opens the same stop confirmation. */}
+                {!(coachRelation && coachRelation.fromUid === friend.uid && coachRelation.status !== "accepted") && (
                   <button
                     onClick={handleCoachBtnClick}
                     disabled={coachBtnState === "sending"}
@@ -8015,7 +8120,7 @@ import "./styles.css";
                     {coachBtnState === "sending" ? "…"
                       : coachBtnState === "pending" ? t("REQUEST PENDING")
                       : coachBtnState === "active"
-                        ? <><span style={{ width:6, height:6, borderRadius:"50%", background:"#5B9CF6", display:"inline-block", animation:"coachPulse 2s ease-in-out infinite" }} />{t("COACHING")}</>
+                        ? <><span style={{ width:6, height:6, borderRadius:"50%", background:"#5B9CF6", display:"inline-block", animation:"coachPulse 2s ease-in-out infinite" }} />{iAmCoach ? t("COACHING") : t("BEING COACHED")}</>
                         : t("REQUEST COACHING")}
                   </button>
                 )}
@@ -8184,11 +8289,15 @@ import "./styles.css";
                   </svg>
                 </div>
                 <div className="bebas" style={{ fontSize:20, letterSpacing:2, color:th.text, marginBottom:6 }}>
-                  {coachBtnState === "active" ? t("STOP COACHING?") : t("WITHDRAW REQUEST?")}
+                  {coachBtnState === "active"
+                    ? (iAmCoach ? t("STOP COACHING?") : t("STOP BEING COACHED?"))
+                    : t("WITHDRAW REQUEST?")}
                 </div>
                 <div style={{ fontSize:13, color:th.muted, lineHeight:1.6 }}>
                   {coachBtnState === "active"
-                    ? t("You'll lose access to {name}'s programs, dashboards and history. This can be requested again later.", { name: friend.name.split(" ")[0] })
+                    ? (iAmCoach
+                        ? t("You'll lose access to {name}'s programs, dashboards and history. This can be requested again later.", { name: friend.name.split(" ")[0] })
+                        : t("{name} will lose access to your programs, dashboards and history. You can be coached again later.", { name: friend.name.split(" ")[0] }))
                     : t("Withdraw your coaching request to {name}?", { name: friend.name.split(" ")[0] })}
                 </div>
               </div>
@@ -8197,7 +8306,7 @@ import "./styles.css";
                   style={{ flex:1, background:`color-mix(in srgb, ${th.inputB} 30%, transparent)`, backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 4px rgba(0,0,0,0.08)", border:`1.5px solid ${th.border}`, borderRadius:12, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:th.muted }}>{t("CANCEL")}</button>
                 <button onClick={confirmStopCoaching} disabled={stoppingCoach}
                   style={{ flex:1, background:"linear-gradient(135deg, rgba(220,50,50,0.72) 0%, rgba(170,25,25,0.88) 100%)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", boxShadow:"0 2px 14px rgba(200,30,30,0.35), inset 0 1px 0 rgba(255,255,255,0.14)", border:"1.5px solid rgba(220,50,50,0.6)", borderRadius:12, padding:"11px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, color:"#fff", opacity:stoppingCoach?0.5:1 }}>
-                  {stoppingCoach ? "…" : coachBtnState === "active" ? t("STOP COACHING") : t("WITHDRAW")}
+                  {stoppingCoach ? "…" : coachBtnState === "active" ? (iAmCoach ? t("STOP COACHING") : t("STOP")) : t("WITHDRAW")}
                 </button>
               </div>
             </div>
@@ -8219,22 +8328,6 @@ import "./styles.css";
 
     const close = () => { setClosing(true); setTimeout(onClose, 340); };
 
-    // Find relevant competition between this user and this friend
-    const comp = competitions.find(c =>
-      (c.fromUid === user.id && c.toUid === friend.uid) ||
-      (c.toUid === user.id   && c.fromUid === friend.uid)
-    ) || null;
-
-    const isFinished = comp?.status === "finished";
-    const isPending  = comp?.status === "pending";
-    const isActive   = comp?.status === "active";
-    const isIncoming = isPending && comp?.toUid === user.id;
-    const isOutgoing = isPending && comp?.fromUid === user.id;
-
-    // Show challenge interface if finished or no competition
-    const isDeclined = comp?.status === "declined";
-    const showChallenge = !comp || isFinished || isDeclined;
-
     // Normalize Firestore Timestamps or plain numbers to ms
     const toMs = (v) => {
       if (!v) return 0;
@@ -8244,11 +8337,35 @@ import "./styles.css";
       return Number(v) || 0;
     };
 
+    // Find relevant competition between this user and this friend.
+    // Priority: active > pending > finished/declined, newest first within each tier.
+    // Without this, a stale finished comp can mask a live pending invite and the
+    // sheet sends the user back to the "Send Challenge" screen, creating a counter-
+    // invite — the bouncing back-and-forth behavior.
+    const relevantComps = competitions.filter(c =>
+      (c.fromUid === user.id && c.toUid === friend.uid) ||
+      (c.toUid === user.id   && c.fromUid === friend.uid)
+    );
+    const statusRank = (c) => c?.status === "active" ? 3 : c?.status === "pending" ? 2 : c?.status === "finished" ? 1 : 0;
+    const comp = relevantComps
+      .slice()
+      .sort((a, b) => statusRank(b) - statusRank(a) || toMs(b.createdAt) - toMs(a.createdAt))[0] || null;
+
+    const isFinished = comp?.status === "finished";
+    const isPending  = comp?.status === "pending";
+    const isActive   = comp?.status === "active";
+    const isIncoming = isPending && comp?.toUid === user.id;
+    const isOutgoing = isPending && comp?.fromUid === user.id;
+
+    // Show challenge interface only when there is no comp or the latest one is finished/declined
+    const isDeclined = comp?.status === "declined";
+    const showChallenge = !comp || isFinished || isDeclined;
+
     const startAt = toMs(comp?.startAt);
     const endAt   = toMs(comp?.endAt) || Infinity;
     const now     = Date.now();
     const isExpired = isActive && endAt !== Infinity && now > endAt;
-    const daysLeft = isActive && !isExpired ? Math.max(0, Math.floor((endAt - now) / 86400000)) : 0;
+    const daysLeft = isActive && !isExpired ? Math.max(0, Math.ceil((endAt - now) / 86400000)) : 0;
 
     // Auto-mark expired competitions as finished
     useEffect(() => {
@@ -8532,26 +8649,27 @@ import "./styles.css";
                       </div>
                     </div>
                   ) : (
-                    <>
-                      {/* Rules preview */}
-                      <div style={{ textAlign:"center", marginBottom:20 }}>
+                    <div style={{ textAlign:"center" }}>
+                      {/* Header */}
+                      <div style={{ marginBottom:20 }}>
                         <div style={{ fontSize:36, marginBottom:8 }}>🏆</div>
                         <div className="bebas" style={{ fontSize:20, letterSpacing:2, color:th.text, marginBottom:6 }}>{t("7-DAY CHALLENGE")}</div>
                         <div style={{ fontSize:13, color:th.muted, lineHeight:1.6, maxWidth:280, margin:"0 auto" }}>
                           {t("Score points over 7 days. Only sessions logged after both sides agree count.")}
                         </div>
                       </div>
-                      <div style={{ ...S.card, padding:"14px 16px", marginBottom:20 }}>
-                        <div style={{ ...S.label, marginBottom:10, textAlign:"left" }}>{t("SCORING RULES")}</div>
+                      {/* Rules — identical table to what B sees on the incoming invite */}
+                      <div style={{ ...S.card, padding:"14px 16px", marginBottom:20, textAlign:"left" }}>
+                        <div style={{ ...S.label, marginBottom:10 }}>{t("RULES")}</div>
                         {[
                           { pct:"30%", label:t("Intensity"), desc:t("Avg self-reported intensity rating per session (0–10)") },
                           { pct:"30%", label:t("Calories"), desc:t("Total calories burned across all sessions") },
-                          { pct:"25%", label:t("Consistency"),       desc:t("5+ sessions = max score") },
-                          { pct:"25%", label:t("Activity"),          desc:t("Duration or volume if calories not logged") },
+                          { pct:"20%", label:t("Consistency"), desc:t("Every session logged earns points. 7 sessions = max") },
+                          { pct:"20%", label:t("Activity"), desc:t("Total duration or volume when calories not logged") },
                         ].map(({ pct, label, desc }) => (
                           <div key={label} style={{ display:"flex", gap:10, marginBottom:8 }}>
                             <div className="bebas" style={{ fontSize:16, color:th.accentFg, flexShrink:0, width:32, textAlign:"right" }}>{pct}</div>
-                            <div><div style={{ fontSize:13, fontWeight:700, textAlign:"left", color:th.text }}>{label}</div>
+                            <div><div style={{ fontSize:13, fontWeight:700, color:th.text }}>{label}</div>
                             <div style={{ fontSize:11, color:th.muted, marginTop:1 }}>{desc}</div></div>
                           </div>
                         ))}
@@ -8575,11 +8693,10 @@ import "./styles.css";
                           letterSpacing:"0.5px", color:"#fff", textShadow:"0 1px 2px rgba(100,80,0,0.4)",
                           transition:"background .2s, color .2s",
                           opacity: sending ? 0.6 : 1,
-                        }}
-                      >
+                        }}>
                         {sending ? t("SENDING…") : `${t("CHALLENGE")} ${friend.name.split(" ")[0].toUpperCase()}`}
                       </button>
-                    </>
+                    </div>
                   )}
                 </>
               )}
@@ -8924,7 +9041,7 @@ import "./styles.css";
 
 
   // ── CommentsSheet ─────────────────────────────────────────────────────────────
-  function CommentsSheet({ postId, user, onClose }) {
+  function CommentsSheet({ postId, user, ownerUid, contextName, onClose }) {
     const th = useTheme();
     const tr = useT();
     const [comments, setComments] = useState([]);
@@ -8968,7 +9085,7 @@ import "./styles.css";
       if (!t || sending) return;
       setSending(true);
       setText("");
-      await fsPostComment(postId, user.id, user.name, user.photoURL, t);
+      await fsPostComment(postId, user.id, user.name, user.photoURL, t, ownerUid, contextName);
       // Sheet may have been closed during the await — don't setState on unmount.
       if (mountedRef.current) setSending(false);
     };
@@ -9385,6 +9502,28 @@ import "./styles.css";
         .filter(s => (s.startTime || 0) >= W7)
         .map(s => ({ type:"session", friend: f, session: s, ts: s.startTime || 0 }));
     });
+    // User's own completed sessions in feed so they can see their own posts
+    // (and any stars/comments friends leave on them).
+    const ownAsFriend = { uid: user.id, name: user.name || "You", photoURL: user.photoURL || null };
+    const ownSessionFeedItems = (mySessions || [])
+      .filter(s => (s.startTime || 0) >= W7)
+      .map(s => ({ type:"session", friend: ownAsFriend, session: s, ts: s.startTime || 0, isOwn: true }));
+
+    // Load reaction counts for own sessions so the star count reflects friends' stars.
+    useEffect(() => {
+      const items = ownSessionFeedItems;
+      items.forEach(({ session: s }) => {
+        const sid = s.id || s.startTime;
+        if (!sid) return;
+        fsGetReactions(user.id, sid).then(rxns => {
+          const key = `${user.id}-${sid}`;
+          setStarState(prev => ({
+            ...prev,
+            [key]: { starred: rxns.some(r => r.uid === user.id), count: rxns.length, reactors: rxns },
+          }));
+        });
+      });
+    }, [user.id, ownSessionFeedItems.map(i => i.session?.id || i.session?.startTime).join(",")]);
     // Shared programs in feed: programs shared TO me (from friends) + programs I shared (to show in my feed)
     const sharedProgFeedItems = [
       ...sharedPrograms.filter(sp => sp.ts >= W7).map(sp => ({
@@ -9402,7 +9541,7 @@ import "./styles.css";
         friend: friends.find(f => f.uid === sp.toUid) || { uid: sp.toUid, name: "Friend" },
       })),
     ];
-    const feedItems = [...sessionFeedItems, ...sharedProgFeedItems]
+    const feedItems = [...sessionFeedItems, ...ownSessionFeedItems, ...sharedProgFeedItems]
       .sort((a, b) => b.ts - a.ts);
 
     // Load comment counts for all visible feed items
@@ -9559,7 +9698,7 @@ import "./styles.css";
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={async () => { await onDeclineCompeteInvite(c.id); }}
                   style={{ flex:1, ...buttonTexture(th, "danger"), borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14 }}>{t("DECLINE")}</button>
-                <button onClick={async () => { await onAcceptCompeteInvite(c.id); }}
+                <button onClick={() => setCompeteFriend(f || { uid: c.fromUid, name: c.fromName, photoURL: f?.photoURL || null })}
                   style={{ flex:1, ...buttonTexture(th, "accent"), borderRadius:11, padding:"10px 0", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14 }}>{t("ACCEPT")}</button>
               </div>
             </div>
@@ -9762,7 +9901,13 @@ import "./styles.css";
 
         {/* ── Comments sheet ── */}
         {openComments && createPortal(
-          <CommentsSheet postId={openComments.postId} user={user} onClose={() => setOpenComments(null)} />,
+          <CommentsSheet
+            postId={openComments.postId}
+            user={user}
+            ownerUid={openComments.ownerUid}
+            contextName={openComments.contextName}
+            onClose={() => setOpenComments(null)}
+          />,
           document.body
         )}
 
@@ -10072,13 +10217,13 @@ import "./styles.css";
         {/* ── Tab switcher: FEED | FRIENDS — smooth sliding rounded pill ── */}
         {sharingTab === "feed" && (
           <div style={{ marginBottom: 20 }}>
-            {friends.length === 0 ? (
+            {friends.length === 0 && ownSessionFeedItems.length === 0 ? (
               <div style={{ ...S.card, padding:"28px 16px", textAlign:"center" }}>
                 <div style={{ fontSize:28, marginBottom:10 }}>👥</div>
                 <div style={{ color:th.text, fontWeight:700, fontSize:15, marginBottom:6 }}>{t("No friends yet")}</div>
                 <div style={{ color:th.muted, fontSize:13 }}>{t("Add friends in the Friends tab to see their activity here.")}</div>
               </div>
-            ) : feedLoading ? (
+            ) : feedLoading && feedItems.length === 0 ? (
               <div style={{ ...S.card, padding:"22px 16px", textAlign:"center", color:th.dim, fontSize:14 }}>{t("Loading activity…")}</div>
             ) : feedItems.length === 0 ? (
               <div style={{ ...S.card, padding:"22px 16px", textAlign:"center" }}>
@@ -10144,7 +10289,7 @@ import "./styles.css";
                     {/* Interaction row — outside tappable button */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
                       <button
-                        onClick={() => setOpenComments({ postId: `program_${sp.id}` })}
+                        onClick={() => setOpenComments({ postId: `program_${sp.id}`, ownerUid: sp.fromUid, contextName: sp.program?.name || "Program" })}
                         style={{
                           background:"transparent",
                           border:`1.5px solid ${th.inputB}`,
@@ -10201,7 +10346,7 @@ import "./styles.css";
               }
 
               // Session feed item
-              const { friend: f, session: s } = item;
+              const { friend: f, session: s, isOwn } = item;
               const initials = (f.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
               const vol = sessionVol(s);
               const muscles = [...new Set((s.exercises||[]).map(e=>e.group).filter(Boolean))];
@@ -10234,9 +10379,9 @@ import "./styles.css";
 
               return (
                 <div key={`${f.uid}-${sid || i}`} style={{ ...S.card, textAlign: "left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
-                  {/* Friend row — tap avatar to open dashboard */}
+                  {/* Friend row — tap avatar to open dashboard (own posts don't open dashboard) */}
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                    <div onClick={() => setDashFriend(f)} style={{ cursor:"pointer", flexShrink:0 }}>
+                    <div onClick={() => { if (!isOwn) setDashFriend(f); }} style={{ cursor: isOwn ? "default" : "pointer", flexShrink:0 }}>
                     {f.photoURL ? (
                       <img src={f.photoURL} alt={f.name} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", display:"block" }} />
                     ) : (
@@ -10246,7 +10391,7 @@ import "./styles.css";
                     )}
                     </div>
                     <div style={{ flex:1 }}>
-                      <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{f.name}</span>
+                      <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{isOwn ? t("You") : f.name}</span>
                       <span style={{ fontSize:13, color:th.muted }}> {t("completed a workout")}</span>
                     </div>
                     <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(s.startTime)}</div>
@@ -10276,9 +10421,9 @@ import "./styles.css";
                     )}
                     {/* Interaction row: star + comments */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10 }}>
-                      {/* Comment button — same style as star button */}
+                      {/* Comment button — same style as star button. ownerUid is the post owner (the user for own posts). */}
                       <button
-                        onClick={() => setOpenComments({ postId: `session_${f.uid}_${sid}` })}
+                        onClick={() => setOpenComments({ postId: `session_${f.uid}_${sid}`, ownerUid: f.uid, contextName: s.name || "Workout" })}
                         style={{
                           background:"transparent",
                           border:`1.5px solid ${th.inputB}`,
@@ -13049,7 +13194,7 @@ import "./styles.css";
     );
   }
 
-  function AwardsDashboard({ sessions, user }) {
+  function AwardsDashboard({ sessions, user, settings, onUpdateSettings }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -13057,14 +13202,39 @@ import "./styles.css";
 
     const daySet = new Set(sessions.map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
     const sortedDays = [...daySet].sort((a,b) => b-a);
+    // Strict consecutive-day streak: every workout day must be the previous calendar day.
+    // The streak is only "live" if the latest workout is today or yesterday; otherwise it has broken.
     let streak = 0;
-    let expected = new Date(); expected.setHours(0,0,0,0);
-    if (!sortedDays.length || sortedDays[0] < expected.getTime() - 86400000*2) {
-      streak = 0;
-    } else {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    if (sortedDays.length && (sortedDays[0] === today.getTime() || sortedDays[0] === yesterday.getTime())) {
+      const expected = new Date(sortedDays[0]);
       for (const day of sortedDays) {
-        if (day >= expected.getTime() - 86400000) { streak++; expected = new Date(day); expected.setDate(expected.getDate()-1); }
-        else break;
+        if (day === expected.getTime()) {
+          streak++;
+          expected.setDate(expected.getDate() - 1);
+        } else if (day < expected.getTime()) {
+          break;
+        }
+      }
+    }
+
+    // Best historical streak — used to keep streak awards earned forever once achieved.
+    // Walks sortedDays (descending) and counts the longest run of strictly consecutive
+    // calendar days. Independent of "today" — past achievements remain valid.
+    let bestStreak = 0;
+    if (sortedDays.length) {
+      let run = 1;
+      bestStreak = 1;
+      for (let i = 1; i < sortedDays.length; i++) {
+        const prev = new Date(sortedDays[i - 1]);
+        const expectedPrior = new Date(prev); expectedPrior.setDate(expectedPrior.getDate() - 1);
+        if (sortedDays[i] === expectedPrior.getTime()) {
+          run++;
+          if (run > bestStreak) bestStreak = run;
+        } else {
+          run = 1;
+        }
       }
     }
 
@@ -13084,17 +13254,35 @@ import "./styles.css";
       sessions.filter(s => (s.startTime||0) >= weekStart.getTime())
         .map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); })
     ).size;
-    const weekLabel = t("Week {n} Challenge", { n: Math.ceil(now.getDate()/7) });
+    const weekLabel = t("Perfect Week");
+
+    // Persisted earned streak awards: once unlocked, they stay earned forever
+    // regardless of whether the current live streak has since dropped.
+    const persistedEarned = Array.isArray(settings?.earnedAwards) ? settings.earnedAwards : [];
+    const isPersisted = (id) => persistedEarned.includes(id);
 
     const awards = [
-      { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),    desc:t("Train 7 days in a row"),         earned: streak >= 7 },
-      { id:"streak14", icon:"⚡", label:t("14-Day Streak"),   desc:t("Train 14 days in a row"),         earned: streak >= 14 },
-      { id:"streak21", icon:"💎", label:t("21-Day Streak"),   desc:t("Train 21 days in a row"),         earned: streak >= 21 },
-      { id:"streak30", icon:"👑", label:t("1-Month Streak"),  desc:t("Train 30 days in a row"),         earned: streak >= 30 },
+      { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),    desc:t("Train 7 days in a row"),          earned: streak >= 7  || bestStreak >= 7  || isPersisted("streak7"),  persistable:true },
+      { id:"streak14", icon:"⚡", label:t("14-Day Streak"),   desc:t("Train 14 days in a row"),         earned: streak >= 14 || bestStreak >= 14 || isPersisted("streak14"), persistable:true },
+      { id:"streak21", icon:"💎", label:t("21-Day Streak"),   desc:t("Train 21 days in a row"),         earned: streak >= 21 || bestStreak >= 21 || isPersisted("streak21"), persistable:true },
+      { id:"streak30", icon:"👑", label:t("1-Month Streak"),  desc:t("Train 30 days in a row"),         earned: streak >= 30 || bestStreak >= 30 || isPersisted("streak30"), persistable:true },
       { id:"comp",     icon:"🏆", label:t("Competition Win"), desc:t("Win a 7-day challenge"),          earned: (user._awardsWon || 0) >= 1 },
       { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), desc:t("20 workouts in {month}", { month: t(monthName) }), earned: daysThisMonth >= 20 },
       { id:"weekly",   icon:"🗓️", label:weekLabel,          desc:t("5 workouts this week"),           earned: daysThisWeek >= 5 },
     ];
+
+    // Persist any newly-earned persistable awards so they survive a broken streak.
+    // Union with any prior earnedAwards rather than replacing, so we never lose
+    // historical achievements even if `settings` is briefly stale.
+    useEffect(() => {
+      if (!onUpdateSettings) return;
+      const newlyEarned = awards.filter(a => a.persistable && a.earned && !persistedEarned.includes(a.id)).map(a => a.id);
+      if (newlyEarned.length) {
+        const union = Array.from(new Set([...persistedEarned, ...newlyEarned]));
+        onUpdateSettings({ ...settings, earnedAwards: union });
+      }
+    }, [bestStreak, streak, persistedEarned.join(",")]);
+
     const PAGE = 3;
     const totalPages = Math.ceil(awards.length / PAGE);
     const slice = awards.slice(aPage * PAGE, aPage * PAGE + PAGE);
@@ -13139,6 +13327,8 @@ import "./styles.css";
     sessions,
     measurements,
     onSaveMeasurement,
+    settings,
+    onUpdateSettings,
     theme,
     themeAuto,
     lang,
@@ -13923,7 +14113,7 @@ import "./styles.css";
         </div>{/* end profile card */}
 
         {/* ── Awards card — separate from profile info ── */}
-        <AwardsDashboard sessions={sessions} user={user} />
+        <AwardsDashboard sessions={sessions} user={user} settings={settings} onUpdateSettings={onUpdateSettings} />
 
         {/* Body measurements card */}
         <div
@@ -14938,7 +15128,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.8.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.8.2 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             {t("DEVELOPED BY AZAD")}
@@ -15534,6 +15724,11 @@ import "./styles.css";
               if (Array.isArray(prev.homePrograms) && !Array.isArray(remote.homePrograms)) {
                 merged.homePrograms = prev.homePrograms;
               }
+              // Earned awards are append-only — union local + remote so an older device
+              // without earnedAwards in its snapshot can't wipe previously-unlocked awards.
+              const prevAwards   = Array.isArray(prev.earnedAwards)   ? prev.earnedAwards   : [];
+              const remoteAwards = Array.isArray(remote.earnedAwards) ? remote.earnedAwards : [];
+              merged.earnedAwards = Array.from(new Set([...prevAwards, ...remoteAwards]));
               // Onboarding flags are sticky — once dismissed locally, never revert
               // even if a stale snapshot still has the old false value
               ["hasDashOnboarded", "hasProgramOnboarded", "hasProgramBuildOnboarded", "hasSharingOnboarded", "hasSharingOnboardedV2", "hasSharingOnboardedV3"].forEach(k => {
@@ -15542,6 +15737,7 @@ import "./styles.css";
               const changed =
                 JSON.stringify(merged.homeDashboards) !== JSON.stringify(prev.homeDashboards) ||
                 JSON.stringify(merged.homePrograms)   !== JSON.stringify(prev.homePrograms)   ||
+                JSON.stringify(merged.earnedAwards)   !== JSON.stringify(prevAwards)          ||
                 merged.hasDashOnboarded         !== prev.hasDashOnboarded         ||
                 merged.hasProgramOnboarded      !== prev.hasProgramOnboarded      ||
                 merged.hasProgramBuildOnboarded !== prev.hasProgramBuildOnboarded ||
@@ -17417,6 +17613,8 @@ import "./styles.css";
                   sessions={sessions}
                   measurements={measurements}
                   onSaveMeasurement={saveMeasurements}
+                  settings={settings}
+                  onUpdateSettings={saveSettings}
                   theme={theme}
                   themeAuto={themeAuto}
                   lang={lang}
