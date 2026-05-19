@@ -574,6 +574,7 @@ import "./styles.css";
     "Wants to share workout progress": "Antrenman ilerlemeni paylaşmak istiyor",
     "LEADERBOARD": "LİDERLİK TABLOSU",
     "Loading scores…": "Skorlar yükleniyor…",
+    "Scored on intensity · calories · consistency · volume": "Yoğunluk · kalori · tutarlılık · hacme göre puanlanır",
     "COMPETE INVITATION": "YARIŞMA DAVETİ",
     "Challenges you to a 7-day workout competition.": "Seni 7 günlük bir antrenman yarışmasına davet ediyor.",
     "DECLINE": "REDDET",
@@ -630,6 +631,7 @@ import "./styles.css";
 
     // Notifications
     "NOTIFICATIONS": "BİLDİRİMLER",
+    "CLEAR ALL": "TÜMÜNÜ TEMİZLE",
     "No notifications yet.": "Henüz bildirim yok.",
     "Someone": "Biri",
     "workout": "antrenman",
@@ -1030,6 +1032,133 @@ import "./styles.css";
   const LANG_LABELS = { en: "English", tr: "Türkçe" };
   const LangCtx = createContext("en");
   const useLang = () => useContext(LangCtx);
+  // ── Tap-ripple utility ──────────────────────────────────────────────────────
+  // Material-style ripple: a circle originates at the tap point and expands until
+  // it covers the entire button, then fades out. The button's own border-radius
+  // clips the ripple via overflow:hidden, so the ripple always conforms to the
+  // button's shape — rounded rect, circle, pill, square, etc. — instead of being
+  // a literal square.
+  // Usage: onClick={(e) => { addRipple(e); doStuff(); }}
+  if (typeof document !== "undefined" && !document.getElementById("ib-ripple-style")) {
+    const styleEl = document.createElement("style");
+    styleEl.id = "ib-ripple-style";
+    styleEl.textContent =
+      "@keyframes ibRipple{from{transform:scale(0);opacity:0.35}to{transform:scale(1);opacity:0}}" +
+      // Wave variant: slower spread, slight overshoot, gentler fade — feels like a wave dissipating outward.
+      "@keyframes ibRippleWave{0%{transform:scale(0);opacity:0.55}55%{opacity:0.32}100%{transform:scale(1.15);opacity:0}}";
+    document.head.appendChild(styleEl);
+  }
+  function addRipple(e, color, opts) {
+    let host = e && e.currentTarget;
+    if (!host) return;
+    // Optional: aim the ripple at the first child element rather than the wrapper.
+    // Useful when the wrapper is rectangular (e.g. holds an avatar + label) but the
+    // visible "button" is the round avatar inside.
+    if (opts && opts.target === "firstChild" && host.firstElementChild) host = host.firstElementChild;
+    const wave = !!(opts && opts.wave);
+    const opacity = (opts && opts.opacity != null) ? opts.opacity : (wave ? 0.55 : 0.35);
+    const animName = wave ? "ibRippleWave" : "ibRipple";
+    const animDur = wave ? "0.9s" : "0.55s";
+    const animEase = wave ? "cubic-bezier(0.22,1,0.36,1)" : "cubic-bezier(0.25,0.46,0.45,0.94)";
+    const cleanupDelay = wave ? 950 : 600;
+    const c = color || "currentColor";
+
+    // Void elements (img, input, etc.) can't contain children, so appendChild
+    // silently fails. Emulate by creating a clip-wrapper in the img's parent,
+    // sized and shaped like the img, and mount the ripple inside that.
+    if (host.tagName === "IMG") {
+      const parent = host.parentElement;
+      if (!parent) return;
+      const cs = window.getComputedStyle(parent);
+      if (cs.position === "static") parent.style.position = "relative";
+      const pRect = parent.getBoundingClientRect();
+      const iRect = host.getBoundingClientRect();
+      const borderRadius = window.getComputedStyle(host).borderRadius || "50%";
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText =
+        `position:absolute;` +
+        `left:${iRect.left - pRect.left}px;top:${iRect.top - pRect.top}px;` +
+        `width:${iRect.width}px;height:${iRect.height}px;` +
+        `border-radius:${borderRadius};overflow:hidden;` +
+        `pointer-events:none;z-index:1;`;
+      const x = (e.clientX != null ? e.clientX : iRect.left + iRect.width / 2) - iRect.left;
+      const y = (e.clientY != null ? e.clientY : iRect.top + iRect.height / 2) - iRect.top;
+      const maxDist = Math.max(
+        Math.hypot(x, y),
+        Math.hypot(iRect.width - x, y),
+        Math.hypot(x, iRect.height - y),
+        Math.hypot(iRect.width - x, iRect.height - y)
+      );
+      const size = Math.max(maxDist * 2, 4);
+      const span = document.createElement("span");
+      span.style.cssText =
+        `position:absolute;left:${x - size / 2}px;top:${y - size / 2}px;` +
+        `width:${size}px;height:${size}px;border-radius:50%;background:${c};` +
+        `opacity:${opacity};transform:scale(0);` +
+        `animation:${animName} ${animDur} ${animEase} forwards;` +
+        `pointer-events:none;`;
+      wrapper.appendChild(span);
+      parent.appendChild(wrapper);
+      setTimeout(() => { try { wrapper.remove(); } catch {} }, cleanupDelay);
+      return;
+    }
+
+    const cs = window.getComputedStyle(host);
+    if (cs.position === "static") host.style.position = "relative";
+    // Temporarily clip overflow so the circle stays within the button's outline,
+    // then restore — so siblings like absolute-positioned badges aren't cut off after.
+    const prevOverflow = host.style.overflow;
+    host.style.overflow = "hidden";
+    const rect = host.getBoundingClientRect();
+    const x = (e.clientX != null ? e.clientX : rect.left + rect.width / 2) - rect.left;
+    const y = (e.clientY != null ? e.clientY : rect.top + rect.height / 2) - rect.top;
+    const maxDist = Math.max(
+      Math.hypot(x, y),
+      Math.hypot(rect.width - x, y),
+      Math.hypot(x, rect.height - y),
+      Math.hypot(rect.width - x, rect.height - y)
+    );
+    const size = Math.max(maxDist * 2, 4);
+    const span = document.createElement("span");
+    span.style.cssText =
+      `position:absolute;` +
+      `left:${x - size / 2}px;top:${y - size / 2}px;` +
+      `width:${size}px;height:${size}px;` +
+      `border-radius:50%;background:${c};opacity:${opacity};` +
+      `transform:scale(0);transform-origin:center;` +
+      `animation:${animName} ${animDur} ${animEase} forwards;` +
+      `pointer-events:none;z-index:0;`;
+    host.appendChild(span);
+    setTimeout(() => {
+      try { span.remove(); } catch {}
+      host.style.overflow = prevOverflow;
+    }, cleanupDelay);
+  }
+
+  // Touch-swipe helper — returns onTouchStart/onTouchEnd handlers that fire
+  // onLeft for a swipe-left (paginate "next") and onRight for swipe-right ("prev").
+  // Threshold 40px and a small vertical-dominance check so vertical scrolls don't trigger pagination.
+  function useSwipe(onLeft, onRight) {
+    const startX = useRef(0);
+    const startY = useRef(0);
+    return {
+      onTouchStart: (e) => {
+        const t = e.touches[0];
+        startX.current = t.clientX;
+        startY.current = t.clientY;
+      },
+      onTouchEnd: (e) => {
+        const t = e.changedTouches[0];
+        const dx = t.clientX - startX.current;
+        const dy = t.clientY - startY.current;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+          if (dx < 0) onLeft && onLeft();
+          else onRight && onRight();
+        }
+      },
+    };
+  }
+
   function useT() {
     const lang = useLang();
     return (en, params) => {
@@ -3019,14 +3148,22 @@ import "./styles.css";
         authorUid, authorName, authorPhotoURL: authorPhotoURL || null,
         text: text.trim(), ts: Date.now(),
       });
-      // Notify post owner (skip self-comment)
+      // Notify post owner (skip self-comment). Include enough identifiers so a tap
+      // on the notification can deep-link straight to the post in the feed.
       if (ownerUid && ownerUid !== authorUid) {
         const isSession = String(postId).startsWith("session_");
+        // postId formats: `session_${ownerUid}_${sessionId}` | `program_${spId}`
+        const sessionId = isSession ? String(postId).split("_").slice(2).join("_") : null;
+        const spId      = !isSession ? String(postId).replace(/^program_/, "") : null;
         fsPushNotification(ownerUid, {
           type: isSession ? "session_comment" : "program_comment",
           fromUid: authorUid,
           name: authorName,
           photoURL: authorPhotoURL || null,
+          postId,
+          ownerUid,
+          sessionId, sessionName: isSession ? contextName : null,
+          spId,      programName: !isSession ? contextName : null,
           text: isSession
             ? `${authorName} commented on your workout${contextName ? ` "${contextName}"` : ""}`
             : `${authorName} commented on your program${contextName ? ` "${contextName}"` : ""}`,
@@ -3056,7 +3193,7 @@ import "./styles.css";
       if (snap.exists()) { await deleteDoc(ref); return false; }
       await setDoc(ref, { spId, reactorUid, reactorName, ownerUid, programName, ts: Date.now() });
       if (ownerUid !== reactorUid) {
-        fsPushNotification(ownerUid, { type:"program_star", fromUid: reactorUid, name: reactorName, text:`${reactorName} starred your program "${programName}"` });
+        fsPushNotification(ownerUid, { type:"program_star", fromUid: reactorUid, name: reactorName, spId, programName, postId: `program_${spId}`, ownerUid, text:`${reactorName} starred your program "${programName}"` });
       }
       return true;
     } catch (e) { console.warn("fsToggleProgramStar:", e.code); return null; }
@@ -3450,13 +3587,16 @@ import "./styles.css";
     return {
       background: disabled
         ? p.disabledBg
-        : `radial-gradient(circle at 18% 12%, rgba(255,255,255,0.28), transparent 28%), radial-gradient(circle at 86% 110%, rgba(255,255,255,0.12), transparent 34%), ${p.bg}`,
+        // Toned-down highlights: smaller radial top-left spec and a fainter bottom-right
+        // glint so the surface reads as soft glass rather than glossy plastic.
+        : `radial-gradient(circle at 18% 12%, rgba(255,255,255,0.14), transparent 24%), radial-gradient(circle at 86% 110%, rgba(255,255,255,0.06), transparent 30%), ${p.bg}`,
       backdropFilter: "blur(18px)",
       WebkitBackdropFilter: "blur(18px)",
       border: `1.5px solid ${disabled ? p.disabledBorder : p.border}`,
       boxShadow: disabled
         ? "none"
-        : `0 2px 14px ${p.glow}, inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.08)`,
+        // Softer outer glow + lighter inset top highlight so the button doesn't shine as hard.
+        : `0 1px 8px ${p.glow}, inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.05)`,
       color: disabled ? p.disabledColor : p.color,
     };
   }
@@ -5111,8 +5251,12 @@ import "./styles.css";
       setDir(next > page ? 1 : -1);
       setPage(next);
     };
+    const swipe = useSwipe(
+      () => goTo(Math.min(totalPages - 1, page + 1)),
+      () => goTo(Math.max(0, page - 1)),
+    );
     return (
-      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left" }}>
+      <div {...swipe} style={{ ...S.card, padding: 16, marginBottom: 10, textAlign:"left", touchAction:"pan-y" }}>
         <style>{`
           @keyframes prSlideL { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
           @keyframes prSlideR { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
@@ -5157,15 +5301,23 @@ import "./styles.css";
                 </div>
               </div>
             ) : (
-              /* Invisible placeholder row — keeps card height fixed across pages */
+              /* Invisible placeholder row — mirrors the real row structure so the
+                  card stays at the max grid size regardless of how many PRs exist. */
               <div key={`ph-${i}`} style={{
                 display:"flex", alignItems:"center", gap:10,
                 padding:"8px 0",
                 borderBottom: i < PAGE-1 ? `1px solid ${th.border}` : "none",
                 visibility:"hidden",
               }}>
-                <div style={{ fontSize:13, height:18, width:"100%" }} />
-                <div style={{ fontSize:10, height:14, width:"60%" }} />
+                <div className="bebas" style={{ fontSize:20, width:22, flexShrink:0, textAlign:"right" }}>#0</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700 }}>Placeholder</div>
+                  <div style={{ fontSize:11, marginTop:1 }}>Placeholder · 00 reps · 01 Jan 2000</div>
+                </div>
+                <div style={{ textAlign:"right", flexShrink:0 }}>
+                  <span className="bebas" style={{ fontSize:22, lineHeight:1 }}>000</span>
+                  <span style={{ fontSize:10 }}> kg</span>
+                </div>
               </div>
             );
           })}
@@ -5268,6 +5420,10 @@ import "./styles.css";
     const totalPages = Math.ceil(rows.length / PAGE);
     const goTo = (next) => { setDir(next > page ? 1 : -1); setPage(next); };
     const pageRows = rows.slice(page * PAGE, page * PAGE + PAGE);
+    const swipe = useSwipe(
+      () => goTo(Math.min(totalPages - 1, page + 1)),
+      () => goTo(Math.max(0, page - 1)),
+    );
 
     // Fixed scale: always based on max possible (hard max across all groups × 1.3)
     const FIXED_MAX = Math.max(...GROUPS.map(g => g.max)) * 1.5; // fixed at ~33 sets
@@ -5275,7 +5431,7 @@ import "./styles.css";
     const toP = (v) => Math.min((v / FIXED_MAX) * 100, 100);
 
     return (
-      <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+      <div {...swipe} style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left", touchAction:"pan-y" }}>
         <style>{`
           @keyframes sbSlideL { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
           @keyframes sbSlideR { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
@@ -6093,6 +6249,19 @@ import "./styles.css";
     const t = useT();
     const [streakOff, setStreakOff] = useState(0); // months offset; 0=current
     const [streakDir, setStreakDir] = useState(1);
+    // Swipe handlers for the inline streak card — declared at HomeView scope so the
+    // hook order is stable. Forward goes to a newer month (only if not already at current);
+    // backward goes to an older month bounded by the earliest workout date.
+    const streakSwipe = useSwipe(
+      () => {
+        if (streakOff < 0) { setStreakDir(1); setStreakOff(o => o + 1); }
+      },
+      () => {
+        const earliest = sessions.length ? new Date(Math.min(...sessions.map(s => s.startTime || Date.now()))) : new Date();
+        const minOff = (earliest.getFullYear() - new Date().getFullYear()) * 12 + earliest.getMonth() - new Date().getMonth();
+        if (streakOff > minOff) { setStreakDir(-1); setStreakOff(o => o - 1); }
+      }
+    );
     const [editingDashboards, setEditingDashboards] = useState(false);
     // Derived directly from persisted settings — no local state needed
     const dismissDashOnboarding = () => {
@@ -6148,19 +6317,15 @@ import "./styles.css";
             <button
               onClick={() => setEditingDashboards(true)}
               style={{
-                background: `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-                border: `1px solid ${th.border}`,
+                ...buttonTexture(th, "neutral"),
                 borderRadius: 20,
-                color: th.muted,
                 fontSize: 11,
                 cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
                 fontWeight: 700,
                 letterSpacing: "0.5px",
                 padding: "4px 12px",
-                transition: "background .2s, color .2s, border-color .2s",
+                transition: "box-shadow .2s, border-color .2s, color .2s",
               }}
             >
               {t("EDIT")}
@@ -6240,7 +6405,7 @@ import "./styles.css";
           const DOW = [t("Mon"),t("Tue"),t("Wed"),t("Thu"),t("Fri"),t("Sat"),t("Sun")];
 
           return (
-            <div style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left" }}>
+            <div {...streakSwipe} style={{ ...S.card, padding: 16, marginBottom: 10, textAlign: "left", touchAction: "pan-y" }}>
               <style>{`
                 @keyframes streakSlideL { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
                 @keyframes streakSlideR { from{opacity:0;transform:translateX(-18px)} to{opacity:1;transform:translateX(0)} }
@@ -6939,8 +7104,12 @@ import "./styles.css";
     const canBack=off>minOff; const canFwd=off<0;
     const cells=[]; for(let i=0;i<firstDow;i++) cells.push(null); for(let d=1;d<=daysInMonth;d++) cells.push(d); while(cells.length<42)cells.push(null);
     const DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const swipe = useSwipe(
+      () => { if (canFwd) { setDir(1); setOff(o => o + 1); } },
+      () => { if (canBack) { setDir(-1); setOff(o => o - 1); } },
+    );
     return (
-      <div style={{...S.card,padding:16,marginBottom:10,textAlign:"left"}}>
+      <div {...swipe} style={{...S.card,padding:16,marginBottom:10,textAlign:"left",touchAction:"pan-y"}}>
         <style>{`@keyframes strSL{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}} @keyframes strSR{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}`}</style>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <div style={{...S.label}}>{t("STREAK")}</div>
@@ -9315,7 +9484,15 @@ import "./styles.css";
 
           if (isEmpty) {
             return (
-              <div key={e.uid} style={{ ...S.card, padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", gap:12, opacity:0.45 }}>
+              <div key={e.uid} style={{
+                ...S.card,
+                // Frosted glass — same family as the buttons but quieter
+                background: `radial-gradient(circle at 18% 12%, rgba(255,255,255,0.08), transparent 24%), radial-gradient(circle at 86% 110%, rgba(255,255,255,0.04), transparent 32%), color-mix(in srgb, ${th.card} 78%, transparent)`,
+                backdropFilter:"blur(18px) saturate(1.2)", WebkitBackdropFilter:"blur(18px) saturate(1.2)",
+                border:`1.5px solid ${th.border}`,
+                boxShadow:"0 1px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.05)",
+                padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", gap:12, opacity:0.45,
+              }}>
                 <div style={{ width:28, textAlign:"center", fontSize:20, flexShrink:0 }}>{medals[i]}</div>
                 <div style={{ width:40, height:40, borderRadius:"50%", background:th.row, border:`1.5px dashed ${th.border}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -9332,10 +9509,21 @@ import "./styles.css";
 
           const initials = (e.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
           const isTop = i === 0 && e.score > 0;
+          // Frosted-glass card — same radial-highlight family as the buttons but quieter.
+          // The "me" entry gets an accent-tinted glass; everyone else is neutral.
+          const cardBase = e.isMe
+            ? `color-mix(in srgb, ${th.accentBg} 10%, ${th.card})`
+            : `color-mix(in srgb, ${th.card} 78%, transparent)`;
           return (
-            <div key={e.uid} style={{ ...S.card, padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", gap:12,
-              background: e.isMe ? `color-mix(in srgb, ${th.accentBg} 10%, ${th.card})` : th.card,
+            <div key={e.uid} style={{
+              ...S.card,
+              background: `radial-gradient(circle at 18% 12%, rgba(255,255,255,0.10), transparent 24%), radial-gradient(circle at 86% 110%, rgba(255,255,255,0.05), transparent 32%), ${cardBase}`,
+              backdropFilter:"blur(18px) saturate(1.2)", WebkitBackdropFilter:"blur(18px) saturate(1.2)",
               border: e.isMe ? `1.5px solid color-mix(in srgb, ${th.accentBg} 35%, transparent)` : `1.5px solid ${th.border}`,
+              boxShadow: e.isMe
+                ? `0 1px 8px color-mix(in srgb, ${th.accentBg} 18%, transparent), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.05)`
+                : "0 1px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.05)",
+              padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", gap:12,
             }}>
               <div style={{ width:28, textAlign:"center", fontSize:isTop?20:14, fontWeight:700, color: isMedalSlot && e.score>0 ? "#D4AF37" : th.dim, flexShrink:0 }}>
                 {isMedalSlot && e.score > 0 ? medals[i] : `#${i+1}`}
@@ -9356,7 +9544,7 @@ import "./styles.css";
             </div>
           );
         })}
-        <div style={{ fontSize:11, color:th.dim, textAlign:"center", marginTop:4 }}>Scored on intensity · calories · consistency · volume</div>
+        <div style={{ fontSize:11, color:th.dim, textAlign:"center", marginTop:4 }}>{t("Scored on intensity · calories · consistency · volume")}</div>
       </div>
     );
   }
@@ -9400,7 +9588,7 @@ import "./styles.css";
     );
   }
 
-  function SharingView({ user, sessions: mySessions, pendingInvitations, sentInvitations, friends, onSendInvite, onAcceptInvite, onDeclineInvite, onGetFriendSessions, onRemoveFriend, onToggleStar, competitions, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite, settings, onUpdateSettings, onSaveSharedProgram, pendingCoachRequests, sentCoachRequests, coachRelations, onAcceptCoachRequest, onDeclineCoachRequest, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching }) {
+  function SharingView({ user, sessions: mySessions, pendingInvitations, sentInvitations, friends, onSendInvite, onAcceptInvite, onDeclineInvite, onGetFriendSessions, onRemoveFriend, onToggleStar, competitions, onSendCompeteInvite, onAcceptCompeteInvite, onDeclineCompeteInvite, onWithdrawCompeteInvite, settings, onUpdateSettings, onSaveSharedProgram, pendingCoachRequests, sentCoachRequests, coachRelations, onAcceptCoachRequest, onDeclineCoachRequest, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching, deepLinkPost, onConsumeDeepLink }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -9431,6 +9619,38 @@ import "./styles.css";
     const [openSharedProg, setOpenSharedProg] = useState(null);
     const [openComments, setOpenComments] = useState(null); // { postId }
     const [openStarredBy, setOpenStarredBy] = useState(null); // array of reactors
+
+    // Consume deep-link from notification tap. Three modes:
+    //   • "comments" → open the post's Comments sheet (for comment notifications)
+    //   • "scroll"   → switch to feed and scroll the post into view (for star notifications)
+    //   • "pending"  → switch to the Friends tab where pending requests live
+    useEffect(() => {
+      if (!deepLinkPost) return;
+      const { mode, postId, ownerUid, contextName } = deepLinkPost;
+      if (mode === "pending") {
+        setSharingTab("friends");
+      } else if (mode === "comments") {
+        setSharingTab("feed");
+        setOpenComments({ postId, ownerUid, contextName });
+      } else if (mode === "scroll") {
+        setSharingTab("feed");
+        const accent = th.accentFg;
+        // Defer to next paint so the feed item is mounted, then scroll it into view
+        // and briefly outline it so the user sees which post was linked.
+        setTimeout(() => {
+          const el = document.querySelector(`[data-postid="${postId}"]`);
+          if (el && el.scrollIntoView) {
+            el.scrollIntoView({ behavior:"smooth", block:"center" });
+            el.style.transition = "box-shadow 0.4s ease";
+            el.style.boxShadow = `0 0 0 2px ${accent}`;
+            setTimeout(() => { el.style.boxShadow = ""; }, 1600);
+          }
+        }, 120);
+      }
+      onConsumeDeepLink && onConsumeDeepLink();
+    }, [deepLinkPost?.postId, deepLinkPost?.mode]);
+
+
     const [commentCounts, setCommentCounts] = useState({}); // postId -> count
     const [progStarState, setProgStarState] = useState({}); // spId -> { starred, count }
     const [suggestedUsers, setSuggestedUsers] = useState([]);
@@ -9623,31 +9843,72 @@ import "./styles.css";
 
         {(() => {
           const tabs = ["feed","friends"];
-          const idx = tabs.indexOf(sharingTab);
           return (
             <div style={{ display:"flex", position:"relative", marginBottom:16, padding:"3px", background:th.row, borderRadius:14 }}>
-              {/* Sliding pill */}
-              <div style={{
-                position:"absolute", top:3, bottom:3,
-                width:"calc(50% - 3px)",
-                left: idx === 0 ? 3 : "calc(50%)",
-                background:`linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 68%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 86%, transparent) 100%)`,
-                boxShadow:`0 2px 10px color-mix(in srgb, ${th.accentBg} 32%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`,
-                borderRadius:11,
-                transition:"left 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
-                pointerEvents:"none",
-              }} />
-              {tabs.map(tabId => (
-                <button key={tabId} onClick={() => setSharingTab(tabId)} style={{
-                  flex:1, padding:"9px 0", border:"none", cursor:"pointer",
-                  borderRadius:11, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
-                  letterSpacing:"0.5px", background:"transparent", position:"relative", zIndex:1,
-                  color: sharingTab === tabId ? th.accentT : th.dim,
-                  transition:"color 0.22s ease",
-                }}>
-                  {tabId === "feed" ? t("FEED") : t("FRIENDS")}
-                </button>
-              ))}
+              {tabs.map(tabId => {
+                const active = sharingTab === tabId;
+                return (
+                  <button key={tabId}
+                    onPointerDown={e => {
+                      e.currentTarget.style.transform = "scale(0.88)";
+                      e.currentTarget.style.opacity = "0.7";
+                      // Capture the pointer so the corresponding pointerup fires on this
+                      // element even if the press scale shifts the visual hit region.
+                      try { e.currentTarget.setPointerCapture && e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+                    }}
+                    onPointerUp={e => {
+                      e.currentTarget.style.transform = "scale(1)";
+                      e.currentTarget.style.opacity = "1";
+                      // Commit the tab switch on pointerup rather than the synthetic click.
+                      // The synthetic click can be dropped on iOS when the heavy tab content
+                      // (feed cards → friends list / leaderboard) re-renders mid-gesture.
+                      setSharingTab(tabId);
+                      // Defer the click tone — creating an AudioContext synchronously can
+                      // stall the main thread on iOS, which is what made the first tap
+                      // feel unresponsive when switching feed → friends.
+                      setTimeout(() => {
+                        try {
+                          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                          const osc = ctx.createOscillator();
+                          const gain = ctx.createGain();
+                          osc.connect(gain); gain.connect(ctx.destination);
+                          osc.type = "sine"; osc.frequency.value = 440;
+                          gain.gain.setValueAtTime(0.001, ctx.currentTime);
+                          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.04);
+                          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.04);
+                          osc.onended = () => { try { ctx.close(); } catch (_) {} };
+                        } catch (_) {}
+                      }, 0);
+                    }}
+                    onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+                    onPointerCancel={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+                    style={{
+                    flex:1, padding:"9px 0", border:"none", cursor:"pointer",
+                    borderRadius:11, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:12,
+                    letterSpacing:"0.5px",
+                    background:"transparent",
+                    position:"relative", zIndex:1,
+                    color: active ? th.accentT : th.dim,
+                    transition:"color .2s, transform .22s cubic-bezier(0.25,0.46,0.45,0.94), opacity .22s ease",
+                    WebkitTapHighlightColor:"transparent",
+                    touchAction:"manipulation",
+                  }}>
+                    {/* Active-state pill — uses the same START-button texture (accent variant)
+                        as the workouts tab so the active tab feels like a real "selected" button. */}
+                    <span aria-hidden="true" style={{
+                      ...buttonTexture(th, "accent"),
+                      position:"absolute", inset:0, borderRadius:11,
+                      opacity: active ? 1 : 0,
+                      transition:"opacity .2s",
+                      pointerEvents:"none",
+                      zIndex:0,
+                    }} />
+                    <span style={{ position:"relative", zIndex:1 }}>
+                      {tabId === "feed" ? t("FEED") : t("FRIENDS")}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           );
         })()}
@@ -9770,22 +10031,15 @@ import "./styles.css";
               <div style={S.label}>{t("FRIENDS")} ({friends.length})</div>
               <button onClick={() => setEditFriends(e => !e)}
                 style={{
-                  background: editFriends ? `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 55%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 72%, transparent) 100%)` : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
-                  backdropFilter: "blur(14px)",
-                  WebkitBackdropFilter: "blur(14px)",
-                  boxShadow: editFriends ? `0 2px 10px color-mix(in srgb, ${th.accentBg} 28%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)` : "inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 4px rgba(0,0,0,0.07)",
-                  border: editFriends
-                    ? `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`
-                    : `1.5px solid ${th.border}`,
+                  ...buttonTexture(th, editFriends ? "accent" : "neutral"),
                   borderRadius: 20,
-                  color: editFriends ? "#fff" : th.muted,
                   fontSize: 11,
                   cursor: "pointer",
                   fontFamily: "'Outfit',sans-serif",
                   fontWeight: 700,
                   letterSpacing: "0.5px",
                   padding: "4px 12px",
-                  transition: "background .2s, box-shadow .2s, border-color .2s",
+                  transition: "box-shadow .2s, border-color .2s, color .2s",
                 }}>
                 {editFriends ? t("DONE") : t("EDIT")}
               </button>
@@ -9794,8 +10048,14 @@ import "./styles.css";
             <div style={{ display:"flex", gap:16, overflowX:"auto", overflowY:"visible", paddingBottom:6, paddingTop:6, scrollbarWidth:"none", msOverflowStyle:"none" }}>
               <style>{`.ib-friends-scroll::-webkit-scrollbar{display:none}`}</style>
               {/* Add friend bubble — dashed style with accent color — LEFT END */}
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, cursor:"pointer" }}
-                onClick={() => { setShowInvitePanel(true); setInviteStatus("idle"); setInviteError(""); }}>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, cursor:"pointer",
+                  transition:"transform .22s cubic-bezier(0.25,0.46,0.45,0.94), opacity .22s ease",
+                  WebkitTapHighlightColor:"transparent",
+                }}
+                onClick={(e) => { addRipple(e, th.accentFg, { target: "firstChild" }); setShowInvitePanel(true); setInviteStatus("idle"); setInviteError(""); }}
+                onPointerDown={e => { e.currentTarget.style.transform = "scale(0.88)"; e.currentTarget.style.opacity = "0.7"; }}
+                onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+                onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}>
                 <div style={{
                   width:54, height:54, borderRadius:"50%",
                   background: "transparent",
@@ -9810,8 +10070,13 @@ import "./styles.css";
                 return (
                   <div key={f.uid} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, position:"relative", cursor: editFriends ? "default" : "pointer",
                     animation: editFriends ? "avatarWobble 0.45s ease-in-out infinite alternate" : "none",
+                    transition: "transform .22s cubic-bezier(0.25,0.46,0.45,0.94), opacity .22s ease",
+                    WebkitTapHighlightColor: "transparent",
                   }}
-                    onClick={() => { if (!editFriends) setDashFriend(f); }}>
+                    onClick={(e) => { if (!editFriends) { addRipple(e, th.accentFg, { target: "firstChild" }); setDashFriend(f); } }}
+                    onPointerDown={e => { if (!editFriends) { e.currentTarget.style.transform = "scale(0.88)"; e.currentTarget.style.opacity = "0.7"; } }}
+                    onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+                    onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}>
                     {/* Avatar */}
                     {f.photoURL ? (
                       <img src={f.photoURL} alt={f.name} style={{ width:54, height:54, borderRadius:"50%", objectFit:"cover", border:`2.5px solid ${th.accentBg}` }} />
@@ -10239,7 +10504,7 @@ import "./styles.css";
                 const recipFriend = friends.find(f => f.uid === sp.toUid);
                 const recipName = sp.toName || recipFriend?.name || "Friend";
                 return (
-                  <div key={`sp-${sp.id}-${direction}`} style={{ ...S.card, textAlign:"left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
+                  <div key={`sp-${sp.id}-${direction}`} data-postid={`program_${sp.id}`} style={{ ...S.card, textAlign:"left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
                     {/* Sender row — identical for both sender and receiver */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
                       {(() => {
@@ -10289,7 +10554,7 @@ import "./styles.css";
                     {/* Interaction row — outside tappable button */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
                       <button
-                        onClick={() => setOpenComments({ postId: `program_${sp.id}`, ownerUid: sp.fromUid, contextName: sp.program?.name || "Program" })}
+                        onClick={(e) => { addRipple(e, th.accentFg); setOpenComments({ postId: `program_${sp.id}`, ownerUid: sp.fromUid, contextName: sp.program?.name || "Program" }); }}
                         style={{
                           background:"transparent",
                           border:`1.5px solid ${th.inputB}`,
@@ -10378,10 +10643,10 @@ import "./styles.css";
               };
 
               return (
-                <div key={`${f.uid}-${sid || i}`} style={{ ...S.card, textAlign: "left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
+                <div key={`${f.uid}-${sid || i}`} data-postid={`session_${f.uid}_${sid}`} style={{ ...S.card, textAlign: "left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
                   {/* Friend row — tap avatar to open dashboard (own posts don't open dashboard) */}
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                    <div onClick={() => { if (!isOwn) setDashFriend(f); }} style={{ cursor: isOwn ? "default" : "pointer", flexShrink:0 }}>
+                    <div onClick={(e) => { if (!isOwn) { addRipple(e, th.accentFg, { target: "firstChild" }); setDashFriend(f); } }} style={{ cursor: isOwn ? "default" : "pointer", flexShrink:0 }}>
                     {f.photoURL ? (
                       <img src={f.photoURL} alt={f.name} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", display:"block" }} />
                     ) : (
@@ -10423,7 +10688,7 @@ import "./styles.css";
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10 }}>
                       {/* Comment button — same style as star button. ownerUid is the post owner (the user for own posts). */}
                       <button
-                        onClick={() => setOpenComments({ postId: `session_${f.uid}_${sid}`, ownerUid: f.uid, contextName: s.name || "Workout" })}
+                        onClick={(e) => { addRipple(e, th.accentFg); setOpenComments({ postId: `session_${f.uid}_${sid}`, ownerUid: f.uid, contextName: s.name || "Workout" }); }}
                         style={{
                           background:"transparent",
                           border:`1.5px solid ${th.inputB}`,
@@ -10646,26 +10911,15 @@ import "./styles.css";
           <>
             <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:20 }}>
               <button onClick={() => setEditing(e => !e)} style={{
-                background: editing
-                  ? `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 55%, transparent) 0%, color-mix(in srgb, ${th.accentBg} 72%, transparent) 100%)`
-                  : `color-mix(in srgb, ${th.inputB} 30%, transparent)`,
-                backdropFilter: "blur(14px)",
-                WebkitBackdropFilter: "blur(14px)",
-                boxShadow: editing
-                  ? `0 2px 10px color-mix(in srgb, ${th.accentBg} 28%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)`
-                  : "inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 4px rgba(0,0,0,0.07)",
-                border: editing
-                  ? `1.5px solid color-mix(in srgb, ${th.accentBg} 52%, transparent)`
-                  : `1.5px solid ${th.border}`,
+                ...buttonTexture(th, editing ? "accent" : "neutral"),
                 borderRadius: 20,
-                color: editing ? "#fff" : th.muted,
                 fontSize: 11,
                 cursor: "pointer",
                 fontFamily: "'Outfit',sans-serif",
                 fontWeight: 700,
                 letterSpacing: "0.5px",
                 padding: "4px 12px",
-                transition: "background .2s, box-shadow .2s, border-color .2s",
+                transition: "box-shadow .2s, border-color .2s, color .2s",
               }}>{editing ? t("DONE") : t("EDIT")}</button>
             </div>
             {programs.map((p) => {
@@ -10709,7 +10963,7 @@ import "./styles.css";
                   {!editing && (
                     <div style={{ position:"relative", flexShrink:0, marginLeft:12, width:48, height:48 }}>
                       <button
-                        onClick={() => onStart({ ...p, exs: programExs })}
+                        onClick={(e) => { addRipple(e, th.accentT); onStart({ ...p, exs: programExs }); }}
                         onPointerDown={e => {
                           const btn = e.currentTarget;
                           btn.style.animation = "none";
@@ -11167,7 +11421,7 @@ import "./styles.css";
           {/* SHARE button — shown only when editing an existing program and has friends */}
           {editing && friends?.length > 0 && (
             <button
-              onClick={() => onShare && onShare({ id: program?.id || uid(), name: name.trim(), exs })}
+              onClick={(e) => { addRipple(e, th.accentFg); onShare && onShare({ id: program?.id || uid(), name: name.trim(), exs }); }}
               disabled={!name.trim() || exs.length === 0}
               style={{
                 width: 50, height: 50, minWidth: 50, maxWidth: 50, minHeight: 50, maxHeight: 50,
@@ -11203,8 +11457,9 @@ import "./styles.css";
           )}
           {/* SAVE button — blue glass, identical to Request Coaching style */}
           <button
-            onClick={() => {
+            onClick={(e) => {
               if (!name.trim() || exs.length === 0) return;
+              addRipple(e, th.accentFg);
               onSave({ id: program?.id || uid(), name: name.trim(), exs });
             }}
             disabled={!name.trim() || exs.length === 0}
@@ -11225,8 +11480,9 @@ import "./styles.css";
           </button>
           {/* START button — accent primary, frosted glass */}
           <button
-            onClick={() => {
+            onClick={(e) => {
               if (!name.trim() || exs.length === 0) return;
+              addRipple(e, th.accentT);
               const p = { id: program?.id || uid(), name: name.trim(), exs };
               onSave(p);
               onStart(p);
@@ -13287,9 +13543,13 @@ import "./styles.css";
     const totalPages = Math.ceil(awards.length / PAGE);
     const slice = awards.slice(aPage * PAGE, aPage * PAGE + PAGE);
     const earnedCount = awards.filter(a => a.earned).length;
+    const swipe = useSwipe(
+      () => setAPage(p => Math.min(totalPages - 1, p + 1)),
+      () => setAPage(p => Math.max(0, p - 1)),
+    );
 
     return (
-      <div style={{ ...S.card, padding:"18px 18px 14px", marginBottom:14 }}>
+      <div {...swipe} style={{ ...S.card, padding:"18px 18px 14px", marginBottom:14, touchAction:"pan-y" }}>
         <style>{`@keyframes awSlideL{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}} @keyframes awSlideR{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}`}</style>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div style={{ ...S.label, textAlign:"left" }}>{t("AWARDS")}</div>
@@ -14080,25 +14340,11 @@ import "./styles.css";
                     }
                   }}
                   style={{
+                    ...buttonTexture(th, "danger"),
                     width: "100%",
-                    
-                    // 1. A semi-transparent red background
-                    background: "rgba(220, 50, 50, 0.45)", 
-                    
-                    // 2. The frosted glass blur filters
-                    backdropFilter: "blur(10px)",
-                    WebkitBackdropFilter: "blur(10px)", 
-                    
-                    // 3. A subtle matching semi-transparent border (replaces th.delB)
-                    border: "1px solid rgba(220, 50, 50, 0.3)", 
-                    
                     borderRadius: 13,
                     padding: 15,
                     cursor: "pointer",
-                    
-                    // 4. Keep your dynamic theme text color!
-                    color: th.text, 
-                    
                     fontWeight: 700,
                     fontSize: 14,
                     fontFamily: "'Outfit',sans-serif",
@@ -15090,25 +15336,11 @@ import "./styles.css";
         <button
           onClick={onLogout}
           style={{
+            ...buttonTexture(th, "danger"),
             width: "100%",
-            
-            // 1. A semi-transparent red background
-            background: "rgba(220, 50, 50, 0.15)", 
-            
-            // 2. The frosted glass blur filters
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)", 
-            
-            // 3. A subtle matching semi-transparent border (replaces th.delB)
-            border: "1px solid rgba(220, 50, 50, 0.3)", 
-            
             borderRadius: 13,
             padding: 15,
             cursor: "pointer",
-            
-            // 4. Keep your dynamic theme text color!
-            color: th.delText, 
-            
             fontWeight: 700,
             fontSize: 14,
             fontFamily: "'Outfit',sans-serif",
@@ -15128,7 +15360,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.8.2 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.8.3 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             {t("DEVELOPED BY AZAD")}
@@ -15495,6 +15727,12 @@ import "./styles.css";
     const [bellRipple, setBellRipple]                 = useState(false);
     const [notifClosing, setNotifClosing]             = useState(false);
     const closeNotif = () => { setNotifClosing(true); setTimeout(() => { setNotifOpen(false); setNotifClosing(false); }, 220); };
+    // Clear-all timestamp — notifications with ts <= notifClearedAt are hidden.
+    // Persisted locally so the cleared state survives reloads.
+    const [notifClearedAt, setNotifClearedAt]         = useState(() => parseInt(ls("ib3-notifClearedAt", "0"), 10) || 0);
+    // Deep-link payload for opening a specific feed post from a notification tap.
+    // Shape: { postId, ownerUid, contextName, mode }. SharingView consumes this on mount and clears it.
+    const [deepLinkPost, setDeepLinkPost]             = useState(null);
     const [, setLastReadNotif]                         = useState(() => parseInt(ls("ib3-lastReadNotif", "0"), 10) || 0);
     const [competitions, setCompetitions]             = useState([]);
     const [pendingCoachRequests, setPendingCoachRequests] = useState([]); // incoming coach requests (user is athlete)
@@ -16617,8 +16855,8 @@ import "./styles.css";
                 pointerEvents: "auto",
                 position: "relative",
               }}>
-              {/* Notification bell — shown on sharing tab, top-right same as profile icon */}
-              {view === "sharing" && (
+              {/* Notification bell — lives on the home header, positioned just left of the profile icon */}
+              {view === "home" && (
                 <button
                   onClick={() => {
                     setBellRipple(true); setTimeout(() => setBellRipple(false), 500);
@@ -16633,7 +16871,7 @@ import "./styles.css";
                   style={{
                     position: "absolute",
                     top: "calc(env(safe-area-inset-top, 0px) + 6px)",
-                    right: 16,
+                    right: 76, /* 16 (profile right) + 44 (profile width) + 16 gap */
                     background: "none",
                     border: "none",
                     cursor: "pointer",
@@ -16645,21 +16883,20 @@ import "./styles.css";
                   }}
                 >
                   <div style={{
+                    ...buttonTexture(th, "accent"),
                     width: 44, height: 44, borderRadius: "50%",
-                    background: `color-mix(in srgb, ${th.accentBg} 15%, ${th.card})`,
-                    border: `1.5px solid ${th.border}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     position: "relative",
                     overflow: "hidden",
-                    transition: "background 0.2s",
+                    transition: "background 0.2s, box-shadow 0.2s",
                   }}>
                     <style>{`@keyframes bellRipple{0%{transform:scale(0);opacity:0.35}100%{transform:scale(3.5);opacity:0}}`}</style>
                     <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
-                      <path d="M11 2C7.686 2 5 4.686 5 8v5l-2 2v1h16v-1l-2-2V8c0-3.314-2.686-6-6-6z" stroke={th.accentFg} strokeWidth="1.8" strokeLinejoin="round"/>
-                      <path d="M9 18a2 2 0 004 0" stroke={th.accentFg} strokeWidth="1.8" strokeLinecap="round"/>
+                      <path d="M11 2C7.686 2 5 4.686 5 8v5l-2 2v1h16v-1l-2-2V8c0-3.314-2.686-6-6-6z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                      <path d="M9 18a2 2 0 004 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
                     </svg>
                     {bellRipple && (
-                      <div style={{ position:"absolute", width:44, height:44, borderRadius:"50%", background:th.accentFg, animation:"bellRipple 0.5s ease-out forwards", pointerEvents:"none" }} />
+                      <div style={{ position:"absolute", width:44, height:44, borderRadius:"50%", background:"currentColor", animation:"bellRipple 0.5s ease-out forwards", pointerEvents:"none" }} />
                     )}
                     {unreadStars > 0 && (
                       <div style={{
@@ -16678,7 +16915,7 @@ import "./styles.css";
               {/* Profile icon — absolutely positioned into the top padding space, doesn't affect row height */}
               {view === "home" && (
                 <button
-                  onClick={() => setProfileOpen(true)}
+                  onClick={(e) => { addRipple(e, th.accentFg, { target: "firstChild" }); setProfileOpen(true); }}
                   style={{
                     position: "absolute",
                     top: "calc(env(safe-area-inset-top, 0px) + 6px)",
@@ -17037,6 +17274,8 @@ import "./styles.css";
                 onGetFriendPrograms={fsGetFriendPrograms}
                 onSaveCoachPrograms={fsSaveCoachPrograms}
                 onStopCoaching={fsStopCoaching}
+                deepLinkPost={deepLinkPost}
+                onConsumeDeepLink={() => setDeepLinkPost(null)}
               />
             )}
           </div>
@@ -17048,7 +17287,7 @@ import "./styles.css";
             >
               <style>{`@keyframes fabRipple{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0.6}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}`}</style>
               <div
-                onClick={() => { setEditingProg(null); setView("editProgram"); }}
+                onClick={(e) => { addRipple(e, "#fff"); setEditingProg(null); setView("editProgram"); }}
                 onPointerDown={e => {
                   const el = e.currentTarget;
                   el.style.transform = "scale(0.88)";
@@ -17064,23 +17303,18 @@ import "./styles.css";
                 onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
                 onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
                 style={{
+                  ...buttonTexture(th, "blue"),
                   width: 52, height: 52,
                   borderRadius: 20,
-                  background: `color-mix(in srgb, ${"#5B9CF6"} 85%, transparent)`,
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                  border: `1px solid color-mix(in srgb, ${"#5B9CF6"} 60%, transparent)`,
-                  boxShadow: `0 4px 20px color-mix(in srgb, ${"#5B9CF6"} 50%, transparent)`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  color: th.accentT,
                   fontSize: 32,
                   fontWeight: 400,
                   lineHeight: 1,
                   userSelect: "none",
-                  transition: "transform .18s cubic-bezier(0.25,0.46,0.45,0.94)",
+                  transition: "transform .18s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow .2s",
                 }}
               >
                 +
@@ -17441,13 +17675,36 @@ import "./styles.css";
           }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px 10px" }}>
               <div style={{ fontSize:11, fontWeight:700, letterSpacing:"1.5px", color:th.sub }}>{tLang("NOTIFICATIONS")}</div>
-              <button onClick={closeNotif} style={{ background:"none", border:"none", color:th.muted, cursor:"pointer", fontSize:18, lineHeight:1 }}>✕</button>
+              {(() => {
+                const visible = starNotifications.filter(n => (n.ts || 0) > notifClearedAt);
+                return (
+                  <button
+                    onClick={() => {
+                      const now = Date.now();
+                      lsSet("ib3-notifClearedAt", now);
+                      setNotifClearedAt(now);
+                      lsSet("ib3-lastReadNotif", now);
+                      setLastReadNotif(now);
+                      setUnreadStars(0);
+                    }}
+                    disabled={visible.length === 0}
+                    style={{
+                      background:"none", border:"none",
+                      color: visible.length === 0 ? th.dim : th.accentFg,
+                      cursor: visible.length === 0 ? "default" : "pointer",
+                      fontSize:11, fontWeight:700, letterSpacing:"1px",
+                      fontFamily:"'Outfit',sans-serif",
+                      padding:"4px 6px",
+                      opacity: visible.length === 0 ? 0.4 : 1,
+                    }}>{tLang("CLEAR ALL")}</button>
+                );
+              })()}
             </div>
-            {starNotifications.length === 0 ? (
+            {starNotifications.filter(n => (n.ts || 0) > notifClearedAt).length === 0 ? (
               <div style={{ padding:"12px 16px 20px", textAlign:"center", color:th.muted, fontSize:13 }}>{tLang("No notifications yet.")}</div>
             ) : (
               <div style={{ maxHeight:300, overflowY:"auto" }}>
-                {starNotifications.map((n, i) => {
+                {starNotifications.filter(n => (n.ts || 0) > notifClearedAt).map((n, i) => {
                   const diff = Date.now() - (n.ts || 0);
                   const m = Math.floor(diff / 60000);
                   const d = Math.floor(diff / 86400000);
@@ -17499,8 +17756,39 @@ import "./styles.css";
                     return n.text || <span style={{ color:th.text }}>{who}</span>;
                   };
                   const text = renderText();
+                  // Type-based routing:
+                  //   • comment notifications  → open the post's Comments sheet
+                  //   • star notifications     → scroll the post into view in the feed
+                  //   • request notifications  → switch to the Friends tab (pending requests live there)
+                  //   • acceptance notifications → also Friends tab (where the new relationship shows)
+                  let linkPayload = null;
+                  if (n.type === "session_comment" && n.sessionId) {
+                    linkPayload = { mode:"comments", postId: n.postId || `session_${n.ownerUid || user.id}_${n.sessionId}`, ownerUid: n.ownerUid || user.id, contextName: n.sessionName || "Workout" };
+                  } else if (n.type === "program_comment" && n.spId) {
+                    linkPayload = { mode:"comments", postId: n.postId || `program_${n.spId}`, ownerUid: n.ownerUid || user.id, contextName: n.programName || "Program" };
+                  } else if (n.type === "star" && n.sessionId) {
+                    linkPayload = { mode:"scroll", postId: `session_${user.id}_${n.sessionId}` };
+                  } else if (n.type === "program_star" && n.spId) {
+                    linkPayload = { mode:"scroll", postId: n.postId || `program_${n.spId}` };
+                  } else if (
+                    n.type === "friend_request" ||
+                    n.type === "compete_invite" ||
+                    n.type === "coach_request" ||
+                    n.type === "friend_accepted" ||
+                    n.type === "compete_accepted" ||
+                    n.type === "coach_accepted"
+                  ) {
+                    linkPayload = { mode:"pending" };
+                  }
+                  const handleClick = linkPayload ? () => {
+                    setDeepLinkPost(linkPayload);
+                    setView("sharing");
+                    closeNotif();
+                  } : undefined;
                   return (
-                    <div key={n.id || i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderTop:`1px solid ${th.border}` }}>
+                    <div key={n.id || i}
+                      onClick={handleClick}
+                      style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderTop:`1px solid ${th.border}`, cursor: handleClick ? "pointer" : "default", WebkitTapHighlightColor:"transparent" }}>
                       <div style={{ width:32, height:32, borderRadius:"50%", background:iconBg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                         {icon}
                       </div>
