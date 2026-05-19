@@ -17395,8 +17395,9 @@ import "./styles.css";
                       alignItems: "center",
                       gap: 6,
                       fontFamily: "'Outfit',sans-serif",
-                      // Turkish labels are longer — shrink slightly so they fit on narrow screens
-                      fontSize: lang === "tr" ? 8.5 : 10,
+                      // Turkish labels are longer — slightly larger than before but still
+                      // smaller than English so they fit on narrow screens.
+                      fontSize: lang === "tr" ? 9.5 : 10,
                       fontWeight: 700,
                       letterSpacing: lang === "tr" ? "0.6px" : "1.5px",
                       color: col,
