@@ -628,6 +628,8 @@ import "./styles.css";
     "tap to view": "görmek için dokun",
     "completed a workout": "bir antrenmanı tamamladı",
     "SETS": "SETLER",
+    "SET": "SET",
+    "volume": "hacim",
 
     // Notifications
     "NOTIFICATIONS": "BİLDİRİMLER",
@@ -788,6 +790,10 @@ import "./styles.css";
     "SEND REQUEST TO": "İSTEK GÖNDER:",
     "REQUEST PENDING": "İSTEK BEKLİYOR",
     "COACHING": "KOÇLUK",
+    "BEING COACHED": "KOÇLUK ALIYOR",
+    "STOP BEING COACHED?": "KOÇLUĞU DURDUR?",
+    "{name} will lose access to your programs, dashboards and history. You can be coached again later.": "{name} programlarınıza, panellerinize ve geçmişinize erişimini kaybedecek. Daha sonra tekrar koçluk alabilirsin.",
+    "STOP": "DURDUR",
     "STOP COACHING?": "KOÇLUĞU DURDUR?",
     "WITHDRAW REQUEST?": "İSTEĞİ GERİ ÇEK?",
     "You'll lose access to {name}'s programs, dashboards and history. This can be requested again later.":
@@ -7103,7 +7109,7 @@ import "./styles.css";
     const minOff=(earliest.getFullYear()-new Date().getFullYear())*12+earliest.getMonth()-new Date().getMonth();
     const canBack=off>minOff; const canFwd=off<0;
     const cells=[]; for(let i=0;i<firstDow;i++) cells.push(null); for(let d=1;d<=daysInMonth;d++) cells.push(d); while(cells.length<42)cells.push(null);
-    const DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const DOW=[t("Mon"),t("Tue"),t("Wed"),t("Thu"),t("Fri"),t("Sat"),t("Sun")];
     const swipe = useSwipe(
       () => { if (canFwd) { setDir(1); setOff(o => o + 1); } },
       () => { if (canBack) { setDir(-1); setOff(o => o - 1); } },
@@ -13019,6 +13025,10 @@ import "./styles.css";
     const th = useTheme();
     const S = useS();
     const t = useT();
+    const lang = useLang();
+    const fmtDateLocal = (ts) => new Date(ts).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
+      day: "numeric", month: "short",
+    });
     const [confirmDelete, setConfirmDelete] = useState(null); // session id pending delete
     return (
       <div style={{ paddingBottom: 90 }} className="slide-up">
@@ -13126,7 +13136,7 @@ import "./styles.css";
                       {s.name}
                     </div>
                     <div style={{ fontSize: 12, color: th.muted, textAlign: "left", }}>
-                      {fmtDate(s.startTime)} · {s.doneSets}/{s.totalSets} {t("sets")} ·{" "}
+                      {fmtDateLocal(s.startTime)} · {s.doneSets}/{s.totalSets} {t("sets")} ·{" "}
                       {s.duration || "?"}{t("min")}
                       {s.calories ? ` · ${s.calories}kcal` : ""}
                     </div>
@@ -13240,6 +13250,11 @@ import "./styles.css";
   function SessionDetailView({ session }) {
     const th = useTheme();
     const S = useS();
+    const t = useT();
+    const lang = useLang();
+    const fmtDateFullLocal = (ts) => new Date(ts).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+    });
     const vol = sessionVol(session);
     const ic = intColor(session.intensity || 0, th);
     const exercises = session.exercises || [];
@@ -13267,7 +13282,7 @@ import "./styles.css";
                 {session.name}
               </div>
               <div style={{ fontSize: 13, color: th.sub }}>
-                {fmtDateFull(session.startTime)}
+                {fmtDateFullLocal(session.startTime)}
               </div>
             </div>
             {session.intensity != null && (
@@ -13288,7 +13303,7 @@ import "./styles.css";
                 <div
                   style={{ fontSize: 9, color: th.dim, letterSpacing: "1.5px" }}
                 >
-                  INTENSITY
+                  {t("INTENSITY")}
                 </div>
               </div>
             )}
@@ -13301,11 +13316,11 @@ import "./styles.css";
             }}
           >
             {[
-              { v: `${session.duration || "?"}min`, l: "DURATION" },
-              { v: Math.round(vol).toLocaleString() + "kg", l: "VOLUME" },
+              { v: `${session.duration || "?"}${t("min")}`, l: t("DURATION") },
+              { v: Math.round(vol).toLocaleString() + "kg", l: t("VOLUME") },
               {
                 v: session.calories ? `${session.calories}kcal` : "—",
-                l: "CALORIES",
+                l: t("CALORIES"),
               },
             ].map((s) => (
               <div
@@ -13338,7 +13353,7 @@ import "./styles.css";
           </div>
         </div>
         <div style={{ ...S.label, marginBottom: 12, textAlign: "left" }}>
-          EXERCISES ({exercises.length})
+          {t("EXERCISES")} ({exercises.length})
         </div>
         {exercises.map((ex, i) => {
           const sets = ex.sets || [];
@@ -13365,7 +13380,7 @@ import "./styles.css";
                       {ex.name}
                     </div>
                     <div style={{ fontSize: 11, color: th.muted, marginTop: 3 }}>
-                      {doneS}/{sets.length} sets · {exVol}kg volume
+                      {doneS}/{sets.length} {t("sets")} · {exVol}kg {t("volume")}
                     </div>
                   </div>
                   <span style={S.tag(ex.group || muscle)}>{muscle.toUpperCase()}</span>
@@ -13397,7 +13412,7 @@ import "./styles.css";
                           color: s.done ? th.doneText : th.dim,
                         }}
                       >
-                        SET {si + 1}
+                        {t("SET")} {si + 1}
                       </div>
                     </div>
                   ))}
