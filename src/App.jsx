@@ -8301,31 +8301,58 @@ import "./styles.css";
                 )}
               </div>
 
-              {/* ── Inner tabs (only when coaching is active and I am the coach) ── */}
+              {/* ── Inner tabs (only when coaching is active and I am the coach) ──
+                  Matches the FEED/FRIENDS tab interaction: per-tab fade-in pill with
+                  the SAVE/START button texture, press-down scale + opacity, and the
+                  same 440Hz click tone the bottom-nav uses. */}
               {isCoachingActive && iAmCoach && (() => {
                 const tabs   = ["dashboards","workouts","history"];
                 const labels = [t("DASHBOARDS"),t("WORKOUTS"),t("HISTORY")];
-                const idx    = tabs.indexOf(innerTab);
                 return (
                   <div style={{ display:"flex", position:"relative", marginTop:10, padding:"3px", background:th.row, borderRadius:12 }}>
-                    <div style={{
-                      position:"absolute", top:3, bottom:3,
-                      width:`calc(${100/3}% - 2px)`,
-                      left: idx === 0 ? 3 : idx === 1 ? "calc(33.33%)" : "calc(66.66%)",
-                      background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                      borderRadius:9,
-                      transition:"left 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
-                      pointerEvents:"none",
-                    }} />
-                    {tabs.map((tabId, i) => (
-                      <button key={tabId} onClick={() => setInnerTab(tabId)} style={{
-                        flex:1, padding:"8px 0", border:"none", cursor:"pointer",
-                        borderRadius:9, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:10,
-                        letterSpacing:"0.5px", background:"transparent", position:"relative", zIndex:1,
-                        color: innerTab === tabId ? th.accentT : th.dim,
-                        transition:"color 0.22s ease",
-                      }}>{labels[i]}</button>
-                    ))}
+                    {tabs.map((tabId, i) => {
+                      const active = innerTab === tabId;
+                      return (
+                        <button key={tabId}
+                          onClick={() => {
+                            try {
+                              const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                              const osc = ctx.createOscillator();
+                              const gain = ctx.createGain();
+                              osc.connect(gain); gain.connect(ctx.destination);
+                              osc.type = "sine"; osc.frequency.value = 440;
+                              gain.gain.setValueAtTime(0.001, ctx.currentTime);
+                              gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.04);
+                              osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.04);
+                              ctx.close();
+                            } catch (_) {}
+                            setInnerTab(tabId);
+                          }}
+                          onPointerDown={e => { e.currentTarget.style.transform = "scale(0.88)"; e.currentTarget.style.opacity = "0.7"; }}
+                          onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+                          onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+                          style={{
+                            flex:1, padding:"8px 0", border:"none", cursor:"pointer",
+                            borderRadius:9, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:10,
+                            letterSpacing:"0.5px", background:"transparent",
+                            position:"relative", zIndex:1,
+                            color: active ? th.accentT : th.dim,
+                            transition:"color .2s, transform .22s cubic-bezier(0.25,0.46,0.45,0.94), opacity .22s ease",
+                            WebkitTapHighlightColor:"transparent",
+                          }}>
+                          {/* Active-state pill — same START-button texture as FEED/FRIENDS */}
+                          <span aria-hidden="true" style={{
+                            ...buttonTexture(th, "accent"),
+                            position:"absolute", inset:0, borderRadius:9,
+                            opacity: active ? 1 : 0,
+                            transition:"opacity .2s",
+                            pointerEvents:"none",
+                            zIndex:0,
+                          }} />
+                          <span style={{ position:"relative", zIndex:1 }}>{labels[i]}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })()}
