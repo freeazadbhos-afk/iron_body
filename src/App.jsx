@@ -16807,14 +16807,19 @@ import "./styles.css";
                   <button
                     onClick={toggleWorkoutPause}
                     style={{
-                      background: paused
-                        ? "linear-gradient(135deg, rgba(232,97,44,0.55) 0%, rgba(180,55,10,0.72) 100%)"
-                        : "rgba(255,255,255,0.06)",
-                      backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-                      boxShadow: paused ? "0 2px 10px rgba(232,97,44,0.35), inset 0 1px 0 rgba(255,255,255,0.18)" : "inset 0 1px 0 rgba(255,255,255,0.10)",
-                      border: `1.5px solid ${paused ? "rgba(232,97,44,0.65)" : "rgba(255,255,255,0.14)"}`,
+                      // Use the shared neutral texture so the button outline reads in both
+                      // light and dark themes. The previous translucent-white border was
+                      // nearly invisible on the light header.
+                      ...(paused
+                        ? {
+                            background: "linear-gradient(135deg, rgba(232,97,44,0.55) 0%, rgba(180,55,10,0.72) 100%)",
+                            backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                            boxShadow: "0 2px 10px rgba(232,97,44,0.35), inset 0 1px 0 rgba(255,255,255,0.18)",
+                            border: "1.5px solid rgba(232,97,44,0.65)",
+                            color: "#fff",
+                          }
+                        : buttonTexture(th, "neutral")),
                       borderRadius: 9,
-                      color: paused ? "#fff" : th.muted,
                       fontSize: 10,
                       padding: "6px 10px",
                       cursor: "pointer",
