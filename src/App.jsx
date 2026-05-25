@@ -9307,6 +9307,8 @@ import "./styles.css";
       // Sheet may have been closed during the await — don't setState on unmount.
       if (mountedRef.current) setSending(false);
     };
+    const canSendComment = text.trim().length > 0 && !sending;
+    const sendIconColor = canSendComment ? th.accentT : th.muted;
 
     return (
       <>
@@ -9390,21 +9392,27 @@ import "./styles.css";
                 placeholder={tr("Add a comment…")}
                 style={{ flex:1, background:th.sect, border:`1px solid ${th.border}`, borderRadius:20, padding:"9px 14px", fontSize:14, color:th.text, fontFamily:"'Outfit',sans-serif", outline:"none" }}
               />
-              <button onClick={send} disabled={!text.trim() || sending}
+              <button onClick={send} disabled={!canSendComment}
                 style={{
-                  background: text.trim() ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : th.inputB,
-                  border:"none", borderRadius:"50%", width:36, height:36,
+                  WebkitAppearance:"none",
+                  appearance:"none",
+                  background: canSendComment
+                    ? `color-mix(in srgb, ${th.accentBg} 92%, ${th.card})`
+                    : `color-mix(in srgb, ${th.inputB} 72%, ${th.card})`,
+                  border:`1px solid ${canSendComment ? th.accentBg : th.border}`,
+                  borderRadius:"50%", width:38, height:38,
                   display:"flex", alignItems:"center", justifyContent:"center",
-                  cursor: text.trim() ? "pointer" : "default",
-                  transition:"background .18s, color .18s",
+                  cursor: canSendComment ? "pointer" : "default",
+                  transition:"background .18s, color .18s, border-color .18s, transform .18s",
                   flexShrink:0,
-                  // Use currentColor on the SVG and pick high-contrast values for each state
-                  // so the paper-plane icon is always clearly visible.
-                  color: text.trim() ? th.accentT : th.sub,
+                  color: sendIconColor,
+                  opacity:1,
+                  padding:0,
+                  boxShadow: canSendComment ? `0 0 0 3px color-mix(in srgb, ${th.accentBg} 14%, transparent)` : "none",
                 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display:"block", color:sendIconColor, opacity:1 }}>
+                  <path d="M22 2L11 13" stroke={sendIconColor} strokeWidth="2.35" strokeLinecap="round"/>
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke={sendIconColor} strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
             </div>
