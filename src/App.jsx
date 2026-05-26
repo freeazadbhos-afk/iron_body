@@ -5369,10 +5369,16 @@ import "./styles.css";
         <button
           onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
           style={{
-            background:"none", border:"none", cursor:"pointer",
-            fontSize:13, lineHeight:1, padding:"0 2px",
-            color: open ? th.accentFg : th.dim, opacity: open ? 1 : 0.55,
+            background:"none",
+            border:"none",
+            cursor:"pointer",
+            fontSize:13, lineHeight:1, padding:0,
+            width:22, height:22,
+            color: open ? th.accentFg : th.muted,
+            opacity: open ? 1 : 0.88,
             fontWeight:700, flexShrink:0,
+            display:"inline-flex", alignItems:"center", justifyContent:"center",
+            WebkitTapHighlightColor:"transparent",
           }}>ⓘ</button>
         {open && createPortal(
           <div
