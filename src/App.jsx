@@ -19883,6 +19883,13 @@ import "./styles.css";
                   50%  { box-shadow: 0 0 16px 6px color-mix(in srgb, ${th.accentBg} 28%, transparent); }
                   100% { box-shadow: 0 0  0px 0px color-mix(in srgb, ${th.accentBg} 50%, transparent); }
                 }
+                @keyframes heartBeat {
+                  0%,100% { transform: scale(1); }
+                  14%     { transform: scale(1.25); }
+                  28%     { transform: scale(1); }
+                  42%     { transform: scale(1.18); }
+                  70%     { transform: scale(1); }
+                }
               `}</style>
               <style>{`.pill-pulse{animation:pillPulse 2.2s ease-in-out infinite}`}</style>
               <div className="pill-pulse" style={{ position:"absolute", inset:0, borderRadius:50, pointerEvents:"none" }} />
@@ -19895,7 +19902,14 @@ import "./styles.css";
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                <span className="bebas" style={{ color: th.accentT, fontSize: 15, letterSpacing: 1 }}>
+                <span className="bebas" style={{ color: th.accentT, fontSize: 15, letterSpacing: 1, display:"flex", alignItems:"center", gap:5 }}>
+                  {paused ? (
+                    <span style={{ fontSize:13, lineHeight:1 }}>⏸</span>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" style={{ animation:"heartBeat 1.1s ease-in-out infinite", display:"block", flexShrink:0 }}>
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill={th.accentT}/>
+                    </svg>
+                  )}
                   {fmtTime(elapsed)}
                 </span>
                 <span style={{ color: th.accentT, fontSize: 16, fontWeight: 700 }}>→</span>
