@@ -1,4 +1,5 @@
 import "./styles.css";
+  import bodyMuscleAtlasUrl from "./assets/Body Muscle Atlas.svg";
   import { createPortal } from "react-dom";
   import {
     useState,
@@ -197,8 +198,10 @@ import "./styles.css";
     "Cancel": "İptal",
     "Close": "Kapat",
     "Delete": "Sil",
-    "Edit": "Düzenle",
-    "Add": "Ekle",
+	    "Edit": "Düzenle",
+	    "Add": "Ekle",
+	    "ADD": "EKLE",
+	    "Clear": "Temizle",
     "Done": "Tamam",
     "Next": "İleri",
     "Skip": "Atla",
@@ -291,9 +294,15 @@ import "./styles.css";
     "Add exercises": "Egzersiz ekle",
     "Add set": "Set ekle",
     "Add lap / segment": "Tur / bölüm ekle",
-    "Search exercises or muscles...": "Egzersiz veya kas grubu ara...",
-    "Search exercises...": "Egzersiz ara...",
-    "No exercises found.": "Egzersiz bulunamadı.",
+	    "Search exercises or muscles...": "Egzersiz veya kas grubu ara...",
+	    "Search exercises...": "Egzersiz ara...",
+	    "MUSCLE MAP": "KAS HARİTASI",
+	    "Tap a muscle region": "Bir kas bölgesine dokun",
+	    "Tap a muscle region to browse matching exercises.": "Eşleşen egzersizleri görmek için kas bölgesine dokun.",
+	    "Search within selected muscle...": "Seçili kasta ara...",
+	    "No exercises match this muscle.": "Bu kasla eşleşen egzersiz yok.",
+	    "SELECTED": "SEÇİLİ",
+	    "No exercises found.": "Egzersiz bulunamadı.",
     "Remove this exercise?": "Bu egzersizi kaldırmak istiyor musun?",
     "Remove set": "Seti kaldır",
     "rep": "tekrar",
@@ -370,6 +379,17 @@ import "./styles.css";
     "APPLE WATCH DATA (optional)": "APPLE WATCH VERİSİ (isteğe bağlı)",
     "DURATION (min)": "SÜRE (dk)",
     "CALORIES (kcal)": "KALORİ (kcal)",
+    "DISTANCE (km)": "MESAFE (km)",
+    "WORKOUT DATE": "ANTRENMAN TARİHİ",
+    "LOG CARDIO": "KARDİYO KAYDET",
+    "LOG MISSED CARDIO": "KAÇIRILAN KARDİYOYU KAYDET",
+    "SELECT CARDIO WORKOUT": "KARDİYO ANTRENMANI SEÇ",
+    "NO CARDIO WORKOUTS": "KARDİYO ANTRENMANI YOK",
+    "Add a cardio exercise to a workout program first.": "Önce bir antrenman programına kardiyo egzersizi ekle.",
+    "Cardio workout": "Kardiyo antrenmanı",
+    "Log missed cardio": "Kaçırılan kardiyoyu kaydet",
+    "Enter the numbers from your wearable or cardio machine.": "Giyilebilir cihazından veya kardiyo makinesinden değerleri gir.",
+    "SAVE CARDIO →": "KARDİYOYU KAYDET →",
     "e.g. 450": "ör. 450",
     // Tier messages — celebration banner
     "Absolutely elite. That session will be remembered.": "Mutlak elit. Bu antrenman hatırlanacak.",
@@ -911,6 +931,11 @@ import "./styles.css";
     "20 workouts in {month}": "{month} ayında 20 antrenman",
     "Perfect Week": "Mükemmel Hafta",
     "5 workouts this week": "Bu hafta 5 antrenman",
+    "ACHIEVEMENT UNLOCKED": "BAŞARIM AÇILDI",
+    "Award unlocked": "Başarım açıldı",
+    "You unlocked": "Şunu açtın",
+    "Nice work. This award has been added to your profile.": "Güzel iş. Bu başarım profiline eklendi.",
+    "NICE WORK": "GÜZEL İŞ",
 
     // Suggestions / NEW PROGRAM editor (deduped subset)
     "SUGGESTED PROGRAMS": "ÖNERİLEN PROGRAMLAR",
@@ -963,6 +988,12 @@ import "./styles.css";
     "EDITING": "DÜZENLENİYOR",
     "DONE": "TAMAM",
     "MUSCLES TRAINED": "ÇALIŞILAN KASLAR",
+    "MUSCLES TARGETED": "HEDEFLENEN KASLAR",
+    "Primary": "Birincil",
+    "Secondary": "İkincil",
+    "HARD": "ZOR",
+    "MED": "ORTA",
+    "EASY": "KOLAY",
     "Muscles Trained": "Çalışılan Kaslar",
     "LAST 7 DAYS": "SON 7 GÜN",
     "STREAK": "SERİ",
@@ -1148,6 +1179,25 @@ import "./styles.css";
     }, cleanupDelay);
   }
 
+  const cardPressIgnoreSelector = "button,input,textarea,select,a,[role='button'],[data-no-card-press]";
+  function pressableCardProps(disabled = false) {
+    if (disabled) return {};
+    const clear = (el) => {
+      if (el && el.classList) el.classList.remove("ib-card-pressed");
+    };
+    return {
+      onPointerDown: (e) => {
+        if (e.button != null && e.button !== 0) return;
+        if (e.target?.closest?.(cardPressIgnoreSelector)) return;
+        e.currentTarget.classList.add("ib-card-pressed");
+      },
+      onPointerUp: (e) => clear(e.currentTarget),
+      onPointerLeave: (e) => clear(e.currentTarget),
+      onPointerCancel: (e) => clear(e.currentTarget),
+      onBlur: (e) => clear(e.currentTarget),
+    };
+  }
+
   // Touch-swipe helper — returns onTouchStart/onTouchEnd handlers that fire
   // onLeft for a swipe-left (paginate "next") and onRight for swipe-right ("prev").
   // Threshold 40px and a small vertical-dominance check so vertical scrolls don't trigger pagination.
@@ -1185,11 +1235,103 @@ import "./styles.css";
       return s;
     };
   }
+
+  const MUSCLE_ACCENTS = {
+    "Chest": "#C81E45",
+    "Upper Chest": "#E43F75",
+    "Lower Chest": "#A91635",
+    "Front Delts": "#D97706",
+    "Side Delts": "#7C3AED",
+    "Rear Delts": "#0891B2",
+    "Shoulders": "#6D5DF5",
+    "Traps": "#F43F5E",
+    "Upper Traps": "#FB7185",
+    "Biceps": "#EA580C",
+    "Brachialis": "#F97316",
+    "Triceps": "#DC2626",
+    "Anconeus": "#B91C1C",
+    "Forearms": "#B45309",
+    "Lats": "#2563EB",
+    "Upper Back": "#0284C7",
+    "Mid Back": "#4F46E5",
+    "Lower Back": "#7E22CE",
+    "Full Back": "#1D4ED8",
+    "Abs": "#0F766E",
+    "Obliques": "#059669",
+    "Core": "#047857",
+    "Quads": "#1D4ED8",
+    "Hamstrings": "#C026D3",
+    "Glutes": "#E11D48",
+    "Calves": "#0D9488",
+    "Soleus": "#B45309",
+    "Hip Flexors": "#7C3AED",
+    "Inner Thigh": "#0891B2",
+    "Outer Thigh": "#65A30D",
+    "Full Body": "#475569",
+  };
+  const MUSCLE_ACCENTS_DARK = {
+    "Chest": "#FB5F86",
+    "Upper Chest": "#FF7AA2",
+    "Lower Chest": "#F04468",
+    "Front Delts": "#FBBF24",
+    "Side Delts": "#C084FC",
+    "Rear Delts": "#22D3EE",
+    "Shoulders": "#B9B2FF",
+    "Traps": "#FB7185",
+    "Upper Traps": "#FDA4AF",
+    "Biceps": "#FB923C",
+    "Brachialis": "#FDBA74",
+    "Triceps": "#F87171",
+    "Anconeus": "#EF4444",
+    "Forearms": "#F59E0B",
+    "Lats": "#60A5FA",
+    "Upper Back": "#38BDF8",
+    "Mid Back": "#818CF8",
+    "Lower Back": "#C084FC",
+    "Full Back": "#93C5FD",
+    "Abs": "#2DD4BF",
+    "Obliques": "#34D399",
+    "Core": "#10B981",
+    "Quads": "#60A5FA",
+    "Hamstrings": "#E879F9",
+    "Glutes": "#FB7185",
+    "Calves": "#2DD4BF",
+    "Soleus": "#FBBF24",
+    "Hip Flexors": "#C084FC",
+    "Inner Thigh": "#22D3EE",
+    "Outer Thigh": "#A3E635",
+    "Full Body": "#CBD5E1",
+  };
+  const muscleAccent = (muscle, group, dark = false) =>
+    ((dark ? MUSCLE_ACCENTS_DARK : MUSCLE_ACCENTS)[muscle] || MUSCLE_ACCENTS[muscle] || gc(group));
+
   function useS() {
     const th = useTheme();
+    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+    const tagText = (g, muscle) => muscle ? muscleAccent(muscle, g, dark) : (dark
+      ? ({
+          Chest: "#ff5d84",
+          Back: "#8bb8ff",
+          Shoulders: "#c3bdff",
+          Arms: "#ff8c5f",
+          Legs: "#70f5d8",
+          Cardio: "#9bd2ff",
+        }[g] || gc(g))
+      : ({
+          Chest: "#a41435",
+          Back: "#2f67c8",
+          Shoulders: "#6358df",
+          Arms: "#b84918",
+          Legs: "#087f6d",
+          Cardio: "#1d6fb5",
+        }[g] || gc(g)));
     return {
       input: {
+        display: "block",
         width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
         background: th.input,
         border: `1px solid ${th.inputB}`,
         borderRadius: 12,
@@ -1216,15 +1358,21 @@ import "./styles.css";
         letterSpacing: "2px",
         fontWeight: 700,
       },
-      tag: (g) => ({
-        display: "inline-block",
-        padding: "3px 10px",
-        borderRadius: 6,
-        fontSize: 11,
-        fontWeight: 700,
-        background: `${gc(g)}22`,
-        color: gc(g),
-      }),
+      tag: (g, muscle) => {
+        const accent = muscle ? muscleAccent(muscle, g, dark) : gc(g);
+        const text = tagText(g, muscle);
+        return ({
+	          display: "inline-block",
+	          padding: "2px 7px",
+	          borderRadius: 6,
+	          fontSize: 9.5,
+	          fontWeight: 800,
+          boxSizing: "border-box",
+          background: dark ? `${accent}30` : `${accent}22`,
+          border: `1px solid ${dark ? `${accent}66` : `${text}33`}`,
+          color: text,
+        });
+      },
     };
   }
 
@@ -2190,19 +2338,1598 @@ import "./styles.css";
 
   // ── Difficulty badge helper ──────────────────────────────────────────────────
   function DiffBadge({ id }) {
+    const th = useTheme();
     const d = DIFFICULTY[id];
     if (!d) return null;
+    const dark = th.bg === "#080809" || th.card === "#0f0f12";
     const cfg = d === "H"
-      ? { label: "HARD", bg: "rgba(204,31,66,0.14)",  color: "#CC1F42" }
+      ? { label: "HARD", color: dark ? "#ff6b85" : "#a41435" }
       : d === "M"
-      ? { label: "MED",  bg: "rgba(232,97,44,0.14)",  color: "#E8612C" }
-      : { label: "EASY", bg: "rgba(13,158,142,0.14)", color: "#0D9E8E" };
+      ? { label: "MED",  color: dark ? "#ff9f5f" : "#b84918" }
+      : { label: "EASY", color: dark ? "#2dd4bf" : "#087f6d" };
     return (
-      <span style={{
-        fontSize: 9, fontWeight: 700, letterSpacing: "0.8px",
-        padding: "2px 6px", borderRadius: 4,
-        background: cfg.bg, color: cfg.color, flexShrink: 0,
+	      <span style={{
+	        fontSize: 8.5,
+	        fontWeight: 800,
+	        letterSpacing: "0.7px",
+	        padding: "2px 6px",
+        borderRadius: 6,
+        background: dark ? `${cfg.color}30` : `${cfg.color}20`,
+        border: `1px solid ${dark ? `${cfg.color}66` : `${cfg.color}33`}`,
+        color: cfg.color,
+        boxSizing: "border-box",
+        flexShrink: 0,
       }}>{cfg.label}</span>
+    );
+  }
+
+  // Map a DB `muscle` (and a few group fall-throughs) onto stylised body regions.
+  // The body diagram is a front + back silhouette; each region is keyed by a short id.
+  const MUSCLE_REGIONS = {
+    "Chest":         ["chestL","chestR"],
+    "Upper Chest":   ["chestUpL","chestUpR"],
+    "Lower Chest":   ["chestLoL","chestLoR"],
+    "Front Delts":   ["delFrontL","delFrontR"],
+    "Side Delts":    ["delSideL","delSideR"],
+    "Rear Delts":    ["delRearL","delRearR"],
+    "Shoulders":     ["delFrontL","delFrontR","delSideL","delSideR","delRearL","delRearR"],
+    "Traps":         ["traps"],
+    "Upper Traps":   ["traps"],
+    "Biceps":        ["bicepL","bicepR"],
+    "Brachialis":    ["bicepL","bicepR"],
+    "Triceps":       ["tricepL","tricepR"],
+    "Anconeus":      ["tricepL","tricepR"],
+    "Forearms":      ["foreFL","foreFR","foreBL","foreBR"],
+    "Lats":          ["latL","latR"],
+    "Upper Back":    ["upperBack"],
+    "Mid Back":      ["midBack"],
+    "Lower Back":    ["lowerBack"],
+    "Full Back":     ["upperBack","midBack","latL","latR","lowerBack"],
+    "Abs":           ["abs"],
+    "Obliques":      ["obliqueL","obliqueR"],
+    "Core":          ["abs","obliqueL","obliqueR"],
+    "Quads":         ["quadL","quadR"],
+    "Hip Flexors":   ["quadL","quadR"],
+    "Inner Thigh":   ["quadL","quadR"],
+    "Outer Thigh":   ["quadL","quadR"],
+    "Hamstrings":    ["hamL","hamR"],
+    "Glutes":        ["gluteL","gluteR"],
+    "Calves":        ["calfFL","calfFR","calfBL","calfBR"],
+    "Soleus":        ["calfBL","calfBR"],
+  };
+
+  // Build a per-region color map from a primary muscle/group and an optional
+  // secondary list. Primary regions are filled with the group's full color, secondary
+  // regions get the same color at lower opacity so the hierarchy is obvious.
+  function muscleHighlights(primaryMuscle, primaryGroup, secondaryNames, dark = false) {
+    const out = {};
+    const primaryColor = muscleAccent(primaryMuscle, primaryGroup, dark);
+    (MUSCLE_REGIONS[primaryMuscle] || []).forEach(r => { out[r] = { fill: primaryColor, opacity: 1 }; });
+    (secondaryNames || []).forEach(name => {
+      // Lookup that secondary muscle's natural group so the limb gets the right accent hue.
+      const secGroup = (DB.find(d => d && d.muscle === name) || {}).group || primaryGroup;
+      const secColor = muscleAccent(name, secGroup, dark);
+      (MUSCLE_REGIONS[name] || []).forEach(r => {
+        if (!out[r]) out[r] = { fill: secColor, opacity: 0.55 };
+      });
+    });
+    return out;
+  }
+
+  // ── Body anatomy diagram ──────────────────────────────────────────────────────
+  //   Front + back anatomical figures inspired by the user's reference illustration.
+  //   The bodies follow heroic / muscular proportions: V-tapered torso (broad
+  //   shoulders, narrow waist), defined pecs and abs, separate biceps + triceps +
+  //   forearm shapes, distinct quads and calves. Each muscle group is drawn as
+  //   its own path so it can be color-highlighted independently. Subtle stroke
+  //   lines on every region preserve the pencil-shaded "anatomical drawing" feel
+  //   even when nothing is highlighted.
+  function LegacyBodyAnatomy({ highlights, baseColor, outlineColor }) {
+    const baseFill = baseColor;
+    const fill = (id) => (highlights && highlights[id]) ? highlights[id].fill : baseFill;
+    const opacity = (id) => (highlights && highlights[id]) ? highlights[id].opacity : 1;
+    const stroke = outlineColor;
+    const sw = 0.8;
+    const muscleStroke = `color-mix(in srgb, ${stroke} 50%, transparent)`;
+    const detailLine  = `color-mix(in srgb, ${stroke} 40%, transparent)`;
+
+    // Front-figure renderer — uses helper that fills the muscle path when the id
+    // is in `highlights`, otherwise renders the body's base fill. Each muscle path
+    // is positioned anatomically inside the body silhouette.
+    return (
+      <svg viewBox="0 0 300 500" width="100%" height={420} fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"block" }}>
+        {/* ═════════════════════════════ FRONT VIEW ═════════════════════════════ */}
+        <g>
+          {/* HEAD — oval with a slight chin taper */}
+          <path d="M73 12 C58 12 54 26 54 36 C54 52 58 60 70 62 L80 62 C92 60 96 52 96 36 C96 26 92 12 77 12 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Jaw shading line */}
+          <path d="M58 46 Q75 54 92 46" fill="none" stroke={detailLine} strokeWidth="0.5" />
+          {/* NECK + sterno-cleidomastoid lines */}
+          <path d="M65 60 L85 60 L88 76 L62 76 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M68 64 L73 76 M82 64 L77 76" stroke={detailLine} strokeWidth="0.6" fill="none" />
+
+          {/* SHOULDER YOKE / upper trap line — connects neck out to the deltoid caps */}
+          <path d="M62 74 Q48 76 36 88 L26 100 Q22 104 22 108 L38 104 Q50 90 58 84 L65 80 L85 80 L92 84 Q100 90 112 104 L128 108 Q128 104 124 100 L114 88 Q102 76 88 74 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* TORSO silhouette — V-taper from shoulders to waist, slight hip flare */}
+          <path d="M40 100 Q30 116 32 138 L36 168 L40 198 L44 226 L48 254 Q52 264 60 268 L90 268 Q98 264 102 254 L106 226 L110 198 L114 168 L118 138 Q120 116 110 100 L92 92 L58 92 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* ── FRONT MUSCLE OVERLAYS ── */}
+          {/* Front deltoids — rounded shoulder caps */}
+          <path id="delFrontL" d="M28 96 Q22 106 22 120 L26 132 L44 132 L44 108 Q44 96 36 92 Z" fill={fill("delFrontL")} opacity={opacity("delFrontL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="delFrontR" d="M122 96 Q128 106 128 120 L124 132 L106 132 L106 108 Q106 96 114 92 Z" fill={fill("delFrontR")} opacity={opacity("delFrontR")} stroke={muscleStroke} strokeWidth="0.6" />
+
+          {/* Pectoralis major — upper, middle, lower bands per side. They meet at a vertical sternum line. */}
+          <path id="chestUpL" d="M48 96 Q46 106 52 112 L74 112 L74 96 Z" fill={fill("chestUpL")} opacity={opacity("chestUpL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="chestUpR" d="M102 96 Q104 106 98 112 L76 112 L76 96 Z" fill={fill("chestUpR")} opacity={opacity("chestUpR")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="chestL"   d="M46 112 Q44 124 50 134 L74 134 L74 112 Z" fill={fill("chestL")}   opacity={opacity("chestL")}   stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="chestR"   d="M104 112 Q106 124 100 134 L76 134 L76 112 Z" fill={fill("chestR")}   opacity={opacity("chestR")}   stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="chestLoL" d="M50 134 Q52 144 60 148 L74 148 L74 134 Z" fill={fill("chestLoL")} opacity={opacity("chestLoL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="chestLoR" d="M100 134 Q98 144 90 148 L76 148 L76 134 Z" fill={fill("chestLoR")} opacity={opacity("chestLoR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Sternum / linea-alba line */}
+          <line x1="75" y1="92" x2="75" y2="250" stroke={muscleStroke} strokeWidth="0.7" />
+
+          {/* Serratus anterior — small interlocking finger-like shapes under the pec, into the rib cage */}
+          <path d="M48 138 Q52 142 54 148 M48 146 Q52 150 54 155 M48 154 Q52 158 54 162" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          <path d="M102 138 Q98 142 96 148 M102 146 Q98 150 96 155 M102 154 Q98 158 96 162" stroke={detailLine} strokeWidth="0.5" fill="none" />
+
+          {/* Abdominals — 6-pack rectus */}
+          <rect id="absUL" x="62" y="152" width="13" height="16" rx="2.5" fill={fill("abs")} opacity={opacity("abs")} stroke={muscleStroke} strokeWidth="0.5" />
+          <rect id="absUR" x="75" y="152" width="13" height="16" rx="2.5" fill={fill("abs")} opacity={opacity("abs")} stroke={muscleStroke} strokeWidth="0.5" />
+          <rect id="absML" x="62" y="170" width="13" height="16" rx="2.5" fill={fill("abs")} opacity={opacity("abs")} stroke={muscleStroke} strokeWidth="0.5" />
+          <rect id="absMR" x="75" y="170" width="13" height="16" rx="2.5" fill={fill("abs")} opacity={opacity("abs")} stroke={muscleStroke} strokeWidth="0.5" />
+          <rect id="absLL" x="62" y="188" width="13" height="18" rx="2.5" fill={fill("abs")} opacity={opacity("abs")} stroke={muscleStroke} strokeWidth="0.5" />
+          <rect id="absLR" x="75" y="188" width="13" height="18" rx="2.5" fill={fill("abs")} opacity={opacity("abs")} stroke={muscleStroke} strokeWidth="0.5" />
+
+          {/* Obliques — vertical strips on each side of the abs, narrowing toward the waist */}
+          <path id="obliqueL" d="M50 150 Q42 188 50 222 L60 224 L60 150 Z" fill={fill("obliqueL")} opacity={opacity("obliqueL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="obliqueR" d="M100 150 Q108 188 100 222 L90 224 L90 150 Z" fill={fill("obliqueR")} opacity={opacity("obliqueR")} stroke={muscleStroke} strokeWidth="0.6" />
+
+          {/* Inguinal V (hip-crease line) */}
+          <path d="M52 232 Q62 256 75 264 Q88 256 98 232" fill="none" stroke={detailLine} strokeWidth="0.8" />
+
+          {/* ── ARMS — Front: bicep + brachialis + forearm ── */}
+          {/* Left upper-arm silhouette */}
+          <path d="M22 112 Q12 138 14 168 L26 192 Q36 192 42 184 L46 132 Q40 116 32 110 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Right upper-arm silhouette */}
+          <path d="M128 112 Q138 138 136 168 L124 192 Q114 192 108 184 L104 132 Q110 116 118 110 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Biceps brachii */}
+          <path id="bicepL" d="M22 126 Q14 152 22 180 L36 180 L40 134 Q36 122 30 120 Z" fill={fill("bicepL")} opacity={opacity("bicepL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="bicepR" d="M128 126 Q136 152 128 180 L114 180 L110 134 Q114 122 120 120 Z" fill={fill("bicepR")} opacity={opacity("bicepR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Bicep peak / brachialis separation */}
+          <path d="M28 146 Q24 162 28 178" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          <path d="M122 146 Q126 162 122 178" stroke={detailLine} strokeWidth="0.5" fill="none" />
+
+          {/* ELBOW — small circle for definition */}
+          <circle cx="26" cy="188" r="4" fill={baseFill} stroke={muscleStroke} strokeWidth="0.5" />
+          <circle cx="124" cy="188" r="4" fill={baseFill} stroke={muscleStroke} strokeWidth="0.5" />
+
+          {/* Forearm silhouettes */}
+          <path d="M16 188 Q12 224 22 264 L34 276 L44 268 L42 224 L38 190 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M134 188 Q138 224 128 264 L116 276 L106 268 L108 224 L112 190 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Forearm muscles (brachioradialis + flexors) */}
+          <path id="foreFL" d="M20 200 Q14 232 24 262 L38 262 L40 226 L36 200 Z" fill={fill("foreFL")} opacity={opacity("foreFL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="foreFR" d="M130 200 Q136 232 126 262 L112 262 L110 226 L114 200 Z" fill={fill("foreFR")} opacity={opacity("foreFR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Forearm definition lines */}
+          <path d="M24 210 Q22 232 30 258" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          <path d="M126 210 Q128 232 120 258" stroke={detailLine} strokeWidth="0.5" fill="none" />
+
+          {/* HANDS */}
+          <path d="M22 276 Q18 296 26 302 L40 300 L42 274 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M128 276 Q132 296 124 302 L110 300 L108 274 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* ── LEGS — Front: hip + quads + knee + tibialis ── */}
+          {/* Pelvis & upper leg attachment */}
+          <path d="M48 256 Q44 270 46 286 L52 296 L98 296 L104 286 Q106 270 102 256 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Left thigh silhouette */}
+          <path d="M46 292 Q40 350 46 408 L60 412 L66 296 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Right thigh silhouette */}
+          <path d="M104 292 Q110 350 104 408 L90 412 L84 296 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Quads — vastus lateralis (outer), rectus femoris (center), vastus medialis (inner) */}
+          <path id="quadL" d="M48 300 Q42 348 48 398 L62 402 L66 300 Z" fill={fill("quadL")} opacity={opacity("quadL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="quadR" d="M102 300 Q108 348 102 398 L88 402 L84 300 Z" fill={fill("quadR")} opacity={opacity("quadR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Rectus / vastus dividers */}
+          <line x1="54" y1="308" x2="55" y2="396" stroke={detailLine} strokeWidth="0.5" />
+          <line x1="61" y1="308" x2="60" y2="396" stroke={detailLine} strokeWidth="0.5" />
+          <line x1="89" y1="308" x2="90" y2="396" stroke={detailLine} strokeWidth="0.5" />
+          <line x1="96" y1="308" x2="95" y2="396" stroke={detailLine} strokeWidth="0.5" />
+          {/* Sartorius — thin diagonal cross */}
+          <path d="M50 304 Q60 360 64 408" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          <path d="M100 304 Q90 360 86 408" stroke={detailLine} strokeWidth="0.5" fill="none" />
+
+          {/* KNEES */}
+          <ellipse cx="56" cy="418" rx="10" ry="7" fill={baseFill} stroke={muscleStroke} strokeWidth="0.7" />
+          <ellipse cx="94" cy="418" rx="10" ry="7" fill={baseFill} stroke={muscleStroke} strokeWidth="0.7" />
+          <path d="M51 416 Q56 422 61 416" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          <path d="M89 416 Q94 422 99 416" stroke={detailLine} strokeWidth="0.5" fill="none" />
+
+          {/* SHIN / tibialis */}
+          <path d="M48 428 Q42 458 48 482 L62 482 L62 428 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M102 428 Q108 458 102 482 L88 482 L88 428 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Front calves (tibialis-anterior side) */}
+          <path id="calfFL" d="M50 432 Q44 458 50 478 L60 478 L60 432 Z" fill={fill("calfFL")} opacity={opacity("calfFL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="calfFR" d="M100 432 Q106 458 100 478 L90 478 L90 432 Z" fill={fill("calfFR")} opacity={opacity("calfFR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Shin definition line */}
+          <line x1="55" y1="436" x2="55" y2="476" stroke={detailLine} strokeWidth="0.5" />
+          <line x1="95" y1="436" x2="95" y2="476" stroke={detailLine} strokeWidth="0.5" />
+
+          {/* FEET */}
+          <path d="M46 482 Q40 496 48 498 L66 498 L66 482 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M104 482 Q110 496 102 498 L84 498 L84 482 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* Label */}
+          <text x="75" y="496" textAnchor="middle" fontSize="9" fontFamily="'Outfit',sans-serif" fontWeight="700" fill={stroke} opacity="0.55" letterSpacing="2">FRONT</text>
+        </g>
+
+        {/* ═════════════════════════════ BACK VIEW ═════════════════════════════ */}
+        <g transform="translate(150 0)">
+          {/* HEAD (back) */}
+          <path d="M73 12 C58 12 54 26 54 36 C54 52 58 60 70 62 L80 62 C92 60 96 52 96 36 C96 26 92 12 77 12 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* NECK */}
+          <path d="M65 60 L85 60 L88 76 L62 76 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* SHOULDER YOKE */}
+          <path d="M62 74 Q48 76 36 88 L26 100 Q22 104 22 108 L38 104 Q50 90 58 84 L65 80 L85 80 L92 84 Q100 90 112 104 L128 108 Q128 104 124 100 L114 88 Q102 76 88 74 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* BACK TORSO silhouette */}
+          <path d="M40 100 Q30 116 32 138 L36 168 L40 198 L44 226 L48 254 Q52 264 60 268 L90 268 Q98 264 102 254 L106 226 L110 198 L114 168 L118 138 Q120 116 110 100 L92 92 L58 92 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* ── BACK MUSCLE OVERLAYS ── */}
+          {/* Trapezius — large diamond from the base of the neck out to shoulders and down toward T12 */}
+          <path id="traps" d="M65 78 L85 78 L100 100 L92 130 L75 138 L58 130 L50 100 Z" fill={fill("traps")} opacity={opacity("traps")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Rear deltoids */}
+          <path id="delRearL" d="M28 96 Q22 106 22 120 L26 132 L44 132 L44 108 Q44 96 36 92 Z" fill={fill("delRearL")} opacity={opacity("delRearL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="delRearR" d="M122 96 Q128 106 128 120 L124 132 L106 132 L106 108 Q106 96 114 92 Z" fill={fill("delRearR")} opacity={opacity("delRearR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Side delts — small lateral strip */}
+          <path id="delSideL" d="M22 112 Q18 118 18 130 L26 130 L26 112 Z" fill={fill("delSideL")} opacity={opacity("delSideL")} stroke={muscleStroke} strokeWidth="0.5" />
+          <path id="delSideR" d="M128 112 Q132 118 132 130 L124 130 L124 112 Z" fill={fill("delSideR")} opacity={opacity("delSideR")} stroke={muscleStroke} strokeWidth="0.5" />
+          {/* Upper back / rhomboid area */}
+          <rect id="upperBack" x="52" y="130" width="46" height="18" rx="3" fill={fill("upperBack")} opacity={opacity("upperBack")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Latissimus dorsi — V-shape from the upper back out toward the waist */}
+          <path id="latL" d="M50 140 Q38 174 46 214 L62 218 L62 140 Z" fill={fill("latL")} opacity={opacity("latL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="latR" d="M100 140 Q112 174 104 214 L88 218 L88 140 Z" fill={fill("latR")} opacity={opacity("latR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Mid back (between lats — erector spinae upper) */}
+          <rect id="midBack" x="62" y="148" width="26" height="60" rx="3" fill={fill("midBack")} opacity={opacity("midBack")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Spine line */}
+          <line x1="75" y1="80" x2="75" y2="248" stroke={muscleStroke} strokeWidth="0.7" />
+          {/* Lower back — erector spinae lower (lumbar) */}
+          <path id="lowerBack" d="M52 220 Q48 242 60 252 L90 252 Q102 242 98 220 Z" fill={fill("lowerBack")} opacity={opacity("lowerBack")} stroke={muscleStroke} strokeWidth="0.6" />
+
+          {/* Teres major / scapular detail line */}
+          <path d="M48 130 Q42 152 50 168" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          <path d="M102 130 Q108 152 100 168" stroke={detailLine} strokeWidth="0.5" fill="none" />
+
+          {/* ── ARMS — Back: triceps (3 heads) + forearm extensors ── */}
+          <path d="M22 112 Q12 138 14 168 L26 192 Q36 192 42 184 L46 132 Q40 116 32 110 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M128 112 Q138 138 136 168 L124 192 Q114 192 108 184 L104 132 Q110 116 118 110 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Triceps */}
+          <path id="tricepL" d="M22 126 Q12 156 22 180 L36 180 L42 132 Q38 122 30 120 Z" fill={fill("tricepL")} opacity={opacity("tricepL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="tricepR" d="M128 126 Q138 156 128 180 L114 180 L108 132 Q112 122 120 120 Z" fill={fill("tricepR")} opacity={opacity("tricepR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Tricep head separators */}
+          <path d="M28 142 Q24 162 28 180 M34 138 Q34 162 34 178" stroke={detailLine} strokeWidth="0.45" fill="none" />
+          <path d="M122 142 Q126 162 122 180 M116 138 Q116 162 116 178" stroke={detailLine} strokeWidth="0.45" fill="none" />
+
+          {/* Elbows */}
+          <circle cx="26" cy="188" r="4" fill={baseFill} stroke={muscleStroke} strokeWidth="0.5" />
+          <circle cx="124" cy="188" r="4" fill={baseFill} stroke={muscleStroke} strokeWidth="0.5" />
+
+          {/* Forearm silhouettes */}
+          <path d="M16 188 Q12 224 22 264 L34 276 L44 268 L42 224 L38 190 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M134 188 Q138 224 128 264 L116 276 L106 268 L108 224 L112 190 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Back forearm muscles (extensors) */}
+          <path id="foreBL" d="M20 200 Q14 232 24 262 L38 262 L40 226 L36 200 Z" fill={fill("foreBL")} opacity={opacity("foreBL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="foreBR" d="M130 200 Q136 232 126 262 L112 262 L110 226 L114 200 Z" fill={fill("foreBR")} opacity={opacity("foreBR")} stroke={muscleStroke} strokeWidth="0.6" />
+
+          {/* HANDS */}
+          <path d="M22 276 Q18 296 26 302 L40 300 L42 274 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M128 276 Q132 296 124 302 L110 300 L108 274 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* ── GLUTES — large rounded twin shapes ── */}
+          <path d="M48 256 Q44 272 48 290 L52 296 L98 296 L102 290 Q106 272 102 256 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path id="gluteL" d="M50 254 Q44 276 56 298 L75 296 L75 254 Z" fill={fill("gluteL")} opacity={opacity("gluteL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="gluteR" d="M100 254 Q106 276 94 298 L75 296 L75 254 Z" fill={fill("gluteR")} opacity={opacity("gluteR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Glute crease */}
+          <line x1="75" y1="254" x2="75" y2="294" stroke={detailLine} strokeWidth="0.6" />
+
+          {/* ── LEGS — Back: hamstrings + gastroc + soleus ── */}
+          <path d="M46 296 Q40 350 46 408 L60 412 L66 296 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M104 296 Q110 350 104 408 L90 412 L84 296 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Hamstrings (biceps femoris + semitendinosus + semimembranosus) */}
+          <path id="hamL" d="M48 300 Q42 348 48 398 L62 402 L66 300 Z" fill={fill("hamL")} opacity={opacity("hamL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="hamR" d="M102 300 Q108 348 102 398 L88 402 L84 300 Z" fill={fill("hamR")} opacity={opacity("hamR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Hamstring head separator */}
+          <line x1="56" y1="308" x2="58" y2="396" stroke={detailLine} strokeWidth="0.5" />
+          <line x1="94" y1="308" x2="92" y2="396" stroke={detailLine} strokeWidth="0.5" />
+
+          {/* Knees (back of knee = popliteal fossa) */}
+          <ellipse cx="56" cy="418" rx="10" ry="7" fill={baseFill} stroke={muscleStroke} strokeWidth="0.7" />
+          <ellipse cx="94" cy="418" rx="10" ry="7" fill={baseFill} stroke={muscleStroke} strokeWidth="0.7" />
+
+          {/* Calves (gastrocnemius + soleus) */}
+          <path d="M48 428 Q42 460 48 482 L62 482 L62 428 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M102 428 Q108 460 102 482 L88 482 L88 428 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          {/* Gastrocnemius two heads */}
+          <path id="calfBL" d="M50 430 Q44 458 50 476 L60 476 L60 430 Z" fill={fill("calfBL")} opacity={opacity("calfBL")} stroke={muscleStroke} strokeWidth="0.6" />
+          <path id="calfBR" d="M100 430 Q106 458 100 476 L90 476 L90 430 Z" fill={fill("calfBR")} opacity={opacity("calfBR")} stroke={muscleStroke} strokeWidth="0.6" />
+          {/* Gastroc midline (between medial + lateral heads) */}
+          <path d="M55 435 Q52 460 55 474" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          <path d="M95 435 Q98 460 95 474" stroke={detailLine} strokeWidth="0.5" fill="none" />
+          {/* Achilles taper */}
+          <line x1="56" y1="476" x2="56" y2="486" stroke={detailLine} strokeWidth="0.6" />
+          <line x1="94" y1="476" x2="94" y2="486" stroke={detailLine} strokeWidth="0.6" />
+
+          {/* FEET (heels visible from behind) */}
+          <path d="M46 482 Q40 496 48 498 L66 498 L66 482 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+          <path d="M104 482 Q110 496 102 498 L84 498 L84 482 Z" fill={baseFill} stroke={stroke} strokeWidth={sw} />
+
+          {/* Label */}
+          <text x="75" y="496" textAnchor="middle" fontSize="9" fontFamily="'Outfit',sans-serif" fontWeight="700" fill={stroke} opacity="0.55" letterSpacing="2">BACK</text>
+        </g>
+      </svg>
+    );
+  }
+
+  // Previous detailed anatomical line-art renderer kept as an unused fallback.
+  function DetailedBodyAnatomy({ highlights, baseColor, outlineColor }) {
+    const baseFill = baseColor;
+    const fill = (id) => (highlights && highlights[id]) ? highlights[id].fill : baseFill;
+    const opacity = (id) => (highlights && highlights[id]) ? highlights[id].opacity : 1;
+    const stroke = outlineColor;
+    const sw = 1.15;
+    const muscleStroke = `color-mix(in srgb, ${stroke} 58%, transparent)`;
+    const detailLine = `color-mix(in srgb, ${stroke} 48%, transparent)`;
+
+    const Shape = ({ d, width = sw, children }) => (
+      <path d={d} fill={baseFill} stroke={stroke} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round">
+        {children}
+      </path>
+    );
+    const Muscle = ({ id, d, width = 0.78 }) => (
+      <path
+        id={id}
+        d={d}
+        fill={fill(id)}
+        opacity={opacity(id)}
+        stroke={muscleStroke}
+        strokeWidth={width}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    );
+    const Detail = ({ d, width = 0.72, alpha = 0.6 }) => (
+      <path
+        d={d}
+        fill="none"
+        stroke={detailLine}
+        strokeWidth={width}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={alpha}
+      />
+    );
+    const SideMuscle = ({ region, d, width = 0.72 }) => (
+      <path
+        d={d}
+        fill={fill(region)}
+        opacity={opacity(region)}
+        stroke={muscleStroke}
+        strokeWidth={width}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    );
+
+    return (
+      <svg
+        viewBox="0 0 360 520"
+        width="100%"
+        height={420}
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ display:"block", overflow:"visible" }}
+      >
+        <g transform="translate(10 8)" vectorEffect="non-scaling-stroke">
+          {/* Front view */}
+          <Shape d="M50 12 C39 12 33 22 33 39 C33 55 40 66 50 66 C60 66 67 55 67 39 C67 22 61 12 50 12 Z" />
+          <path d="M34 36 C29 37 29 48 35 50 M66 36 C71 37 71 48 65 50" fill={baseFill} stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
+          <Detail d="M39 32 C43 29 47 29 50 31 C53 29 57 29 61 32 M40 43 C45 46 55 46 60 43 M43 53 C48 56 53 56 58 53" alpha={0.54} />
+
+          <Shape d="M42 65 L58 65 C58 75 61 82 69 88 L82 97 C74 103 65 101 59 94 L50 86 L41 94 C35 101 26 103 18 97 L31 88 C39 82 42 75 42 65 Z" />
+          <Detail d="M43 70 C43 80 47 84 50 88 M57 70 C57 80 53 84 50 88 M33 91 C39 95 44 96 50 96 C56 96 61 95 67 91" />
+
+          <Shape d="M29 94 C21 103 18 116 19 132 C21 153 28 170 30 194 C33 222 31 242 40 262 L60 262 C69 242 67 222 70 194 C72 170 79 153 81 132 C82 116 79 103 71 94 C64 88 57 86 50 86 C43 86 36 88 29 94 Z" />
+
+          <Muscle id="delFrontL" d="M29 91 C18 94 10 104 9 118 C8 131 16 139 28 135 C36 132 38 120 35 107 C34 99 33 94 29 91 Z" />
+          <Muscle id="delFrontR" d="M71 91 C82 94 90 104 91 118 C92 131 84 139 72 135 C64 132 62 120 65 107 C66 99 67 94 71 91 Z" />
+          <Muscle id="delSideL" d="M10 119 C8 134 12 147 20 153 C23 146 26 139 29 132 C25 125 19 120 10 119 Z" />
+          <Muscle id="delSideR" d="M90 119 C92 134 88 147 80 153 C77 146 74 139 71 132 C75 125 81 120 90 119 Z" />
+          <Detail d="M16 104 C22 107 28 112 34 120 M84 104 C78 107 72 112 66 120" />
+
+          <Muscle id="chestUpL" d="M33 96 C39 91 46 91 50 97 L50 112 C42 112 35 107 31 101 Z" />
+          <Muscle id="chestUpR" d="M67 96 C61 91 54 91 50 97 L50 112 C58 112 65 107 69 101 Z" />
+          <Muscle id="chestL" d="M31 101 C38 110 44 113 50 113 L50 136 C39 136 30 129 27 119 Z" />
+          <Muscle id="chestR" d="M69 101 C62 110 56 113 50 113 L50 136 C61 136 70 129 73 119 Z" />
+          <Muscle id="chestLoL" d="M28 121 C35 136 43 141 50 139 L50 151 C39 152 30 143 26 132 Z" />
+          <Muscle id="chestLoR" d="M72 121 C65 136 57 141 50 139 L50 151 C61 152 70 143 74 132 Z" />
+          <Detail d="M36 108 C40 114 44 117 50 119 M64 108 C60 114 56 117 50 119 M31 130 C38 136 44 139 50 139 M69 130 C62 136 56 139 50 139" />
+
+          <Muscle id="abs" d="M42 151 C46 148 54 148 58 151 C61 169 60 199 56 224 C54 235 46 235 44 224 C40 199 39 169 42 151 Z" />
+          <Muscle id="obliqueL" d="M31 143 C25 165 27 201 38 229 C41 222 42 205 41 186 C40 169 38 154 31 143 Z" />
+          <Muscle id="obliqueR" d="M69 143 C75 165 73 201 62 229 C59 222 58 205 59 186 C60 169 62 154 69 143 Z" />
+          <Detail d="M50 151 L50 228 M42 163 C47 166 53 166 58 163 M41 179 C47 182 53 182 59 179 M41 195 C47 198 53 198 59 195 M43 212 C48 215 52 215 57 212 M33 153 C37 164 39 176 40 190 M67 153 C63 164 61 176 60 190" />
+          <Detail d="M34 230 C40 246 45 256 50 261 C55 256 60 246 66 230" width={0.82} />
+
+          <Shape d="M18 133 C11 156 11 181 19 203 C23 211 31 208 33 198 C31 172 33 150 37 133 C32 130 24 129 18 133 Z" />
+          <Shape d="M82 133 C89 156 89 181 81 203 C77 211 69 208 67 198 C69 172 67 150 63 133 C68 130 76 129 82 133 Z" />
+          <Muscle id="bicepL" d="M19 136 C13 158 14 181 22 197 C28 199 32 190 32 176 C32 158 29 143 26 136 Z" />
+          <Muscle id="bicepR" d="M81 136 C87 158 86 181 78 197 C72 199 68 190 68 176 C68 158 71 143 74 136 Z" />
+          <Detail d="M25 144 C22 160 23 181 28 194 M75 144 C78 160 77 181 72 194" />
+          <Shape d="M19 203 C12 222 12 248 20 265 C25 271 34 267 36 258 C33 236 33 217 31 202 C27 199 23 199 19 203 Z" />
+          <Shape d="M81 203 C88 222 88 248 80 265 C75 271 66 267 64 258 C67 236 67 217 69 202 C73 199 77 199 81 203 Z" />
+          <Muscle id="foreFL" d="M19 207 C14 226 16 248 23 262 C28 263 33 257 34 249 C31 230 30 215 28 206 Z" />
+          <Muscle id="foreFR" d="M81 207 C86 226 84 248 77 262 C72 263 67 257 66 249 C69 230 70 215 72 206 Z" />
+          <Detail d="M24 214 C23 231 25 248 30 260 M76 214 C77 231 75 248 70 260" />
+          <Shape d="M20 265 C13 270 12 280 19 286 L31 284 C36 276 31 266 25 263 Z" />
+          <Shape d="M80 265 C87 270 88 280 81 286 L69 284 C64 276 69 266 75 263 Z" />
+
+          <Shape d="M39 258 C35 272 34 286 38 300 L62 300 C66 286 65 272 61 258 Z" />
+          <Muscle id="quadL" d="M38 299 C28 330 27 371 36 407 C43 412 50 407 51 395 L50 302 Z" />
+          <Muscle id="quadR" d="M62 299 C72 330 73 371 64 407 C57 412 50 407 49 395 L50 302 Z" />
+          <Detail d="M37 306 C42 330 45 365 44 400 M48 306 C48 338 48 370 47 400 M63 306 C58 330 55 365 56 400 M52 306 C52 338 52 370 53 400 M38 309 C47 347 49 384 47 405 M62 309 C53 347 51 384 53 405" />
+          <Shape d="M35 408 C34 420 39 427 47 425 C51 421 51 413 47 407 C42 404 38 404 35 408 Z" />
+          <Shape d="M65 408 C66 420 61 427 53 425 C49 421 49 413 53 407 C58 404 62 404 65 408 Z" />
+          <Muscle id="calfFL" d="M36 426 C29 450 31 475 39 493 L49 493 C50 468 49 446 47 428 Z" />
+          <Muscle id="calfFR" d="M64 426 C71 450 69 475 61 493 L51 493 C50 468 51 446 53 428 Z" />
+          <Detail d="M42 431 C38 451 39 472 44 489 M58 431 C62 451 61 472 56 489" />
+          <Shape d="M37 493 C28 499 27 506 38 508 L51 503 L49 493 Z" />
+          <Shape d="M63 493 C72 499 73 506 62 508 L49 503 L51 493 Z" />
+        </g>
+
+        <g transform="translate(132 8)" vectorEffect="non-scaling-stroke">
+          {/* Back view */}
+          <Shape d="M50 12 C39 12 33 22 33 39 C33 55 40 66 50 66 C60 66 67 55 67 39 C67 22 61 12 50 12 Z" />
+          <path d="M34 36 C29 37 29 48 35 50 M66 36 C71 37 71 48 65 50" fill={baseFill} stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
+          <Detail d="M40 57 C45 61 55 61 60 57" />
+          <Shape d="M42 65 L58 65 C58 75 61 82 69 88 L83 98 C75 104 66 101 59 94 L50 86 L41 94 C34 101 25 104 17 98 L31 88 C39 82 42 75 42 65 Z" />
+          <Shape d="M28 95 C20 106 17 123 20 143 C24 171 30 198 32 225 C34 242 39 257 44 265 L56 265 C61 257 66 242 68 225 C70 198 76 171 80 143 C83 123 80 106 72 95 C65 89 58 86 50 86 C42 86 35 89 28 95 Z" />
+
+          <Muscle id="traps" d="M41 80 C45 84 55 84 59 80 L72 99 C68 119 59 137 50 146 C41 137 32 119 28 99 Z" />
+          <Muscle id="delRearL" d="M28 91 C17 95 9 106 9 121 C9 134 17 141 28 136 C36 132 38 120 35 107 C34 99 32 94 28 91 Z" />
+          <Muscle id="delRearR" d="M72 91 C83 95 91 106 91 121 C91 134 83 141 72 136 C64 132 62 120 65 107 C66 99 68 94 72 91 Z" />
+          <path d="M10 120 C8 135 12 148 20 154 C23 146 26 139 29 132 C25 125 19 120 10 120 Z" fill={fill("delSideL")} opacity={opacity("delSideL")} stroke={muscleStroke} strokeWidth="0.72" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M90 120 C92 135 88 148 80 154 C77 146 74 139 71 132 C75 125 81 120 90 120 Z" fill={fill("delSideR")} opacity={opacity("delSideR")} stroke={muscleStroke} strokeWidth="0.72" strokeLinecap="round" strokeLinejoin="round" />
+
+          <Muscle id="upperBack" d="M31 125 C39 119 61 119 69 125 C67 139 59 149 50 154 C41 149 33 139 31 125 Z" />
+          <Muscle id="latL" d="M29 136 C20 162 21 203 37 231 C45 221 48 188 47 151 C41 145 35 140 29 136 Z" />
+          <Muscle id="latR" d="M71 136 C80 162 79 203 63 231 C55 221 52 188 53 151 C59 145 65 140 71 136 Z" />
+          <Muscle id="midBack" d="M43 148 C47 152 53 152 57 148 C60 172 59 204 54 225 L46 225 C41 204 40 172 43 148 Z" />
+          <Muscle id="lowerBack" d="M35 224 C41 218 59 218 65 224 C63 244 57 257 50 263 C43 257 37 244 35 224 Z" />
+          <Detail d="M50 82 L50 260 M34 104 C41 117 45 131 47 147 M66 104 C59 117 55 131 53 147 M33 136 C39 146 45 152 50 154 M67 136 C61 146 55 152 50 154 M36 165 C41 173 45 185 46 202 M64 165 C59 173 55 185 54 202 M41 224 C44 236 47 247 50 257 M59 224 C56 236 53 247 50 257" />
+
+          <Shape d="M18 133 C11 157 11 181 19 203 C23 211 31 208 33 198 C31 172 33 150 37 133 C32 130 24 129 18 133 Z" />
+          <Shape d="M82 133 C89 157 89 181 81 203 C77 211 69 208 67 198 C69 172 67 150 63 133 C68 130 76 129 82 133 Z" />
+          <Muscle id="tricepL" d="M18 136 C12 159 14 184 23 198 C29 198 32 188 32 174 C31 157 29 143 26 136 Z" />
+          <Muscle id="tricepR" d="M82 136 C88 159 86 184 77 198 C71 198 68 188 68 174 C69 157 71 143 74 136 Z" />
+          <Detail d="M24 142 C22 160 23 181 28 195 M30 144 C29 161 29 179 31 194 M76 142 C78 160 77 181 72 195 M70 144 C71 161 71 179 69 194" />
+          <Shape d="M19 203 C12 222 12 248 20 265 C25 271 34 267 36 258 C33 236 33 217 31 202 C27 199 23 199 19 203 Z" />
+          <Shape d="M81 203 C88 222 88 248 80 265 C75 271 66 267 64 258 C67 236 67 217 69 202 C73 199 77 199 81 203 Z" />
+          <Muscle id="foreBL" d="M19 207 C14 226 16 248 23 262 C28 263 33 257 34 249 C31 230 30 215 28 206 Z" />
+          <Muscle id="foreBR" d="M81 207 C86 226 84 248 77 262 C72 263 67 257 66 249 C69 230 70 215 72 206 Z" />
+          <Detail d="M24 214 C23 231 25 248 30 260 M76 214 C77 231 75 248 70 260" />
+          <Shape d="M20 265 C13 270 12 280 19 286 L31 284 C36 276 31 266 25 263 Z" />
+          <Shape d="M80 265 C87 270 88 280 81 286 L69 284 C64 276 69 266 75 263 Z" />
+
+          <Shape d="M38 258 C34 274 34 290 39 303 L61 303 C66 290 66 274 62 258 Z" />
+          <Muscle id="gluteL" d="M39 260 C31 281 38 301 50 304 L50 263 C46 259 42 258 39 260 Z" />
+          <Muscle id="gluteR" d="M61 260 C69 281 62 301 50 304 L50 263 C54 259 58 258 61 260 Z" />
+          <Detail d="M50 262 L50 304 M36 285 C41 298 46 303 50 304 M64 285 C59 298 54 303 50 304" />
+          <Muscle id="hamL" d="M38 303 C29 335 28 373 36 407 C43 412 50 407 51 395 L50 304 Z" />
+          <Muscle id="hamR" d="M62 303 C71 335 72 373 64 407 C57 412 50 407 49 395 L50 304 Z" />
+          <Detail d="M39 310 C43 340 45 370 44 400 M48 310 C48 339 48 369 47 400 M61 310 C57 340 55 370 56 400 M52 310 C52 339 52 369 53 400" />
+          <Shape d="M35 408 C34 420 39 427 47 425 C51 421 51 413 47 407 C42 404 38 404 35 408 Z" />
+          <Shape d="M65 408 C66 420 61 427 53 425 C49 421 49 413 53 407 C58 404 62 404 65 408 Z" />
+          <Muscle id="calfBL" d="M36 426 C28 451 31 476 40 494 L50 494 C50 469 49 446 47 428 Z" />
+          <Muscle id="calfBR" d="M64 426 C72 451 69 476 60 494 L50 494 C50 469 51 446 53 428 Z" />
+          <Detail d="M42 431 C37 452 39 474 45 490 M58 431 C63 452 61 474 55 490 M46 492 L46 502 M54 492 L54 502" />
+          <Shape d="M38 493 C30 499 30 506 41 508 L52 503 L50 493 Z" />
+          <Shape d="M62 493 C70 499 70 506 59 508 L48 503 L50 493 Z" />
+        </g>
+
+        <g transform="translate(264 10)" vectorEffect="non-scaling-stroke">
+          {/* Side view */}
+          <Shape d="M33 13 C47 13 55 24 54 40 C53 54 45 65 35 65 C25 65 19 54 20 39 C21 24 25 15 33 13 Z" />
+          <Detail d="M49 34 C55 36 55 40 49 42 M44 49 C40 53 35 54 29 51 M26 31 C31 29 36 30 40 33" alpha={0.58} />
+          <Shape d="M34 64 C37 75 39 82 46 91 C56 101 60 116 59 135 C58 161 52 189 55 221 C56 238 60 252 65 266 C54 270 42 268 34 262 C28 244 26 220 27 194 C28 170 31 147 29 128 C28 111 27 96 31 84 C33 78 34 71 34 64 Z" />
+          <SideMuscle region="traps" d="M34 65 C42 74 47 85 49 98 C41 94 35 87 31 78 Z" />
+          <SideMuscle region="chestR" d="M44 93 C56 101 60 116 57 132 C50 133 44 128 40 117 C39 107 40 99 44 93 Z" />
+          <SideMuscle region="latR" d="M35 118 C45 132 49 157 47 187 C39 184 33 171 31 151 C30 138 31 126 35 118 Z" />
+          <SideMuscle region="abs" d="M42 136 C48 154 48 190 44 216 C39 214 36 200 36 179 C36 160 38 145 42 136 Z" />
+          <SideMuscle region="obliqueR" d="M30 134 C35 152 35 191 31 218 C27 199 27 157 30 134 Z" />
+          <Detail d="M42 145 C46 154 46 164 42 172 M42 178 C46 187 46 198 42 207 M32 145 C36 160 37 178 36 197 M49 105 C45 112 43 121 43 130 M35 120 C41 137 44 158 44 184" />
+          <Shape d="M30 93 C21 103 18 119 20 137 C21 156 24 177 28 198 C31 203 39 202 41 196 C38 171 36 149 37 126 C38 111 36 101 30 93 Z" />
+          <SideMuscle region="delSideR" d="M30 91 C21 98 17 109 20 122 C26 124 34 119 37 110 C38 102 36 96 30 91 Z" />
+          <SideMuscle region="tricepR" d="M24 122 C20 144 23 173 31 195 C37 195 39 187 37 176 C33 155 33 137 34 125 Z" />
+          <SideMuscle region="foreBR" d="M31 197 C27 216 31 244 41 262 C48 262 50 253 47 244 C40 226 37 210 38 198 Z" />
+          <Detail d="M29 132 C27 150 29 174 35 193 M36 205 C36 224 39 244 44 259" />
+          <Shape d="M42 260 C35 265 35 275 43 280 L55 277 C56 268 50 260 42 260 Z" />
+          <Shape d="M31 257 C29 274 33 293 41 307 C47 318 50 340 48 367 C47 384 49 399 56 412 C64 411 68 404 66 394 C60 364 63 337 60 314 C58 290 53 272 65 266 C54 270 42 268 31 257 Z" />
+          <SideMuscle region="gluteR" d="M49 261 C62 260 70 270 70 284 C68 297 58 307 43 307 C37 291 39 273 49 261 Z" />
+          <SideMuscle region="hamR" d="M43 306 C51 319 54 343 52 371 C49 383 51 397 57 410 C48 414 42 406 40 392 C39 367 36 337 32 315 C34 308 38 305 43 306 Z" />
+          <SideMuscle region="quadR" d="M31 261 C24 289 26 326 35 363 C40 369 47 367 50 359 C48 334 44 315 39 302 C34 290 32 274 31 261 Z" />
+          <Detail d="M36 273 C34 299 38 335 45 362 M43 315 C48 336 49 357 47 379 M52 273 C62 282 63 296 56 306" />
+          <Shape d="M50 411 C47 433 49 468 58 493 L69 493 C70 469 67 441 64 415 C59 411 54 410 50 411 Z" />
+          <SideMuscle region="calfBR" d="M52 416 C47 442 50 472 60 493 L68 493 C69 467 66 441 63 417 Z" />
+          <Detail d="M58 421 C55 446 57 471 63 491" />
+          <Shape d="M58 493 C51 500 53 507 66 508 L77 504 C74 497 67 493 58 493 Z" />
+        </g>
+      </svg>
+    );
+  }
+
+  // MuscleWiki-style front/back target map: faceless figure, heavy blue-gray
+  // outlines, flat pale muscle plates, and colored target fills.
+  function FlatTwoViewBodyAnatomy({ highlights, baseColor }) {
+    const ink = "#4a4d68";
+    const plate = "#f2f2f2";
+    const body = "#e9eef2";
+    const fill = (id) => (highlights && highlights[id]) ? highlights[id].fill : plate;
+    const opacity = (id) => (highlights && highlights[id]) ? highlights[id].opacity : 1;
+    const sw = 2.5;
+
+    const Part = ({ id, d }) => (
+      <path
+        id={id}
+        d={d}
+        fill={fill(id)}
+        opacity={opacity(id)}
+        stroke={ink}
+        strokeWidth={sw}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    );
+    const Body = ({ d }) => (
+      <path d={d} fill={body} stroke={ink} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+    );
+    const Line = ({ d, width = sw }) => (
+      <path d={d} fill="none" stroke={ink} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+    );
+
+    return (
+      <svg
+        viewBox="0 0 420 420"
+        width="100%"
+        height={420}
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ display:"block" }}
+      >
+        <rect x="0" y="0" width="420" height="420" rx="16" fill="transparent" />
+
+        {/* Front figure */}
+        <g transform="translate(12 6)">
+          <Body d="M97 10 C86 11 80 18 80 32 C78 43 79 55 84 66 C88 75 96 80 104 82 C112 80 120 75 124 66 C129 55 130 43 128 32 C128 18 122 11 111 10 C108 8 100 7 97 10 Z" />
+          <Line d="M86 33 C91 37 99 39 104 39 C111 39 119 37 122 33" width={2.1} />
+          <Body d="M84 61 C79 62 78 78 84 80 M124 61 C129 62 130 78 124 80" />
+          <Body d="M91 78 L91 103 C82 109 73 113 65 121 L143 121 C135 113 126 109 117 103 L117 78 C112 82 107 84 104 84 C101 84 96 82 91 78 Z" />
+
+          <Part id="delFrontL" d="M54 120 C37 123 28 136 23 157 C31 153 43 151 52 152 C61 145 70 135 76 124 C70 120 61 118 54 120 Z" />
+          <Part id="delFrontR" d="M154 120 C171 123 180 136 185 157 C177 153 165 151 156 152 C147 145 138 135 132 124 C138 120 147 118 154 120 Z" />
+          <Part id="chestUpL" d="M77 124 C82 116 94 115 102 121 C101 133 100 144 94 150 C83 151 69 145 61 133 C65 129 70 126 77 124 Z" />
+          <Part id="chestUpR" d="M131 124 C126 116 114 115 106 121 C107 133 108 144 114 150 C125 151 139 145 147 133 C143 129 138 126 131 124 Z" />
+          <Part id="chestL" d="M61 133 C69 145 83 151 94 150 C100 144 101 133 102 121 L104 121 L104 158 C94 166 75 164 63 154 C58 149 57 141 61 133 Z" />
+          <Part id="chestR" d="M147 133 C139 145 125 151 114 150 C108 144 107 133 106 121 L104 121 L104 158 C114 166 133 164 145 154 C150 149 151 141 147 133 Z" />
+          <Part id="chestLoL" d="M63 154 C75 164 94 166 104 158 C102 169 94 177 83 178 C72 177 65 168 63 154 Z" />
+          <Part id="chestLoR" d="M145 154 C133 164 114 166 104 158 C106 169 114 177 125 178 C136 177 143 168 145 154 Z" />
+
+          <Part id="obliqueL" d="M72 169 C62 183 58 207 62 230 C70 228 76 220 78 209 C79 194 78 181 72 169 Z" />
+          <Part id="obliqueR" d="M136 169 C146 183 150 207 146 230 C138 228 132 220 130 209 C129 194 130 181 136 169 Z" />
+          <Part id="abs" d="M87 175 C91 172 99 173 104 179 C109 173 117 172 121 175 C124 197 122 227 117 246 C113 255 108 262 104 264 C100 262 95 255 91 246 C86 227 84 197 87 175 Z" />
+          <Line d="M104 179 L104 264 M88 189 C94 187 99 187 104 191 C109 187 114 187 120 189 M87 207 C94 205 99 205 104 209 C109 205 114 205 121 207 M89 225 C95 223 100 223 104 227 C108 223 113 223 119 225 M89 242 C95 240 100 240 104 244 C108 240 113 240 119 242" width={2} />
+
+          <Part id="bicepL" d="M23 157 C11 169 5 189 7 207 C8 216 14 219 21 215 C31 210 39 198 43 184 C47 169 42 156 32 153 C29 153 26 154 23 157 Z" />
+          <Part id="bicepR" d="M185 157 C197 169 203 189 201 207 C200 216 194 219 187 215 C177 210 169 198 165 184 C161 169 166 156 176 153 C179 153 182 154 185 157 Z" />
+          <Part id="foreFL" d="M21 215 C13 224 5 245 0 264 C6 271 15 272 21 264 C31 254 38 238 43 219 C37 214 28 212 21 215 Z" />
+          <Part id="foreFR" d="M187 215 C195 224 203 245 208 264 C202 271 193 272 187 264 C177 254 170 238 165 219 C171 214 180 212 187 215 Z" />
+          <Body d="M0 264 C-8 276 -8 293 2 303 C7 300 6 289 10 283 C10 291 12 300 17 301 C21 300 20 288 20 281 C24 287 29 288 31 283 C30 272 23 266 21 264 C15 272 6 271 0 264 Z" />
+          <Body d="M208 264 C216 276 216 293 206 303 C201 300 202 289 198 283 C198 291 196 300 191 301 C187 300 188 288 188 281 C184 287 179 288 177 283 C178 272 185 266 187 264 C193 272 202 271 208 264 Z" />
+
+          <Body d="M70 229 C85 235 96 255 104 274 C112 255 123 235 138 229 C148 258 150 310 141 353 C136 366 126 367 119 356 C113 326 109 300 104 277 C99 300 95 326 89 356 C82 367 72 366 67 353 C58 310 60 258 70 229 Z" />
+          <Part id="quadL" d="M70 229 C85 235 96 255 104 274 C99 300 95 326 89 356 C82 367 72 366 67 353 C58 310 60 258 70 229 Z" />
+          <Part id="quadR" d="M138 229 C123 235 112 255 104 274 C109 300 113 326 119 356 C126 367 136 366 141 353 C150 310 148 258 138 229 Z" />
+          <Line d="M104 274 C99 297 96 324 90 354 M104 274 C109 297 112 324 118 354" width={2} />
+          <Part id="calfFL" d="M66 355 C59 374 60 397 66 414 C72 420 82 419 88 410 C89 394 87 373 85 357 C78 364 72 364 66 355 Z" />
+          <Part id="calfFR" d="M142 355 C149 374 148 397 142 414 C136 420 126 419 120 410 C119 394 121 373 123 357 C130 364 136 364 142 355 Z" />
+          <Body d="M66 414 C54 421 51 428 61 432 C65 431 69 435 74 434 C79 437 88 432 91 424 C88 418 80 420 74 419 C71 418 69 415 66 414 Z" />
+          <Body d="M142 414 C154 421 157 428 147 432 C143 431 139 435 134 434 C129 437 120 432 117 424 C120 418 128 420 134 419 C137 418 139 415 142 414 Z" />
+        </g>
+
+        {/* Back figure */}
+        <g transform="translate(222 6)">
+          <Body d="M97 10 C86 11 80 18 80 32 C78 43 79 55 84 66 C88 75 94 81 99 78 C102 73 106 73 109 78 C114 81 120 75 124 66 C129 55 130 43 128 32 C128 18 122 11 111 10 C108 8 100 7 97 10 Z" />
+          <Line d="M91 9 C87 10 85 11 83 13 M111 10 C116 11 120 14 122 18" width={2} />
+          <Body d="M84 61 C79 62 78 78 84 80 M124 61 C129 62 130 78 124 80" />
+          <Body d="M91 78 L91 103 C82 109 73 113 65 121 L143 121 C135 113 126 109 117 103 L117 78 C112 76 108 73 104 73 C100 73 96 76 91 78 Z" />
+
+          <Part id="traps" d="M65 121 C78 116 92 114 104 114 C116 114 130 116 143 121 C138 126 130 130 119 130 C111 128 97 128 89 130 C78 130 70 126 65 121 Z" />
+          <Part id="delRearL" d="M54 120 C37 123 28 136 23 157 C31 153 43 151 52 152 C61 145 70 135 76 124 C70 120 61 118 54 120 Z" />
+          <Part id="delRearR" d="M154 120 C171 123 180 136 185 157 C177 153 165 151 156 152 C147 145 138 135 132 124 C138 120 147 118 154 120 Z" />
+          <Part id="delSideL" d="M23 157 C16 169 12 188 13 206 C19 210 25 209 30 202 C35 185 42 167 52 152 C43 151 31 153 23 157 Z" />
+          <Part id="delSideR" d="M185 157 C192 169 196 188 195 206 C189 210 183 209 178 202 C173 185 166 167 156 152 C165 151 177 153 185 157 Z" />
+          <Part id="upperBack" d="M89 130 C97 128 111 128 119 130 C112 151 108 171 104 186 C100 171 96 151 89 130 Z" />
+          <Part id="latL" d="M76 124 C89 145 98 172 98 205 C97 224 92 232 82 234 C75 214 67 194 58 173 C56 158 63 139 76 124 Z" />
+          <Part id="latR" d="M132 124 C119 145 110 172 110 205 C111 224 116 232 126 234 C133 214 141 194 150 173 C152 158 145 139 132 124 Z" />
+          <Part id="midBack" d="M98 205 C98 176 100 153 104 136 C108 153 110 176 110 205 C109 220 107 236 104 248 C101 236 99 220 98 205 Z" />
+          <Part id="lowerBack" d="M82 234 C92 232 99 240 104 254 C109 240 116 232 126 234 C123 250 116 263 104 272 C92 263 85 250 82 234 Z" />
+          <Line d="M104 114 C101 136 99 165 98 205 M104 114 C107 136 109 165 110 205 M82 234 C91 240 99 249 104 272 M126 234 C117 240 109 249 104 272" width={2} />
+
+          <Part id="tricepL" d="M13 206 C7 223 4 246 -1 264 C5 271 15 272 21 264 C31 254 38 238 43 219 C39 207 34 200 30 202 C25 209 19 210 13 206 Z" />
+          <Part id="tricepR" d="M195 206 C201 223 204 246 209 264 C203 271 193 272 187 264 C177 254 170 238 165 219 C169 207 174 200 178 202 C183 209 189 210 195 206 Z" />
+          <Part id="foreBL" d="M-1 264 C-8 276 -8 293 2 303 C7 300 6 289 10 283 C10 291 12 300 17 301 C21 300 20 288 20 281 C24 287 29 288 31 283 C30 272 23 266 21 264 C15 272 5 271 -1 264 Z" />
+          <Part id="foreBR" d="M209 264 C216 276 216 293 206 303 C201 300 202 289 198 283 C198 291 196 300 191 301 C187 300 188 288 188 281 C184 287 179 288 177 283 C178 272 185 266 187 264 C193 272 203 271 209 264 Z" />
+
+          <Body d="M82 234 C92 232 99 240 104 254 C109 240 116 232 126 234 C136 260 138 312 131 353 C126 366 117 366 112 354 C107 323 105 294 104 272 C103 294 101 323 96 354 C91 366 82 366 77 353 C70 312 72 260 82 234 Z" />
+          <Part id="gluteL" d="M82 234 C94 232 102 242 104 254 L104 292 C91 296 77 291 74 275 C73 258 76 244 82 234 Z" />
+          <Part id="gluteR" d="M126 234 C114 232 106 242 104 254 L104 292 C117 296 131 291 134 275 C135 258 132 244 126 234 Z" />
+          <Part id="hamL" d="M75 276 C84 292 96 295 104 292 C103 313 101 333 96 354 C91 366 82 366 77 353 C72 326 70 298 75 276 Z" />
+          <Part id="hamR" d="M133 276 C124 292 112 295 104 292 C105 313 107 333 112 354 C117 366 126 366 131 353 C136 326 138 298 133 276 Z" />
+          <Line d="M104 254 L104 292 M104 292 C102 314 100 336 96 354 M104 292 C106 314 108 336 112 354" width={2} />
+          <Part id="calfBL" d="M77 353 C72 371 74 397 80 411 C87 416 93 411 95 400 C98 411 104 417 110 411 C112 394 110 372 105 356 C99 362 91 361 88 354 C84 362 80 363 77 353 Z" />
+          <Part id="calfBR" d="M131 353 C136 371 134 397 128 411 C121 416 115 411 113 400 C110 411 104 417 98 411 C96 394 98 372 103 356 C109 362 117 361 120 354 C124 362 128 363 131 353 Z" />
+          <Body d="M80 411 C70 417 66 424 72 428 C79 428 85 434 93 434 C99 432 101 426 99 416 C93 413 87 416 80 411 Z" />
+          <Body d="M128 411 C138 417 142 424 136 428 C129 428 123 434 115 434 C109 432 107 426 109 416 C115 413 121 416 128 411 Z" />
+        </g>
+      </svg>
+    );
+  }
+
+  // Three-view anatomy plate matching the attached reference: gray figure,
+  // soft muscle-panel outlines, and red overlays for targeted regions.
+  function BodyAnatomyLegacyThreeView({ highlights }) {
+    const ink = "#969b98";
+    const inkDark = "#858985";
+    const bodyFill = "#d7dad7";
+    const plateFill = "#eef0ee";
+    const targetFill = "#f11222";
+    const sw = 2.1;
+    const hot = (id) => Boolean(highlights && highlights[id]);
+    const fill = (id) => hot(id) ? targetFill : plateFill;
+    const op = (id) => hot(id) ? Math.max(0.68, highlights[id].opacity || 1) : 1;
+
+    const Base = ({ d, fill: f = bodyFill, width = sw }) => (
+      <path d={d} fill={f} stroke={ink} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+    );
+    const Plate = ({ id, region, d, width = sw }) => {
+      const key = region || id;
+      return (
+        <path
+          id={id}
+          d={d}
+          fill={fill(key)}
+          opacity={op(key)}
+          stroke={ink}
+          strokeWidth={width}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+    };
+    const Line = ({ d, width = 1.9, alpha = 1 }) => (
+      <path d={d} fill="none" stroke={inkDark} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" opacity={alpha} />
+    );
+
+    return (
+      <svg
+        viewBox="0 0 560 500"
+        width="100%"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ display:"block", width:"100%", height:"auto", aspectRatio:"560 / 500" }}
+      >
+        {/* Front */}
+        <g transform="translate(18 10)">
+          <Base d="M81 16 C70 19 66 29 68 43 C64 43 62 47 64 58 C65 65 68 69 72 68 C76 81 87 91 98 94 C109 91 120 81 124 68 C128 69 131 65 132 58 C134 47 132 43 128 43 C130 29 126 19 115 16 C110 10 87 10 81 16 Z" />
+          <Line d="M76 30 C83 36 94 38 101 38 C110 38 119 35 123 30" width={2} alpha={0.55} />
+          <Base d="M76 68 L76 103 C65 110 53 115 43 126 L153 126 C143 115 131 110 120 103 L120 68 C114 83 105 91 98 94 C91 91 82 83 76 68 Z" />
+          <Line d="M83 99 L98 128 L113 99 M63 112 L80 130 M133 112 L116 130" alpha={0.45} />
+
+          <Base d="M43 126 C31 132 25 145 21 164 C16 184 10 200 3 217 C-6 239 -13 264 -17 282 L4 292 C14 274 25 254 37 243 C50 233 61 213 63 191 C65 174 61 145 43 126 Z" />
+          <Base d="M153 126 C165 132 171 145 175 164 C180 184 186 200 193 217 C202 239 209 264 213 282 L192 292 C182 274 171 254 159 243 C146 233 135 213 133 191 C131 174 135 145 153 126 Z" />
+          <Base d="M4 292 C-1 304 -3 319 1 330 C5 332 9 324 11 313 C11 324 13 334 18 334 C23 334 23 323 22 314 C27 321 33 322 35 317 C33 304 25 295 19 290 C13 294 8 294 4 292 Z" />
+          <Base d="M192 292 C197 304 199 319 195 330 C191 332 187 324 185 313 C185 324 183 334 178 334 C173 334 173 323 174 314 C169 321 163 322 161 317 C163 304 171 295 177 290 C183 294 188 294 192 292 Z" />
+
+          <Base d="M57 126 C47 150 52 178 65 201 C62 221 64 242 75 260 L121 260 C132 242 134 221 131 201 C144 178 149 150 139 126 C126 116 112 112 98 123 C84 112 70 116 57 126 Z" />
+          <Plate id="delFrontL" d="M43 126 C28 129 22 142 21 164 C30 158 42 154 54 155 C62 147 69 135 76 124 C65 120 53 121 43 126 Z" />
+          <Plate id="delFrontR" d="M153 126 C168 129 174 142 175 164 C166 158 154 154 142 155 C134 147 127 135 120 124 C131 120 143 121 153 126 Z" />
+          <Plate id="delSideL" d="M22 164 C16 178 13 194 15 211 C19 215 25 215 30 210 C37 191 45 174 54 155 C42 154 30 158 22 164 Z" />
+          <Plate id="delSideR" d="M174 164 C180 178 183 194 181 211 C177 215 171 215 166 210 C159 191 151 174 142 155 C154 154 166 158 174 164 Z" />
+          <Plate id="chestUpL" d="M76 124 C85 117 94 118 98 127 L98 145 C84 143 70 137 57 126 C62 126 69 125 76 124 Z" />
+          <Plate id="chestUpR" d="M120 124 C111 117 102 118 98 127 L98 145 C112 143 126 137 139 126 C134 126 127 125 120 124 Z" />
+          <Plate id="chestL" d="M57 126 C70 137 84 143 98 145 L98 166 C83 174 66 168 58 156 C53 146 53 136 57 126 Z" />
+          <Plate id="chestR" d="M139 126 C126 137 112 143 98 145 L98 166 C113 174 130 168 138 156 C143 146 143 136 139 126 Z" />
+          <Plate id="chestLoL" d="M58 156 C66 168 83 174 98 166 C96 181 88 189 77 187 C67 185 60 174 58 156 Z" />
+          <Plate id="chestLoR" d="M138 156 C130 168 113 174 98 166 C100 181 108 189 119 187 C129 185 136 174 138 156 Z" />
+          <Plate id="obliqueL" d="M66 186 C57 203 56 229 65 249 C73 245 77 232 77 216 C77 204 73 194 66 186 Z" />
+          <Plate id="obliqueR" d="M130 186 C139 203 140 229 131 249 C123 245 119 232 119 216 C119 204 123 194 130 186 Z" />
+          <Plate id="abs" d="M78 187 C84 184 92 185 98 192 C104 185 112 184 118 187 C123 216 118 248 98 260 C78 248 73 216 78 187 Z" />
+          <Line d="M98 192 L98 260 M78 199 C86 197 92 198 98 203 C104 198 110 197 118 199 M77 217 C86 215 92 216 98 221 C104 216 110 215 119 217 M80 235 C87 233 93 234 98 239 C103 234 109 233 116 235" width={2} />
+          <Plate id="bicepL" d="M15 211 C4 224 -6 256 -17 282 C-11 290 -1 293 4 292 C14 274 25 254 37 243 C46 229 53 210 51 192 C42 209 31 218 15 211 Z" />
+          <Plate id="bicepR" d="M181 211 C192 224 202 256 213 282 C207 290 197 293 192 292 C182 274 171 254 159 243 C150 229 143 210 145 192 C154 209 165 218 181 211 Z" />
+          <Plate id="foreFL" d="M-17 282 C-13 264 -6 239 3 217 C12 220 22 230 26 241 C17 258 10 276 4 292 C-3 293 -11 290 -17 282 Z" />
+          <Plate id="foreFR" d="M213 282 C209 264 202 239 193 217 C184 220 174 230 170 241 C179 258 186 276 192 292 C199 293 207 290 213 282 Z" />
+
+          <Base d="M75 260 C64 291 61 340 72 386 C76 397 87 396 94 385 C97 352 99 318 98 282 C97 318 99 352 102 385 C109 396 120 397 124 386 C135 340 132 291 121 260 Z" />
+          <Plate id="quadL" d="M75 260 C64 291 61 340 72 386 C76 397 87 396 94 385 C97 352 99 318 98 282 C92 272 84 265 75 260 Z" />
+          <Plate id="quadR" d="M121 260 C132 291 135 340 124 386 C120 397 109 396 102 385 C99 352 97 318 98 282 C104 272 112 265 121 260 Z" />
+          <Line d="M98 282 C94 316 91 354 86 386 M98 282 C102 316 105 354 110 386" width={2} />
+          <Plate id="calfFL" d="M73 386 C67 407 68 433 77 450 C84 457 95 453 100 441 C100 420 98 402 94 385 C87 396 76 397 73 386 Z" />
+          <Plate id="calfFR" d="M123 386 C129 407 128 433 119 450 C112 457 101 453 96 441 C96 420 98 402 102 385 C109 396 120 397 123 386 Z" />
+          <Base d="M77 450 C65 456 60 464 70 467 C75 466 79 472 85 471 C91 475 100 468 102 460 C98 452 86 455 77 450 Z" />
+          <Base d="M119 450 C131 456 136 464 126 467 C121 466 117 472 111 471 C105 475 96 468 94 460 C98 452 110 455 119 450 Z" />
+        </g>
+
+        {/* Side */}
+        <g transform="translate(220 22)">
+          <Base d="M66 8 C53 10 46 22 47 39 C48 55 57 67 68 69 C78 67 87 56 88 42 C89 26 82 11 70 8 C68 7 67 7 66 8 Z" />
+          <Line d="M80 34 C88 35 91 38 82 41 M60 36 C64 31 70 30 76 33" width={1.9} alpha={0.45} />
+          <Base d="M62 68 L62 101 C51 110 43 128 43 154 C43 178 53 203 54 231 C56 246 60 261 67 272 C77 271 89 264 94 252 C86 224 85 199 91 176 C98 148 94 122 80 104 L73 69 C70 70 66 70 62 68 Z" />
+          <Plate region="traps" d="M62 70 C69 83 76 95 84 106 C75 105 66 100 59 90 C59 82 60 75 62 70 Z" />
+          <Plate region="delSideR" d="M47 111 C34 118 31 137 39 152 C49 150 58 139 61 126 C62 116 56 110 47 111 Z" />
+          <Plate region="chestR" d="M61 111 C75 117 82 130 82 146 C73 149 65 141 60 128 C58 120 58 114 61 111 Z" />
+          <Plate region="abs" d="M71 146 C77 168 77 205 70 230 C63 226 61 210 61 190 C61 171 65 154 71 146 Z" />
+          <Plate region="obliqueR" d="M52 150 C58 170 59 205 54 231 C46 209 45 172 52 150 Z" />
+          <Plate region="latR" d="M48 151 C61 170 64 199 58 231 C50 223 43 199 43 174 C43 164 45 156 48 151 Z" />
+          <Plate region="tricepR" d="M39 152 C28 168 27 200 37 225 C44 227 51 221 53 211 C48 190 48 169 52 152 C47 153 43 153 39 152 Z" />
+          <Plate region="foreBR" d="M37 225 C35 245 47 270 60 285 C67 282 68 272 62 263 C55 252 52 238 53 223 C48 227 42 228 37 225 Z" />
+          <Base d="M60 285 C54 291 55 300 63 304 C69 304 75 300 75 292 C71 287 66 284 60 285 Z" />
+          <Base d="M67 272 C55 298 55 347 69 385 C75 396 87 396 92 383 C91 357 90 328 84 307 C95 298 100 279 94 252 C89 264 77 271 67 272 Z" />
+          <Plate region="gluteR" d="M79 259 C94 259 104 270 100 285 C97 300 86 309 71 304 C65 289 68 268 79 259 Z" />
+          <Plate region="quadR" d="M66 272 C55 298 56 333 69 366 C75 369 82 365 84 354 C82 330 79 311 72 298 C67 288 65 280 66 272 Z" />
+          <Plate region="hamR" d="M72 304 C83 313 89 341 88 373 C84 386 76 391 69 385 C61 358 60 325 65 306 C67 304 69 303 72 304 Z" />
+          <Plate region="calfBR" d="M69 385 C63 405 64 433 73 452 C81 458 91 454 95 441 C94 418 93 400 92 383 C87 396 75 396 69 385 Z" />
+          <Base d="M73 452 C62 457 58 464 67 467 L95 467 C96 458 84 456 73 452 Z" />
+          <Line d="M72 153 C77 167 77 185 72 200 M55 158 C59 180 59 205 55 229 M74 306 C82 327 85 355 83 378" width={1.8} alpha={0.55} />
+        </g>
+
+        {/* Back */}
+        <g transform="translate(340 10)">
+          <Base d="M81 16 C70 19 66 29 68 43 C64 43 62 47 64 58 C65 65 68 69 72 68 C76 81 83 88 91 86 C94 78 102 78 105 86 C113 88 120 81 124 68 C128 69 131 65 132 58 C134 47 132 43 128 43 C130 29 126 19 115 16 C110 10 87 10 81 16 Z" />
+          <Base d="M76 68 L76 103 C65 110 53 115 43 126 L153 126 C143 115 131 110 120 103 L120 68 C113 76 107 82 105 86 C101 82 95 82 91 86 C89 82 83 76 76 68 Z" />
+          <Line d="M78 103 L98 111 L118 103 M98 111 L98 257" alpha={0.5} />
+          <Base d="M57 126 C46 147 51 182 65 209 C62 229 66 248 78 260 L118 260 C130 248 134 229 131 209 C145 182 150 147 139 126 C128 119 115 116 98 119 C81 116 68 119 57 126 Z" />
+          <Plate id="traps" d="M43 126 C62 119 81 116 98 119 C115 116 134 119 153 126 C144 135 128 139 116 137 C107 135 89 135 80 137 C68 139 52 135 43 126 Z" />
+          <Plate id="delRearL" d="M43 126 C28 129 22 142 21 164 C30 158 42 154 54 155 C62 147 69 135 76 124 C65 120 53 121 43 126 Z" />
+          <Plate id="delRearR" d="M153 126 C168 129 174 142 175 164 C166 158 154 154 142 155 C134 147 127 135 120 124 C131 120 143 121 153 126 Z" />
+          <Plate id="delSideL" d="M22 164 C16 178 13 194 15 211 C19 215 25 215 30 210 C37 191 45 174 54 155 C42 154 30 158 22 164 Z" />
+          <Plate id="delSideR" d="M174 164 C180 178 183 194 181 211 C177 215 171 215 166 210 C159 191 151 174 142 155 C154 154 166 158 174 164 Z" />
+          <Plate id="upperBack" d="M80 137 C89 135 107 135 116 137 C110 154 104 171 98 188 C92 171 86 154 80 137 Z" />
+          <Plate id="latL" d="M76 124 C91 148 99 180 94 215 C92 229 86 237 78 240 C67 219 59 196 53 172 C53 153 62 135 76 124 Z" />
+          <Plate id="latR" d="M120 124 C105 148 97 180 102 215 C104 229 110 237 118 240 C129 219 137 196 143 172 C143 153 134 135 120 124 Z" />
+          <Plate id="midBack" d="M94 215 C93 184 95 158 98 137 C101 158 103 184 102 215 C101 231 100 246 98 257 C96 246 95 231 94 215 Z" />
+          <Plate id="lowerBack" d="M78 240 C86 237 94 244 98 257 C102 244 110 237 118 240 C116 251 109 260 98 269 C87 260 80 251 78 240 Z" />
+
+          <Base d="M22 211 C12 229 3 258 -17 282 C-11 290 -1 293 4 292 C14 274 25 254 37 243 C46 229 53 210 51 192 C42 209 31 218 22 211 Z" />
+          <Base d="M174 211 C184 229 193 258 213 282 C207 290 197 293 192 292 C182 274 171 254 159 243 C150 229 143 210 145 192 C154 209 165 218 174 211 Z" />
+          <Plate id="tricepL" d="M15 211 C4 224 -6 256 -17 282 C-11 290 -1 293 4 292 C14 274 25 254 37 243 C46 229 53 210 51 192 C42 209 31 218 15 211 Z" />
+          <Plate id="tricepR" d="M181 211 C192 224 202 256 213 282 C207 290 197 293 192 292 C182 274 171 254 159 243 C150 229 143 210 145 192 C154 209 165 218 181 211 Z" />
+          <Plate id="foreBL" d="M-17 282 C-13 264 -6 239 3 217 C12 220 22 230 26 241 C17 258 10 276 4 292 C-3 293 -11 290 -17 282 Z" />
+          <Plate id="foreBR" d="M213 282 C209 264 202 239 193 217 C184 220 174 230 170 241 C179 258 186 276 192 292 C199 293 207 290 213 282 Z" />
+          <Base d="M4 292 C-1 304 -3 319 1 330 C5 332 9 324 11 313 C11 324 13 334 18 334 C23 334 23 323 22 314 C27 321 33 322 35 317 C33 304 25 295 19 290 C13 294 8 294 4 292 Z" />
+          <Base d="M192 292 C197 304 199 319 195 330 C191 332 187 324 185 313 C185 324 183 334 178 334 C173 334 173 323 174 314 C169 321 163 322 161 317 C163 304 171 295 177 290 C183 294 188 294 192 292 Z" />
+
+          <Base d="M78 260 C68 288 65 340 72 386 C76 397 87 396 92 383 C95 351 97 319 98 286 C99 319 101 351 104 383 C109 396 120 397 124 386 C131 340 128 288 118 260 Z" />
+          <Plate id="gluteL" d="M78 260 C89 253 96 260 98 274 L98 304 C84 309 70 303 67 286 C66 274 70 265 78 260 Z" />
+          <Plate id="gluteR" d="M118 260 C107 253 100 260 98 274 L98 304 C112 309 126 303 129 286 C130 274 126 265 118 260 Z" />
+          <Plate id="hamL" d="M67 286 C77 303 88 309 98 304 C97 332 95 360 92 383 C87 396 76 397 72 386 C65 350 64 312 67 286 Z" />
+          <Plate id="hamR" d="M129 286 C119 303 108 309 98 304 C99 332 101 360 104 383 C109 396 120 397 124 386 C131 350 132 312 129 286 Z" />
+          <Line d="M98 274 L98 304 M98 304 C96 333 94 361 92 383 M98 304 C100 333 102 361 104 383" width={2} />
+          <Plate id="calfBL" d="M72 386 C66 405 66 432 75 450 C82 458 91 454 94 440 C97 455 107 458 113 449 C114 427 110 403 104 383 C98 390 94 390 92 383 C87 396 76 397 72 386 Z" />
+          <Plate id="calfBR" d="M124 386 C130 405 130 432 121 450 C114 458 105 454 102 440 C99 455 89 458 83 449 C82 427 86 403 92 383 C98 390 102 390 104 383 C109 396 120 397 124 386 Z" />
+          <Base d="M75 450 C63 456 58 464 68 467 C74 466 80 472 88 471 C95 469 97 461 94 454 C88 453 82 456 75 450 Z" />
+          <Base d="M121 450 C133 456 138 464 128 467 C122 466 116 472 108 471 C101 469 99 461 102 454 C108 453 114 456 121 450 Z" />
+        </g>
+      </svg>
+    );
+  }
+
+  function BodyAnatomyStravaDraft({ highlights, targetMuscles = [], view = "front" }) {
+    const th = useTheme();
+    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+    const bg = dark ? "#20211f" : "#fbfbfa";
+    const outline = dark ? "#7d7f7a" : "#989995";
+    const plate = dark ? "#444541" : "#3f403c";
+    const chipBg = dark ? "rgba(78,78,75,0.94)" : "rgba(255,255,255,0.96)";
+    const chipText = dark ? "#ffffff" : "#111111";
+    const chipBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+    const viewLabel = dark ? "#a6a8a3" : "#747570";
+    const gap = dark ? 7 : 8;
+    const showBack = view === "back";
+    const labels = Array.from(new Map(targetMuscles.map(m => [m.name, m])).values()).slice(0, 5);
+    const hot = (id) => Boolean(highlights && highlights[id]);
+    const hotOpacity = (ids) => {
+      const activeIds = (Array.isArray(ids) ? ids : [ids]).filter(hot);
+      if (!activeIds.length) return 1;
+      return Math.max(0.78, ...activeIds.map(id => highlights[id]?.opacity || 1));
+    };
+    const Shape = ({ ids, d, strokeWidth = gap }) => {
+      const activeIds = Array.isArray(ids) ? ids : [ids];
+      const active = activeIds.some(hot);
+      return (
+        <path
+          d={d}
+          fill={active ? "url(#stravaHeat)" : plate}
+          opacity={active ? hotOpacity(activeIds) : 1}
+          stroke={bg}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+    };
+    const Outline = ({ d, width = 4 }) => (
+      <path d={d} fill="none" stroke={outline} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+    );
+    const PlateLine = ({ d, width = 4 }) => (
+      <path d={d} fill="none" stroke={bg} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
+    );
+
+    const FrontFigure = () => (
+      <g>
+        <Outline d="M180 23 C151 23 139 49 144 86 C147 117 160 137 180 139 C200 137 213 117 216 86 C221 49 209 23 180 23 Z" />
+        <Outline d="M158 131 C160 154 158 166 146 175 C128 184 104 188 91 205 C77 224 75 259 71 291 C67 323 58 360 51 389 C43 423 62 445 67 470 C75 511 82 561 90 606 C96 644 98 680 92 708 C82 714 75 723 80 731 C92 736 103 740 115 737 C125 733 128 723 122 711 C124 681 128 645 125 609 C122 563 127 527 141 484 C151 526 157 568 161 613 C166 662 166 690 163 713 C154 722 158 733 170 737 C177 741 187 741 194 737 C206 733 210 722 201 713 C198 690 198 662 203 613 C207 568 213 526 223 484 C237 527 242 563 239 609 C236 645 240 681 242 711 C236 723 239 733 249 737 C261 740 272 736 284 731 C289 723 282 714 268 708 C262 680 264 644 270 606 C278 561 285 511 293 470 C298 445 317 423 309 389 C302 360 293 323 289 291 C285 259 283 224 269 205 C256 188 232 184 214 175 C202 166 200 154 202 131" />
+        <Outline d="M146 175 C154 187 168 193 180 193 C192 193 206 187 214 175" width={3} />
+
+        <Shape ids={["traps"]} d="M139 184 C151 174 169 172 180 179 C191 172 209 174 221 184 C210 194 195 197 184 195 L176 195 C165 197 150 194 139 184 Z" />
+        <Shape ids={["delFrontL", "delSideL"]} d="M102 205 C117 190 144 183 160 192 C151 211 133 224 108 228 C99 222 97 213 102 205 Z" />
+        <Shape ids={["delFrontR", "delSideR"]} d="M258 205 C243 190 216 183 200 192 C209 211 227 224 252 228 C261 222 263 213 258 205 Z" />
+        <Shape ids={["chestL", "chestUpL", "chestLoL"]} d="M132 211 C146 199 168 199 177 214 C180 232 178 258 174 276 C154 284 131 276 124 260 C121 236 122 220 132 211 Z" />
+        <Shape ids={["chestR", "chestUpR", "chestLoR"]} d="M228 211 C214 199 192 199 183 214 C180 232 182 258 186 276 C206 284 229 276 236 260 C239 236 238 220 228 211 Z" />
+        <Shape ids={["abs"]} d="M151 281 C160 276 171 278 180 287 C189 278 200 276 209 281 C214 329 205 382 180 407 C155 382 146 329 151 281 Z" />
+        <PlateLine d="M180 287 L180 407 M151 306 C163 302 173 304 180 312 C187 304 197 302 209 306 M150 332 C163 328 173 330 180 338 C187 330 197 328 210 332 M154 360 C166 356 174 358 180 366 C186 358 194 356 206 360" width={5} />
+        <Shape ids={["obliqueL"]} d="M131 286 C119 313 121 357 139 385 C150 374 153 347 150 322 C148 305 141 293 131 286 Z" />
+        <Shape ids={["obliqueR"]} d="M229 286 C241 313 239 357 221 385 C210 374 207 347 210 322 C212 305 219 293 229 286 Z" />
+        <Shape ids={["bicepL"]} d="M85 245 C94 226 111 220 121 233 C124 257 115 295 100 315 C88 310 82 292 81 273 C80 263 81 253 85 245 Z" />
+        <Shape ids={["bicepR"]} d="M275 245 C266 226 249 220 239 233 C236 257 245 295 260 315 C272 310 278 292 279 273 C280 263 279 253 275 245 Z" />
+        <Shape ids={["foreFL"]} d="M63 337 C72 316 86 301 100 311 C98 339 86 375 72 397 C60 390 56 361 63 337 Z" />
+        <Shape ids={["foreFR"]} d="M297 337 C288 316 274 301 260 311 C262 339 274 375 288 397 C300 390 304 361 297 337 Z" />
+        <Shape ids={["quadL"]} d="M127 415 C143 428 153 472 151 526 C150 562 141 598 128 607 C112 587 106 517 110 464 C112 438 118 422 127 415 Z" />
+        <Shape ids={["quadR"]} d="M233 415 C217 428 207 472 209 526 C210 562 219 598 232 607 C248 587 254 517 250 464 C248 438 242 422 233 415 Z" />
+        <PlateLine d="M180 407 C173 449 171 507 174 565 M180 407 C187 449 189 507 186 565" width={5} />
+        <Shape ids={["calfFL", "calfBL"]} d="M94 609 C86 641 88 681 99 707 C110 717 124 710 128 690 C124 656 124 632 125 609 C115 619 103 619 94 609 Z" />
+        <Shape ids={["calfFR", "calfBR"]} d="M266 609 C274 641 272 681 261 707 C250 717 236 710 232 690 C236 656 236 632 235 609 C245 619 257 619 266 609 Z" />
+      </g>
+    );
+
+    const BackFigure = () => (
+      <g>
+        <Outline d="M180 23 C151 23 139 49 144 86 C147 116 160 135 174 135 C178 128 182 128 186 135 C200 135 213 116 216 86 C221 49 209 23 180 23 Z" />
+        <Outline d="M158 131 C160 154 158 166 146 175 C128 184 104 188 91 205 C77 224 75 259 71 291 C67 323 58 360 51 389 C43 423 62 445 67 470 C75 511 82 561 90 606 C96 644 98 680 92 708 C82 714 75 723 80 731 C92 736 103 740 115 737 C125 733 128 723 122 711 C124 681 128 645 125 609 C122 563 127 527 141 484 C151 526 157 568 161 613 C166 662 166 690 163 713 C154 722 158 733 170 737 C177 741 187 741 194 737 C206 733 210 722 201 713 C198 690 198 662 203 613 C207 568 213 526 223 484 C237 527 242 563 239 609 C236 645 240 681 242 711 C236 723 239 733 249 737 C261 740 272 736 284 731 C289 723 282 714 268 708 C262 680 264 644 270 606 C278 561 285 511 293 470 C298 445 317 423 309 389 C302 360 293 323 289 291 C285 259 283 224 269 205 C256 188 232 184 214 175 C202 166 200 154 202 131" />
+        <Outline d="M146 175 C158 184 170 186 180 185 C190 186 202 184 214 175" width={3} />
+
+        <Shape ids={["traps", "upperBack"]} d="M111 192 C130 180 158 174 180 177 C202 174 230 180 249 192 C237 210 212 214 196 209 C187 206 173 206 164 209 C148 214 123 210 111 192 Z" />
+        <Shape ids={["delRearL", "delSideL"]} d="M102 205 C117 190 144 183 160 192 C151 211 133 224 108 228 C99 222 97 213 102 205 Z" />
+        <Shape ids={["delRearR", "delSideR"]} d="M258 205 C243 190 216 183 200 192 C209 211 227 224 252 228 C261 222 263 213 258 205 Z" />
+        <Shape ids={["latL"]} d="M131 211 C147 225 154 262 151 314 C148 345 139 365 127 370 C113 328 103 269 110 232 C114 220 122 213 131 211 Z" />
+        <Shape ids={["latR"]} d="M229 211 C213 225 206 262 209 314 C212 345 221 365 233 370 C247 328 257 269 250 232 C246 220 238 213 229 211 Z" />
+        <Shape ids={["midBack"]} d="M160 217 C170 211 190 211 200 217 C199 270 194 334 180 357 C166 334 161 270 160 217 Z" />
+        <Shape ids={["lowerBack"]} d="M145 356 C158 349 172 356 180 374 C188 356 202 349 215 356 C211 378 197 393 180 405 C163 393 149 378 145 356 Z" />
+        <Shape ids={["tricepL"]} d="M85 245 C94 226 111 220 121 233 C124 257 115 295 100 315 C88 310 82 292 81 273 C80 263 81 253 85 245 Z" />
+        <Shape ids={["tricepR"]} d="M275 245 C266 226 249 220 239 233 C236 257 245 295 260 315 C272 310 278 292 279 273 C280 263 279 253 275 245 Z" />
+        <Shape ids={["foreBL"]} d="M63 337 C72 316 86 301 100 311 C98 339 86 375 72 397 C60 390 56 361 63 337 Z" />
+        <Shape ids={["foreBR"]} d="M297 337 C288 316 274 301 260 311 C262 339 274 375 288 397 C300 390 304 361 297 337 Z" />
+        <Shape ids={["gluteL"]} d="M124 383 C149 372 175 388 176 420 C174 451 150 466 124 452 C107 435 106 400 124 383 Z" />
+        <Shape ids={["gluteR"]} d="M236 383 C211 372 185 388 184 420 C186 451 210 466 236 452 C253 435 254 400 236 383 Z" />
+        <Shape ids={["hamL"]} d="M119 469 C135 484 144 526 142 579 C140 611 131 640 118 648 C101 627 96 557 101 512 C104 491 110 476 119 469 Z" />
+        <Shape ids={["hamR"]} d="M241 469 C225 484 216 526 218 579 C220 611 229 640 242 648 C259 627 264 557 259 512 C256 491 250 476 241 469 Z" />
+        <PlateLine d="M180 374 L180 452 M180 452 C172 497 168 556 171 614 M180 452 C188 497 192 556 189 614" width={5} />
+        <Shape ids={["calfBL", "calfFL"]} d="M94 609 C86 641 88 681 99 707 C110 717 124 710 128 690 C124 656 124 632 125 609 C115 619 103 619 94 609 Z" />
+        <Shape ids={["calfBR", "calfFR"]} d="M266 609 C274 641 272 681 261 707 C250 717 236 710 232 690 C236 656 236 632 235 609 C245 619 257 619 266 609 Z" />
+      </g>
+    );
+
+    return (
+      <div style={{
+        position:"relative",
+        width:"100%",
+        maxWidth:360,
+        margin:"0 auto",
+        borderRadius:18,
+        overflow:"hidden",
+        background:bg,
+      }}>
+        <svg
+          viewBox="0 0 360 760"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ display:"block", width:"100%", height:"auto", aspectRatio:"360 / 760" }}
+        >
+          <defs>
+            <radialGradient id="stravaHeat" cx="47%" cy="54%" r="74%">
+              <stop offset="0%" stopColor="#ffc045" />
+              <stop offset="42%" stopColor="#ff7a23" />
+              <stop offset="100%" stopColor="#f4511e" />
+            </radialGradient>
+          </defs>
+          <rect width="360" height="760" fill={bg} />
+          {showBack ? <BackFigure /> : <FrontFigure />}
+        </svg>
+        {labels.length > 0 && (
+          <div style={{
+            position:"absolute",
+            right:14,
+            bottom:54,
+            display:"flex",
+            flexDirection:"column",
+            alignItems:"flex-end",
+            gap:8,
+            pointerEvents:"none",
+          }}>
+            {labels.map((m) => (
+              <span key={`${m.primary ? "p" : "s"}-${m.name}`} style={{
+                maxWidth:150,
+                padding:"6px 10px",
+                borderRadius:6,
+                border:`1px solid ${chipBorder}`,
+                background:chipBg,
+                color:chipText,
+                boxShadow: dark ? "none" : "0 2px 8px rgba(0,0,0,0.08)",
+                fontSize:12,
+                lineHeight:1,
+                fontWeight:800,
+                whiteSpace:"nowrap",
+              }}>
+                {m.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function BodyAnatomyHandDrawnDraft({ highlights, targetMuscles = [] }) {
+    const th = useTheme();
+    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+    const bg = dark ? "#20211f" : "#fbfbfa";
+    const outline = dark ? "#7d7f7a" : "#989995";
+    const plate = dark ? "#444541" : "#3f403c";
+    const chipBg = dark ? "rgba(78,78,75,0.94)" : "rgba(255,255,255,0.96)";
+    const chipText = dark ? "#ffffff" : "#111111";
+    const chipBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+    const viewLabel = dark ? "#a6a8a3" : "#747570";
+    const gap = dark ? 7 : 8;
+    const labels = Array.from(new Map(targetMuscles.map(m => [m.name, m])).values()).slice(0, 5);
+    const hot = (id) => Boolean(highlights && highlights[id]);
+    const hotOpacity = (ids) => {
+      const activeIds = (Array.isArray(ids) ? ids : [ids]).filter(hot);
+      if (!activeIds.length) return 1;
+      return Math.max(0.78, ...activeIds.map(id => highlights[id]?.opacity || 1));
+    };
+    const Shape = ({ ids, d, strokeWidth = gap }) => {
+      const activeIds = Array.isArray(ids) ? ids : [ids];
+      const active = activeIds.some(hot);
+      return (
+        <path
+          d={d}
+          fill={active ? "url(#stravaHeatRefined)" : plate}
+          opacity={active ? hotOpacity(activeIds) : 1}
+          stroke={bg}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+    };
+    const Outline = ({ d, width = 4 }) => (
+      <path d={d} fill="none" stroke={outline} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+    );
+    const DividerLine = ({ d, width = 3, gutter = 8 }) => (
+      <>
+        <path d={d} fill="none" stroke={bg} strokeWidth={gutter} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={d} fill="none" stroke={outline} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    );
+    const PlateLine = ({ d, width = 4 }) => (
+      <path d={d} fill="none" stroke={bg} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" opacity={0.94} />
+    );
+
+    const frontShapes = [
+      { ids:["traps"], d:"M138 185 C149 177 169 175 176 181 L175 199 C157 199 143 196 130 190 C132 188 135 186 138 185 Z" },
+      { ids:["traps"], d:"M222 185 C211 177 191 175 184 181 L185 199 C203 199 217 196 230 190 C228 188 225 186 222 185 Z" },
+      { ids:["delFrontL", "delSideL"], d:"M101 204 C118 189 146 183 161 193 C151 215 132 228 108 232 C98 224 96 211 101 204 Z" },
+      { ids:["delFrontR", "delSideR"], d:"M259 204 C242 189 214 183 199 193 C209 215 228 228 252 232 C262 224 264 211 259 204 Z" },
+      { ids:["chestL", "chestUpL", "chestLoL"], d:"M132 214 C147 201 169 201 177 216 C180 234 178 259 174 278 C154 287 130 278 123 261 C120 238 122 222 132 214 Z" },
+      { ids:["chestR", "chestUpR", "chestLoR"], d:"M228 214 C213 201 191 201 183 216 C180 234 182 259 186 278 C206 287 230 278 237 261 C240 238 238 222 228 214 Z" },
+      { ids:["abs"], d:"M155 285 C164 281 173 282 180 291 C187 282 196 281 205 285 C208 303 205 319 198 328 C189 331 184 327 180 321 C176 327 171 331 162 328 C155 319 152 303 155 285 Z" },
+      { ids:["abs"], d:"M154 333 C163 329 173 330 180 338 C187 330 197 329 206 333 C209 352 205 369 198 379 C188 382 184 377 180 370 C176 377 172 382 162 379 C155 369 151 352 154 333 Z" },
+      { ids:["abs"], d:"M158 383 C167 379 174 381 180 390 C186 381 193 379 202 383 C202 405 193 423 180 431 C167 423 158 405 158 383 Z" },
+      { ids:["obliqueL"], d:"M131 286 C120 312 121 356 139 386 C150 374 153 348 150 322 C148 305 141 293 131 286 Z" },
+      { ids:["obliqueR"], d:"M229 286 C240 312 239 356 221 386 C210 374 207 348 210 322 C212 305 219 293 229 286 Z" },
+      { ids:["frontSideTorsoL"], d:"M122 279 C132 302 136 346 131 385 C118 371 112 339 113 310 C114 296 117 286 122 279 Z" },
+      { ids:["frontSideTorsoR"], d:"M238 279 C228 302 224 346 229 385 C242 371 248 339 247 310 C246 296 243 286 238 279 Z" },
+      { ids:["bicepL"], d:"M84 244 C93 225 111 220 121 233 C123 259 114 294 99 316 C87 311 81 292 80 273 C79 262 81 252 84 244 Z" },
+      { ids:["bicepR"], d:"M276 244 C267 225 249 220 239 233 C237 259 246 294 261 316 C273 311 279 292 280 273 C281 262 279 252 276 244 Z" },
+      { ids:["foreFL"], d:"M62 337 C72 316 86 302 100 312 C97 342 86 375 72 398 C60 390 56 362 62 337 Z" },
+      { ids:["foreFR"], d:"M298 337 C288 316 274 302 260 312 C263 342 274 375 288 398 C300 390 304 362 298 337 Z" },
+      { ids:["quadL"], d:"M126 417 C141 427 151 469 150 522 C149 561 140 598 127 608 C112 589 105 519 109 465 C111 439 117 423 126 417 Z" },
+      { ids:["quadL"], d:"M154 433 C166 462 170 515 165 564 C163 588 158 606 151 614 C145 593 143 545 146 501 C148 469 150 447 154 433 Z" },
+      { ids:["quadR"], d:"M234 417 C219 427 209 469 210 522 C211 561 220 598 233 608 C248 589 255 519 251 465 C249 439 243 423 234 417 Z" },
+      { ids:["quadR"], d:"M206 433 C194 462 190 515 195 564 C197 588 202 606 209 614 C215 593 217 545 214 501 C212 469 210 447 206 433 Z" },
+      { ids:["frontOuterThighL"], d:"M101 464 C112 480 119 523 118 566 C117 591 112 610 105 616 C96 590 94 526 97 489 C98 477 99 469 101 464 Z" },
+      { ids:["frontOuterThighR"], d:"M259 464 C248 480 241 523 242 566 C243 591 248 610 255 616 C264 590 266 526 263 489 C262 477 261 469 259 464 Z" },
+      { ids:["calfFL", "calfBL"], d:"M94 611 C87 642 89 679 100 705 C110 715 123 708 127 689 C124 657 124 633 125 611 C115 620 103 620 94 611 Z" },
+      { ids:["calfFR", "calfBR"], d:"M266 611 C273 642 271 679 260 705 C250 715 237 708 233 689 C236 657 236 633 235 611 C245 620 257 620 266 611 Z" },
+    ];
+
+    const backShapes = [
+      { ids:["traps", "upperBack"], d:"M111 191 C130 180 158 175 180 178 C202 175 230 180 249 191 C237 210 212 215 196 210 C187 207 173 207 164 210 C148 215 123 210 111 191 Z" },
+      { ids:["delRearL", "delSideL"], d:"M101 204 C118 189 146 183 161 193 C151 215 132 228 108 232 C98 224 96 211 101 204 Z" },
+      { ids:["delRearR", "delSideR"], d:"M259 204 C242 189 214 183 199 193 C209 215 228 228 252 232 C262 224 264 211 259 204 Z" },
+      { ids:["latL"], d:"M131 212 C147 226 154 262 151 314 C148 346 139 366 127 371 C113 329 103 270 110 233 C114 221 122 214 131 212 Z" },
+      { ids:["latR"], d:"M229 212 C213 226 206 262 209 314 C212 346 221 366 233 371 C247 329 257 270 250 233 C246 221 238 214 229 212 Z" },
+      { ids:["midBack"], d:"M160 217 C170 211 190 211 200 217 C199 270 194 334 180 358 C166 334 161 270 160 217 Z" },
+      { ids:["lowerBack"], d:"M145 356 C158 350 172 357 180 375 C188 357 202 350 215 356 C211 379 197 394 180 406 C163 394 149 379 145 356 Z" },
+      { ids:["backSideRibL"], d:"M122 232 C135 245 142 279 139 318 C130 305 122 272 119 247 C119 240 120 235 122 232 Z" },
+      { ids:["backSideRibR"], d:"M238 232 C225 245 218 279 221 318 C230 305 238 272 241 247 C241 240 240 235 238 232 Z" },
+      { ids:["tricepL"], d:"M84 244 C93 225 111 220 121 233 C123 259 114 294 99 316 C87 311 81 292 80 273 C79 262 81 252 84 244 Z" },
+      { ids:["tricepR"], d:"M276 244 C267 225 249 220 239 233 C237 259 246 294 261 316 C273 311 279 292 280 273 C281 262 279 252 276 244 Z" },
+      { ids:["foreBL"], d:"M62 337 C72 316 86 302 100 312 C97 342 86 375 72 398 C60 390 56 362 62 337 Z" },
+      { ids:["foreBR"], d:"M298 337 C288 316 274 302 260 312 C263 342 274 375 288 398 C300 390 304 362 298 337 Z" },
+      { ids:["gluteL"], d:"M124 383 C149 373 175 388 176 420 C174 451 150 466 124 452 C107 435 106 400 124 383 Z" },
+      { ids:["gluteR"], d:"M236 383 C211 373 185 388 184 420 C186 451 210 466 236 452 C253 435 254 400 236 383 Z" },
+      { ids:["backOuterThighL"], d:"M101 464 C112 480 119 523 118 566 C117 591 112 610 105 616 C96 590 94 526 97 489 C98 477 99 469 101 464 Z" },
+      { ids:["backOuterThighR"], d:"M259 464 C248 480 241 523 242 566 C243 591 248 610 255 616 C264 590 266 526 263 489 C262 477 261 469 259 464 Z" },
+      { ids:["hamL"], d:"M119 469 C135 484 144 526 142 579 C140 611 131 640 118 648 C101 627 96 557 101 512 C104 491 110 476 119 469 Z" },
+      { ids:["hamR"], d:"M241 469 C225 484 216 526 218 579 C220 611 229 640 242 648 C259 627 264 557 259 512 C256 491 250 476 241 469 Z" },
+      { ids:["calfBL", "calfFL"], d:"M94 611 C87 642 89 679 100 705 C110 715 123 708 127 689 C124 657 124 633 125 611 C115 620 103 620 94 611 Z" },
+      { ids:["calfBR", "calfFR"], d:"M266 611 C273 642 271 679 260 705 C250 715 237 708 233 689 C236 657 236 633 235 611 C245 620 257 620 266 611 Z" },
+    ];
+
+    const FigureFrame = ({ children, back = false, label }) => (
+      <g>
+        {children}
+        <Outline d={back
+          ? "M180 24 C153 24 142 48 146 86 C149 116 162 135 174 135 C178 128 182 128 186 135 C198 135 211 116 214 86 C218 48 207 24 180 24 Z"
+          : "M180 24 C153 24 142 48 146 86 C149 117 162 136 180 138 C198 136 211 117 214 86 C218 48 207 24 180 24 Z"} />
+        <Outline d="M158 131 C160 153 157 164 146 174 C132 181 117 188 105 203 C88 207 78 226 75 253 C72 288 61 317 53 349 C43 388 40 417 47 432 C50 439 59 450 64 463 C69 476 82 475 81 458 C86 471 96 473 99 463 C101 453 97 441 91 430 C97 434 105 432 106 424 C101 413 91 406 82 399 C89 363 98 329 111 302 C113 279 112 248 108 220" />
+        <Outline d="M202 131 C200 153 203 164 214 174 C228 181 243 188 255 203 C272 207 282 226 285 253 C288 288 299 317 307 349 C317 388 320 417 313 432 C310 439 301 450 296 463 C291 476 278 475 279 458 C274 471 264 473 261 463 C259 453 263 441 269 430 C263 434 255 432 254 424 C259 413 269 406 278 399 C271 363 262 329 249 302 C247 279 248 248 252 220" />
+        <Outline d="M108 220 C121 192 142 184 158 176 M252 220 C239 192 218 184 202 176" />
+        <Outline d="M146 174 C130 194 121 238 121 286 C121 337 130 382 146 414 C156 434 171 443 180 443 C189 443 204 434 214 414 C230 382 239 337 239 286 C239 238 230 194 214 174" />
+        <Outline d="M146 414 C134 448 129 495 132 544 C135 591 146 642 143 682 C142 699 136 710 125 717 C114 724 117 731 131 735 C145 739 158 734 164 723 C160 701 159 669 158 628 C156 564 164 501 180 443" />
+        <Outline d="M214 414 C226 448 231 495 228 544 C225 591 214 642 217 682 C218 699 224 710 235 717 C246 724 243 731 229 735 C215 739 202 734 196 723 C200 701 201 669 202 628 C204 564 196 501 180 443" />
+        <DividerLine d="M113 217 C121 249 119 280 108 306 C95 336 87 366 82 399" gutter={7} />
+        <DividerLine d="M247 217 C239 249 241 280 252 306 C265 336 273 366 278 399" gutter={7} />
+        <DividerLine d="M146 174 C158 187 170 192 180 191 C190 192 202 187 214 174" gutter={7} />
+        <text
+          x="180"
+          y="776"
+          textAnchor="middle"
+          fill={viewLabel}
+          fontFamily="Outfit, sans-serif"
+          fontSize="17"
+          fontWeight="800"
+          letterSpacing="1.5"
+        >
+          {label}
+        </text>
+      </g>
+    );
+
+    const FrontFigure = () => (
+      <FigureFrame label="FRONT">
+        {frontShapes.map((s, i) => <Shape key={`front-${i}`} {...s} />)}
+        <PlateLine d="M180 291 L180 431 M155 309 C165 305 173 307 180 314 C187 307 195 305 205 309 M154 342 C164 338 173 340 180 347 C187 340 196 338 206 342 M158 391 C167 388 174 389 180 397 C186 389 193 388 202 391" width={5} />
+      </FigureFrame>
+    );
+
+    const BackFigure = () => (
+      <FigureFrame back label="BACK">
+        {backShapes.map((s, i) => <Shape key={`back-${i}`} {...s} />)}
+        <PlateLine d="M180 178 L180 406 M145 356 C158 365 171 370 180 375 C189 370 202 365 215 356 M180 406 L180 452" width={5} />
+      </FigureFrame>
+    );
+
+    return (
+      <div style={{
+        position:"relative",
+        width:"100%",
+        maxWidth:560,
+        margin:"0 auto",
+        borderRadius:18,
+        overflow:"hidden",
+        background:bg,
+      }}>
+        <svg
+          viewBox="0 0 640 800"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ display:"block", width:"100%", height:"auto", aspectRatio:"640 / 800" }}
+        >
+          <defs>
+            <radialGradient id="stravaHeatRefined" cx="47%" cy="54%" r="74%">
+              <stop offset="0%" stopColor="#ffc045" />
+              <stop offset="42%" stopColor="#ff7a23" />
+              <stop offset="100%" stopColor="#f4511e" />
+            </radialGradient>
+          </defs>
+          <rect width="640" height="800" fill={bg} />
+          <g transform="translate(-25 0)">
+            <FrontFigure />
+          </g>
+          <g transform="translate(305 0)">
+            <BackFigure />
+          </g>
+        </svg>
+        {labels.length > 0 && (
+          <div style={{
+            position:"absolute",
+            right:14,
+            bottom:54,
+            display:"flex",
+            flexDirection:"column",
+            alignItems:"flex-end",
+            gap:8,
+            pointerEvents:"none",
+          }}>
+            {labels.map((m) => (
+              <span key={`${m.primary ? "p" : "s"}-${m.name}`} style={{
+                maxWidth:150,
+                padding:"6px 10px",
+                borderRadius:6,
+                border:`1px solid ${chipBorder}`,
+                background:chipBg,
+                color:chipText,
+                boxShadow: dark ? "none" : "0 2px 8px rgba(0,0,0,0.08)",
+                fontSize:12,
+                lineHeight:1,
+                fontWeight:800,
+                whiteSpace:"nowrap",
+              }}>
+                {m.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function BodyAnatomyScratchRejected({ highlights }) {
+    const th = useTheme();
+    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+    const bg = dark ? "#20211f" : "#fbfbfa";
+    const outline = dark ? "#7d7f7a" : "#989995";
+    const plate = dark ? "#444541" : "#3f403c";
+    const label = dark ? "#a6a8a3" : "#747570";
+    const gap = dark ? 8 : 9;
+    const hot = (id) => Boolean(highlights && highlights[id]);
+    const hotOpacity = (ids) => {
+      const activeIds = (Array.isArray(ids) ? ids : [ids]).filter(hot);
+      if (!activeIds.length) return 1;
+      return Math.max(0.78, ...activeIds.map(id => highlights[id]?.opacity || 1));
+    };
+    const Shape = ({ ids, d }) => {
+      const activeIds = Array.isArray(ids) ? ids : [ids];
+      const active = activeIds.some(hot);
+      return (
+        <path
+          d={d}
+          fill={active ? "url(#stravaHeatFinal)" : plate}
+          opacity={active ? hotOpacity(activeIds) : 1}
+          stroke={bg}
+          strokeWidth={gap}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+    };
+    const Outline = ({ d, width = 4 }) => (
+      <path d={d} fill="none" stroke={outline} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+    );
+    const GapLine = ({ d, width = 5 }) => (
+      <path d={d} fill="none" stroke={bg} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+    );
+
+    const FrontOutline = () => (
+      <g>
+        <Outline d="M150 22 C124 22 113 48 117 83 C120 118 132 139 150 142 C168 139 180 118 183 83 C187 48 176 22 150 22 Z" />
+        <Outline d="M132 132 C134 156 131 168 118 178 C103 187 80 195 69 213 C57 232 57 260 55 292 C53 328 44 358 37 392 C29 428 45 448 49 468 C54 505 62 550 67 594 C72 638 73 666 68 688 C58 696 54 706 62 713 C72 720 91 719 100 710 C106 702 101 694 96 687 C99 655 100 620 96 584 C92 537 102 491 116 446" />
+        <Outline d="M168 132 C166 156 169 168 182 178 C197 187 220 195 231 213 C243 232 243 260 245 292 C247 328 256 358 263 392 C271 428 255 448 251 468 C246 505 238 550 233 594 C228 638 227 666 232 688 C242 696 246 706 238 713 C228 720 209 719 200 710 C194 702 199 694 204 687 C201 655 200 620 204 584 C208 537 198 491 184 446" />
+        <Outline d="M116 446 C126 477 133 526 133 573 C133 620 126 659 120 685 C113 694 117 706 129 712 C141 718 155 713 158 702 C160 691 155 685 150 679 C150 645 152 610 154 575 C157 525 158 477 150 446" />
+        <Outline d="M184 446 C174 477 167 526 167 573 C167 620 174 659 180 685 C187 694 183 706 171 712 C159 718 145 713 142 702 C140 691 145 685 150 679 C150 645 148 610 146 575 C143 525 142 477 150 446" />
+        <Outline d="M104 216 C111 248 110 281 100 309 C88 341 82 370 77 398 M196 216 C189 248 190 281 200 309 C212 341 218 370 223 398" />
+        <Outline d="M118 178 C130 190 141 195 150 195 C159 195 170 190 182 178" />
+      </g>
+    );
+
+    const BackOutline = () => (
+      <g>
+        <Outline d="M150 22 C124 22 113 48 117 83 C120 115 132 135 144 136 C148 130 152 130 156 136 C168 135 180 115 183 83 C187 48 176 22 150 22 Z" />
+        <Outline d="M132 132 C134 156 131 168 118 178 C103 187 80 195 69 213 C57 232 57 260 55 292 C53 328 44 358 37 392 C29 428 45 448 49 468 C54 505 62 550 67 594 C72 638 73 666 68 688 C58 696 54 706 62 713 C72 720 91 719 100 710 C106 702 101 694 96 687 C99 655 100 620 96 584 C92 537 102 491 116 446" />
+        <Outline d="M168 132 C166 156 169 168 182 178 C197 187 220 195 231 213 C243 232 243 260 245 292 C247 328 256 358 263 392 C271 428 255 448 251 468 C246 505 238 550 233 594 C228 638 227 666 232 688 C242 696 246 706 238 713 C228 720 209 719 200 710 C194 702 199 694 204 687 C201 655 200 620 204 584 C208 537 198 491 184 446" />
+        <Outline d="M116 446 C126 477 133 526 133 573 C133 620 126 659 120 685 C113 694 117 706 129 712 C141 718 155 713 158 702 C160 691 155 685 150 679 C150 645 152 610 154 575 C157 525 158 477 150 446" />
+        <Outline d="M184 446 C174 477 167 526 167 573 C167 620 174 659 180 685 C187 694 183 706 171 712 C159 718 145 713 142 702 C140 691 145 685 150 679 C150 645 148 610 146 575 C143 525 142 477 150 446" />
+        <Outline d="M104 216 C111 248 110 281 100 309 C88 341 82 370 77 398 M196 216 C189 248 190 281 200 309 C212 341 218 370 223 398" />
+        <Outline d="M118 178 C130 187 141 190 150 190 C159 190 170 187 182 178" />
+      </g>
+    );
+
+    const frontShapes = [
+      { ids:["traps"], d:"M120 180 C131 172 144 171 150 177 L149 195 C132 196 118 192 108 185 C111 183 115 181 120 180 Z" },
+      { ids:["traps"], d:"M180 180 C169 172 156 171 150 177 L151 195 C168 196 182 192 192 185 C189 183 185 181 180 180 Z" },
+      { ids:["delFrontL", "delSideL"], d:"M79 199 C92 184 116 181 128 191 C121 212 105 225 83 231 C75 223 73 207 79 199 Z" },
+      { ids:["delFrontR", "delSideR"], d:"M221 199 C208 184 184 181 172 191 C179 212 195 225 217 231 C225 223 227 207 221 199 Z" },
+      { ids:["chestL", "chestUpL", "chestLoL"], d:"M111 210 C123 199 144 199 148 214 C151 237 149 264 145 281 C128 288 107 280 100 263 C97 238 100 219 111 210 Z" },
+      { ids:["chestR", "chestUpR", "chestLoR"], d:"M189 210 C177 199 156 199 152 214 C149 237 151 264 155 281 C172 288 193 280 200 263 C203 238 200 219 189 210 Z" },
+      { ids:["abs"], d:"M124 289 C133 285 142 286 150 294 C158 286 167 285 176 289 C178 309 174 325 167 334 C158 337 153 332 150 325 C147 332 142 337 133 334 C126 325 122 309 124 289 Z" },
+      { ids:["abs"], d:"M125 340 C134 336 143 337 150 345 C157 337 166 336 175 340 C178 360 174 376 166 385 C158 389 153 383 150 376 C147 383 142 389 134 385 C126 376 122 360 125 340 Z" },
+      { ids:["abs"], d:"M130 391 C138 388 145 389 150 397 C155 389 162 388 170 391 C170 414 162 431 150 439 C138 431 130 414 130 391 Z" },
+      { ids:["obliqueL"], d:"M104 290 C94 316 96 357 113 386 C123 374 126 348 123 324 C121 307 114 295 104 290 Z" },
+      { ids:["obliqueR"], d:"M196 290 C206 316 204 357 187 386 C177 374 174 348 177 324 C179 307 186 295 196 290 Z" },
+      { ids:["bicepL"], d:"M64 244 C72 225 87 221 96 234 C98 261 90 296 77 318 C66 313 60 294 59 275 C58 263 60 252 64 244 Z" },
+      { ids:["bicepR"], d:"M236 244 C228 225 213 221 204 234 C202 261 210 296 223 318 C234 313 240 294 241 275 C242 263 240 252 236 244 Z" },
+      { ids:["foreFL"], d:"M45 340 C54 318 66 304 78 313 C76 344 66 377 53 399 C43 390 39 363 45 340 Z" },
+      { ids:["foreFR"], d:"M255 340 C246 318 234 304 222 313 C224 344 234 377 247 399 C257 390 261 363 255 340 Z" },
+      { ids:["frontSideTorsoL"], d:"M96 392 C108 406 113 462 108 526 C105 562 100 592 92 610 C82 581 76 510 81 458 C84 426 89 402 96 392 Z" },
+      { ids:["frontSideTorsoR"], d:"M204 392 C192 406 187 462 192 526 C195 562 200 592 208 610 C218 581 224 510 219 458 C216 426 211 402 204 392 Z" },
+      { ids:["quadL"], d:"M113 426 C129 441 138 489 135 545 C132 585 123 621 111 628 C96 606 91 528 96 475 C99 450 105 433 113 426 Z" },
+      { ids:["quadR"], d:"M187 426 C171 441 162 489 165 545 C168 585 177 621 189 628 C204 606 209 528 204 475 C201 450 195 433 187 426 Z" },
+      { ids:["calfFL", "calfBL"], d:"M78 590 C72 624 75 665 87 692 C97 700 109 693 112 673 C108 640 108 614 110 590 C101 598 88 598 78 590 Z" },
+      { ids:["calfFR", "calfBR"], d:"M222 590 C228 624 225 665 213 692 C203 700 191 693 188 673 C192 640 192 614 190 590 C199 598 212 598 222 590 Z" },
+    ];
+
+    const backShapes = [
+      { ids:["traps", "upperBack"], d:"M81 184 C99 174 128 170 150 173 C172 170 201 174 219 184 C207 203 181 210 163 204 C156 202 144 202 137 204 C119 210 93 203 81 184 Z" },
+      { ids:["delRearL", "delSideL"], d:"M79 199 C92 184 116 181 128 191 C121 212 105 225 83 231 C75 223 73 207 79 199 Z" },
+      { ids:["delRearR", "delSideR"], d:"M221 199 C208 184 184 181 172 191 C179 212 195 225 217 231 C225 223 227 207 221 199 Z" },
+      { ids:["latL"], d:"M111 207 C128 222 135 264 131 316 C128 348 119 370 107 375 C94 329 86 268 94 232 C98 219 104 211 111 207 Z" },
+      { ids:["latR"], d:"M189 207 C172 222 165 264 169 316 C172 348 181 370 193 375 C206 329 214 268 206 232 C202 219 196 211 189 207 Z" },
+      { ids:["midBack"], d:"M130 211 C140 205 160 205 170 211 C170 267 165 333 150 358 C135 333 130 267 130 211 Z" },
+      { ids:["lowerBack"], d:"M118 356 C132 349 143 356 150 374 C157 356 168 349 182 356 C179 379 165 394 150 405 C135 394 121 379 118 356 Z" },
+      { ids:["tricepL"], d:"M64 244 C72 225 87 221 96 234 C98 261 90 296 77 318 C66 313 60 294 59 275 C58 263 60 252 64 244 Z" },
+      { ids:["tricepR"], d:"M236 244 C228 225 213 221 204 234 C202 261 210 296 223 318 C234 313 240 294 241 275 C242 263 240 252 236 244 Z" },
+      { ids:["foreBL"], d:"M45 340 C54 318 66 304 78 313 C76 344 66 377 53 399 C43 390 39 363 45 340 Z" },
+      { ids:["foreBR"], d:"M255 340 C246 318 234 304 222 313 C224 344 234 377 247 399 C257 390 261 363 255 340 Z" },
+      { ids:["gluteL"], d:"M102 392 C124 381 146 394 147 424 C145 454 123 470 101 456 C85 439 85 405 102 392 Z" },
+      { ids:["gluteR"], d:"M198 392 C176 381 154 394 153 424 C155 454 177 470 199 456 C215 439 215 405 198 392 Z" },
+      { ids:["hamL"], d:"M103 475 C120 489 129 532 126 584 C124 616 114 644 102 650 C86 628 82 558 88 513 C91 493 96 481 103 475 Z" },
+      { ids:["hamR"], d:"M197 475 C180 489 171 532 174 584 C176 616 186 644 198 650 C214 628 218 558 212 513 C209 493 204 481 197 475 Z" },
+      { ids:["calfBL", "calfFL"], d:"M78 590 C72 624 75 665 87 692 C97 700 109 693 112 673 C108 640 108 614 110 590 C101 598 88 598 78 590 Z" },
+      { ids:["calfBR", "calfFR"], d:"M222 590 C228 624 225 665 213 692 C203 700 191 693 188 673 C192 640 192 614 190 590 C199 598 212 598 222 590 Z" },
+    ];
+
+    const FigureLabel = ({ children }) => (
+      <text x="150" y="744" textAnchor="middle" fill={label} fontFamily="Outfit, sans-serif" fontSize="16" fontWeight="800" letterSpacing="1.5">
+        {children}
+      </text>
+    );
+
+    return (
+      <div style={{
+        position:"relative",
+        width:"100%",
+        maxWidth:540,
+        margin:"0 auto",
+        borderRadius:18,
+        overflow:"hidden",
+        background:bg,
+      }}>
+        <svg
+          viewBox="0 0 600 760"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ display:"block", width:"100%", height:"auto", aspectRatio:"600 / 760" }}
+        >
+          <defs>
+            <radialGradient id="stravaHeatFinal" cx="48%" cy="55%" r="76%">
+              <stop offset="0%" stopColor="#ffc045" />
+              <stop offset="42%" stopColor="#ff7a23" />
+              <stop offset="100%" stopColor="#f4511e" />
+            </radialGradient>
+          </defs>
+          <rect width="600" height="760" fill={bg} />
+          <g transform="translate(0 0)">
+            {frontShapes.map((s, i) => <Shape key={`front-final-${i}`} {...s} />)}
+            <GapLine d="M150 294 L150 439 M124 310 C134 306 143 308 150 315 C157 308 166 306 176 310 M125 350 C135 346 143 348 150 355 C157 348 165 346 175 350 M130 400 C139 397 145 398 150 406 C155 398 161 397 170 400" width={5} />
+            <FrontOutline />
+            <FigureLabel>FRONT</FigureLabel>
+          </g>
+          <g transform="translate(300 0)">
+            {backShapes.map((s, i) => <Shape key={`back-final-${i}`} {...s} />)}
+            <GapLine d="M150 173 L150 405 M118 356 C131 365 142 370 150 374 C158 370 169 365 182 356" width={5} />
+            <BackOutline />
+            <FigureLabel>BACK</FigureLabel>
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  function BodyAnatomy({ highlights }) {
+    const th = useTheme();
+    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+    const bg = dark ? "#20211f" : "#fbfbfa";
+    const label = dark ? "#d2d4ce" : "#747570";
+    const atlasFilter = dark ? "invert(1) brightness(1.16) contrast(1.32)" : "none";
+    const activeRegions = highlights || {};
+    const cropY = 70;
+    const cropH = 1430;
+    const imageShift = `${-(cropY / 1536) * 100}%`;
+    const atlasImageStyle = (opacity) => ({
+      position:"absolute",
+      left:0,
+      top:0,
+      width:"100%",
+      height:"auto",
+      transform:`translateY(${imageShift})`,
+      transformOrigin:"top center",
+      opacity,
+      filter:atlasFilter,
+      WebkitFilter:atlasFilter,
+      pointerEvents:"none",
+      userSelect:"none",
+      WebkitUserSelect:"none",
+    });
+    const regionOpacity = (active) => active.opacity >= 1
+      ? (dark ? 0.86 : 0.78)
+      : (dark ? 0.52 : 0.4);
+    const atlasShapes = [
+      { ids:["traps"], d:"M198 263 C220 246 251 248 274 266 C297 248 328 246 352 263 C333 286 304 300 274 300 C244 300 216 286 198 263 Z" },
+      { ids:["traps", "upperBack"], d:"M675 287 C700 260 729 253 754 273 C779 253 808 260 834 287 C817 321 786 341 754 341 C722 341 692 321 675 287 Z" },
+      { ids:["delFrontL", "delSideL"], d:"M99 337 C118 311 153 300 189 315 C168 346 147 392 111 414 C93 394 90 361 99 337 Z" },
+      { ids:["delFrontR", "delSideR"], d:"M459 337 C440 311 405 300 369 315 C390 346 411 392 447 414 C465 394 468 361 459 337 Z" },
+      { ids:["delRearL", "delSideL"], d:"M577 338 C602 311 641 304 677 322 C652 354 628 390 586 411 C569 393 566 361 577 338 Z" },
+      { ids:["delRearR", "delSideR"], d:"M933 338 C908 311 869 304 833 322 C858 354 882 390 924 411 C941 393 944 361 933 338 Z" },
+      { ids:["chestL"], d:"M157 328 C201 318 255 327 271 365 C276 396 271 440 261 466 C216 488 160 465 138 422 C135 383 139 349 157 328 Z" },
+      { ids:["chestR"], d:"M401 328 C357 318 303 327 287 365 C282 396 287 440 297 466 C342 488 398 465 420 422 C423 383 419 349 401 328 Z" },
+      { ids:["chestUpL"], d:"M159 326 C202 316 255 325 271 363 C228 367 184 360 146 346 C149 338 153 332 159 326 Z" },
+      { ids:["chestUpR"], d:"M399 326 C356 316 303 325 287 363 C330 367 374 360 412 346 C409 338 405 332 399 326 Z" },
+      { ids:["chestLoL"], d:"M143 394 C177 421 222 442 263 446 C260 456 255 465 248 471 C207 487 158 465 138 424 C138 412 140 402 143 394 Z" },
+      { ids:["chestLoR"], d:"M415 394 C381 421 336 442 295 446 C298 456 303 465 310 471 C351 487 400 465 420 424 C420 412 418 402 415 394 Z" },
+      { ids:["abs"], d:"M229 478 C246 467 264 470 275 486 C286 470 304 467 321 478 C331 531 326 641 276 704 C226 641 219 531 229 478 Z" },
+      { ids:["obliqueL"], d:"M190 468 C210 503 217 597 207 665 C181 644 163 587 164 530 C165 501 174 480 190 468 Z" },
+      { ids:["obliqueR"], d:"M368 468 C348 503 341 597 351 665 C377 644 395 587 394 530 C393 501 384 480 368 468 Z" },
+      { ids:["bicepL"], d:"M92 425 C122 398 150 422 153 469 C150 527 128 591 91 621 C73 576 70 462 92 425 Z" },
+      { ids:["bicepR"], d:"M466 425 C436 398 408 422 405 469 C408 527 430 591 467 621 C485 576 488 462 466 425 Z" },
+      { ids:["tricepL"], d:"M573 424 C602 398 630 422 632 470 C628 535 608 597 572 625 C552 577 550 462 573 424 Z" },
+      { ids:["tricepR"], d:"M937 424 C908 398 880 422 878 470 C882 535 902 597 938 625 C958 577 960 462 937 424 Z" },
+      { ids:["foreFL"], d:"M55 566 C84 562 106 592 100 651 C90 720 64 812 35 843 C25 772 28 642 55 566 Z" },
+      { ids:["foreFR"], d:"M503 566 C474 562 452 592 458 651 C468 720 494 812 523 843 C533 772 530 642 503 566 Z" },
+      { ids:["foreBL"], d:"M530 566 C559 562 581 592 575 651 C565 720 539 812 510 843 C500 772 503 642 530 566 Z" },
+      { ids:["foreBR"], d:"M980 566 C951 562 929 592 935 651 C945 720 971 812 1000 843 C1010 772 1007 642 980 566 Z" },
+      { ids:["latL"], d:"M642 392 C669 415 690 477 697 548 C703 617 692 690 672 739 C649 701 632 619 627 529 C624 459 629 411 642 392 Z" },
+      { ids:["latR"], d:"M868 392 C841 415 820 477 813 548 C807 617 818 690 838 739 C861 701 878 619 883 529 C886 459 881 411 868 392 Z" },
+      { ids:["midBack"], d:"M712 315 C737 299 773 299 798 315 C804 434 794 581 754 679 C714 581 706 434 712 315 Z" },
+      { ids:["lowerBack"], d:"M700 667 C723 645 784 645 810 667 C807 721 784 768 754 793 C724 768 702 721 700 667 Z" },
+      { ids:["gluteL"], d:"M652 620 C706 586 756 625 758 706 C754 775 707 804 655 777 C620 737 617 660 652 620 Z" },
+      { ids:["gluteR"], d:"M858 620 C804 586 754 625 752 706 C756 775 803 804 855 777 C890 737 893 660 858 620 Z" },
+      { ids:["quadL"], d:"M158 670 C199 697 223 803 221 918 C219 990 198 1040 164 1057 C126 1001 119 795 142 715 C146 696 152 680 158 670 Z" },
+      { ids:["quadR"], d:"M400 670 C359 697 335 803 337 918 C339 990 360 1040 394 1057 C432 1001 439 795 416 715 C412 696 406 680 400 670 Z" },
+      { ids:["hamL"], d:"M649 779 C682 795 702 867 700 950 C699 1009 681 1052 651 1067 C619 1014 615 856 649 779 Z" },
+      { ids:["hamR"], d:"M861 779 C828 795 808 867 810 950 C811 1009 829 1052 859 1067 C891 1014 895 856 861 779 Z" },
+      { ids:["calfFL"], d:"M141 1118 C179 1144 206 1215 201 1331 C197 1434 174 1510 140 1517 C108 1450 106 1202 141 1118 Z" },
+      { ids:["calfFR"], d:"M417 1118 C379 1144 352 1215 357 1331 C361 1434 384 1510 418 1517 C450 1450 452 1202 417 1118 Z" },
+      { ids:["calfBL"], d:"M639 1160 C680 1183 704 1260 696 1375 C689 1465 665 1515 637 1518 C601 1450 605 1236 639 1160 Z" },
+      { ids:["calfBR"], d:"M871 1160 C830 1183 806 1260 814 1375 C821 1465 845 1515 873 1518 C909 1450 905 1236 871 1160 Z" },
+    ];
+
+    const activeShape = (ids) => {
+      const activeIds = (Array.isArray(ids) ? ids : [ids]).filter(id => activeRegions[id]);
+      if (!activeIds.length) return null;
+      return activeIds
+        .map(id => activeRegions[id])
+        .sort((a, b) => (b.opacity || 0) - (a.opacity || 0))[0];
+    };
+
+    return (
+      <div style={{
+        position:"relative",
+        width:"100%",
+        maxWidth:360,
+        margin:"0 auto",
+        borderRadius:18,
+        overflow:"hidden",
+        background:bg,
+        padding:"4px 4px 17px",
+        isolation:"isolate",
+      }}
+        role="img"
+        aria-label="Front and back muscle atlas"
+      >
+        <div
+          style={{
+            position:"relative",
+            width:"100%",
+            aspectRatio:`1024 / ${cropH}`,
+            overflow:"hidden",
+            borderRadius:14,
+          }}
+        >
+          <img
+            src={bodyMuscleAtlasUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={atlasImageStyle(dark ? 0.8 : 0.28)}
+          />
+          <svg
+            viewBox={`0 ${cropY} 1024 ${cropH}`}
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
+            style={{
+              position:"absolute",
+              inset:0,
+              display:"block",
+              width:"100%",
+              height:"100%",
+              pointerEvents:"none",
+              mixBlendMode:"normal",
+            }}
+          >
+            {atlasShapes.map((shape, i) => {
+              const active = activeShape(shape.ids);
+              if (!active) return null;
+              return (
+                <path
+                  key={`atlas-highlight-${i}`}
+                  d={shape.d}
+                  fill={active.fill || "#f4511e"}
+                  opacity={regionOpacity(active)}
+                  stroke="none"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </svg>
+          <img
+            src={bodyMuscleAtlasUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={atlasImageStyle(dark ? 0.98 : 0.72)}
+          />
+        </div>
+        <div style={{
+          position:"absolute",
+          left:4,
+          right:4,
+          bottom:3,
+          display:"grid",
+          gridTemplateColumns:"1fr 1fr",
+          color:label,
+          fontFamily:"Outfit, sans-serif",
+          fontSize:9.5,
+          fontWeight:800,
+          letterSpacing:1.2,
+          textAlign:"center",
+          pointerEvents:"none",
+        }}>
+          <span>FRONT</span>
+          <span>BACK</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── ExerciseInfoSheet — bottom-sheet modal that shows everything we know
+  //    about an exercise: name, difficulty, primary + secondary muscle tags,
+  //    and a body diagram with the targeted muscles highlighted.
+  function ExerciseInfoSheet({ ex, onClose }) {
+    const th = useTheme();
+    const S = useS();
+    const t = useT();
+    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+    const [closing, setClosing] = useState(false);
+    const close = () => { setClosing(true); setTimeout(onClose, 300); };
+    const db = DB.find((d) => d.id === ex.id) || {};
+    const name = db.name || ex.name || ex.id;
+    const primaryMuscle = db.muscle || "";
+    const primaryGroup = db.group || "Chest";
+    const secondaryRaw = SECONDARY[ex.id];
+    const secondaryList = secondaryRaw ? secondaryRaw.split(" · ") : [];
+    const highlights = muscleHighlights(primaryMuscle, primaryGroup, secondaryList, dark);
+    const targetMuscles = [
+      ...(primaryMuscle ? [{ name: primaryMuscle, group: primaryGroup, primary: true }] : []),
+      ...secondaryList.map((m) => ({
+        name: m,
+        group: (DB.find(d => d && d.muscle === m) || {}).group || primaryGroup,
+        primary: false,
+      })),
+    ];
+    return (
+      <>
+        <style>{`
+          @keyframes eiFadeIn  { from{opacity:0} to{opacity:1} }
+          @keyframes eiFadeOut { from{opacity:1} to{opacity:0} }
+          @keyframes eiSlideUp   { from{transform:translateY(100%);opacity:0.6} to{transform:translateY(0);opacity:1} }
+          @keyframes eiSlideDown { from{transform:translateY(0);opacity:1} to{transform:translateY(100%);opacity:0} }
+        `}</style>
+        <div onClick={close} style={{
+          position:"fixed", inset:0, zIndex:70,
+          background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+          animation: closing ? "eiFadeOut 0.3s ease-in forwards" : "eiFadeIn 0.25s ease-out forwards",
+        }} />
+        <div style={{
+          position:"fixed", inset:0, zIndex:71,
+          display:"flex", flexDirection:"column", justifyContent:"flex-end",
+          maxWidth:480, margin:"0 auto", pointerEvents:"none",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:`color-mix(in srgb, ${th.card} 92%, transparent)`,
+            backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+            borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
+            marginTop:"auto",
+            display:"flex", flexDirection:"column", overflow:"hidden",
+            height:"86vh", minHeight:"86vh",
+            pointerEvents:"auto",
+            animation: closing ? "eiSlideDown 0.34s cubic-bezier(0.4,0,1,1) forwards" : "eiSlideUp 0.42s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
+            {/* Header */}
+            <div style={{ padding:"12px 16px 9px", borderBottom:`1px solid ${th.border}` }}>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:6 }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:th.inputB }} />
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  {/* Exercise name with the difficulty badge inline */}
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                    <span className="bebas" style={{ fontSize:22, letterSpacing:1.5, color:th.text, lineHeight:1.15, textAlign:"left" }}>{name}</span>
+                    <DiffBadge id={ex.id} />
+                  </div>
+                </div>
+                <button onClick={close} style={{ background:"none", border:"none", color:th.muted, fontSize:22, cursor:"pointer", lineHeight:1, padding:"4px 6px" }}>✕</button>
+              </div>
+            </div>
+            {/* Body */}
+            <div style={{ flex:1, overflowY:"auto", padding:"12px 14px 18px" }}>
+              <div style={{ ...S.label, marginBottom:8, textAlign:"left" }}>{t("MUSCLES TARGETED")}</div>
+              <div style={{
+                background:`color-mix(in srgb, ${th.sect} 60%, transparent)`,
+                borderRadius:14, border:`1px solid ${th.border}`,
+                padding:"10px 6px 12px",
+                display:"flex",
+                flexDirection:"column",
+                alignItems:"stretch",
+                gap:8,
+              }}>
+                {targetMuscles.length > 0 && (
+                  <div style={{
+                    display:"flex",
+                    flexWrap:"wrap",
+                    gap:6,
+                    alignItems:"center",
+                    justifyContent:"flex-start",
+                    padding:"0 6px 2px",
+                  }}>
+                    {targetMuscles.map((m) => (
+                      <span
+                        key={`${m.primary ? "primary" : "secondary"}-${m.name}`}
+                        style={{
+                          ...S.tag(m.group, m.name),
+                          opacity: 1,
+	                          fontSize: m.primary ? 9.5 : 8.5,
+	                          padding: m.primary ? "2px 7px" : "2px 5px",
+                        }}
+                      >
+                        {m.name.toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <BodyAnatomy
+                  highlights={highlights}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -2235,7 +3962,7 @@ import "./styles.css";
   ];
 
   /* ─── All muscles for "Muscles Trained" display ───────────────────────────────── */
-  const ALL_MUSCLES = [
+	  const ALL_MUSCLES = [
     "Chest",
     "Upper Chest",
     "Lower Chest",
@@ -2258,8 +3985,48 @@ import "./styles.css";
     "Glutes",
     "Calves",
     "Inner Thigh",
-    "Outer Thigh",
-  ];
+	    "Outer Thigh",
+	  ];
+
+	  const ATLAS_PICKER_SHAPES = [
+	    { label: "Traps", group: "Back", d: "M198 263 C220 246 251 248 274 266 C297 248 328 246 352 263 C333 286 304 300 274 300 C244 300 216 286 198 263 Z" },
+	    { label: "Upper Back", group: "Back", d: "M675 287 C700 260 729 253 754 273 C779 253 808 260 834 287 C817 321 786 341 754 341 C722 341 692 321 675 287 Z" },
+	    { label: "Shoulders", group: "Shoulders", d: "M99 337 C118 311 153 300 189 315 C168 346 147 392 111 414 C93 394 90 361 99 337 Z" },
+	    { label: "Shoulders", group: "Shoulders", d: "M459 337 C440 311 405 300 369 315 C390 346 411 392 447 414 C465 394 468 361 459 337 Z" },
+	    { label: "Shoulders", group: "Shoulders", d: "M577 338 C602 311 641 304 677 322 C652 354 628 390 586 411 C569 393 566 361 577 338 Z" },
+	    { label: "Shoulders", group: "Shoulders", d: "M933 338 C908 311 869 304 833 322 C858 354 882 390 924 411 C941 393 944 361 933 338 Z" },
+	    { label: "Chest", group: "Chest", d: "M157 328 C201 318 255 327 271 365 C276 396 271 440 261 466 C216 488 160 465 138 422 C135 383 139 349 157 328 Z" },
+	    { label: "Chest", group: "Chest", d: "M401 328 C357 318 303 327 287 365 C282 396 287 440 297 466 C342 488 398 465 420 422 C423 383 419 349 401 328 Z" },
+	    { label: "Upper Chest", group: "Chest", d: "M159 326 C202 316 255 325 271 363 C228 367 184 360 146 346 C149 338 153 332 159 326 Z" },
+	    { label: "Upper Chest", group: "Chest", d: "M399 326 C356 316 303 325 287 363 C330 367 374 360 412 346 C409 338 405 332 399 326 Z" },
+	    { label: "Lower Chest", group: "Chest", d: "M143 394 C177 421 222 442 263 446 C260 456 255 465 248 471 C207 487 158 465 138 424 C138 412 140 402 143 394 Z" },
+	    { label: "Lower Chest", group: "Chest", d: "M415 394 C381 421 336 442 295 446 C298 456 303 465 310 471 C351 487 400 465 420 424 C420 412 418 402 415 394 Z" },
+	    { label: "Abs", group: "Core", d: "M229 478 C246 467 264 470 275 486 C286 470 304 467 321 478 C331 531 326 641 276 704 C226 641 219 531 229 478 Z" },
+	    { label: "Obliques", group: "Core", d: "M190 468 C210 503 217 597 207 665 C181 644 163 587 164 530 C165 501 174 480 190 468 Z" },
+	    { label: "Obliques", group: "Core", d: "M368 468 C348 503 341 597 351 665 C377 644 395 587 394 530 C393 501 384 480 368 468 Z" },
+	    { label: "Biceps", group: "Arms", d: "M92 425 C122 398 150 422 153 469 C150 527 128 591 91 621 C73 576 70 462 92 425 Z" },
+	    { label: "Biceps", group: "Arms", d: "M466 425 C436 398 408 422 405 469 C408 527 430 591 467 621 C485 576 488 462 466 425 Z" },
+	    { label: "Triceps", group: "Arms", d: "M573 424 C602 398 630 422 632 470 C628 535 608 597 572 625 C552 577 550 462 573 424 Z" },
+	    { label: "Triceps", group: "Arms", d: "M937 424 C908 398 880 422 878 470 C882 535 902 597 938 625 C958 577 960 462 937 424 Z" },
+	    { label: "Forearms", group: "Arms", d: "M55 566 C84 562 106 592 100 651 C90 720 64 812 35 843 C25 772 28 642 55 566 Z" },
+	    { label: "Forearms", group: "Arms", d: "M503 566 C474 562 452 592 458 651 C468 720 494 812 523 843 C533 772 530 642 503 566 Z" },
+	    { label: "Forearms", group: "Arms", d: "M530 566 C559 562 581 592 575 651 C565 720 539 812 510 843 C500 772 503 642 530 566 Z" },
+	    { label: "Forearms", group: "Arms", d: "M980 566 C951 562 929 592 935 651 C945 720 971 812 1000 843 C1010 772 1007 642 980 566 Z" },
+	    { label: "Lats", group: "Back", d: "M642 392 C669 415 690 477 697 548 C703 617 692 690 672 739 C649 701 632 619 627 529 C624 459 629 411 642 392 Z" },
+	    { label: "Lats", group: "Back", d: "M868 392 C841 415 820 477 813 548 C807 617 818 690 838 739 C861 701 878 619 883 529 C886 459 881 411 868 392 Z" },
+	    { label: "Mid Back", group: "Back", d: "M712 315 C737 299 773 299 798 315 C804 434 794 581 754 679 C714 581 706 434 712 315 Z" },
+	    { label: "Lower Back", group: "Back", d: "M700 667 C723 645 784 645 810 667 C807 721 784 768 754 793 C724 768 702 721 700 667 Z" },
+	    { label: "Glutes", group: "Legs", d: "M652 620 C706 586 756 625 758 706 C754 775 707 804 655 777 C620 737 617 660 652 620 Z" },
+	    { label: "Glutes", group: "Legs", d: "M858 620 C804 586 754 625 752 706 C756 775 803 804 855 777 C890 737 893 660 858 620 Z" },
+	    { label: "Quads", group: "Legs", d: "M158 670 C199 697 223 803 221 918 C219 990 198 1040 164 1057 C126 1001 119 795 142 715 C146 696 152 680 158 670 Z" },
+	    { label: "Quads", group: "Legs", d: "M400 670 C359 697 335 803 337 918 C339 990 360 1040 394 1057 C432 1001 439 795 416 715 C412 696 406 680 400 670 Z" },
+	    { label: "Hamstrings", group: "Legs", d: "M649 779 C682 795 702 867 700 950 C699 1009 681 1052 651 1067 C619 1014 615 856 649 779 Z" },
+	    { label: "Hamstrings", group: "Legs", d: "M861 779 C828 795 808 867 810 950 C811 1009 829 1052 859 1067 C891 1014 895 856 861 779 Z" },
+	    { label: "Calves", group: "Legs", d: "M141 1118 C179 1144 206 1215 201 1331 C197 1434 174 1510 140 1517 C108 1450 106 1202 141 1118 Z" },
+	    { label: "Calves", group: "Legs", d: "M417 1118 C379 1144 352 1215 357 1331 C361 1434 384 1510 418 1517 C450 1450 452 1202 417 1118 Z" },
+	    { label: "Calves", group: "Legs", d: "M639 1160 C680 1183 704 1260 696 1375 C689 1465 665 1515 637 1518 C601 1450 605 1236 639 1160 Z" },
+	    { label: "Calves", group: "Legs", d: "M871 1160 C830 1183 806 1260 814 1375 C821 1465 845 1515 873 1518 C909 1450 905 1236 871 1160 Z" },
+	  ];
 
   /* ─── Suggested program templates ──────────────────────────────────────────── */
   const SUGGESTED = [
@@ -2506,7 +4273,7 @@ import "./styles.css";
     "Rest days are earned. Now earn them.",
     "The barbell doesn't negotiate.",
   ];
-  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false, earnedAwards: [] };
+  const DEFAULT_SETTINGS = { homePrograms: null, homeDashboards: null, hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false, earnedAwards: [], notifiedAwards: [] };
   const ALL_DASHBOARDS = [
     { id: "muscles",    label: "Muscles Trained",      icon: "💪" },
     { id: "streak",     label: "Streak Calendar",       icon: "🗓" },
@@ -2555,6 +4322,15 @@ import "./styles.css";
       year: "numeric",
     });
   }
+  function dateInputValue(date = new Date()) {
+    const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 10);
+  }
+  function localDateAtNoon(value) {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date();
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0, 0);
+  }
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
   }
@@ -2580,6 +4356,14 @@ import "./styles.css";
             (ex.sets || [])
               .filter((st) => st.done)
               .reduce((b, st) => b + (st.weight || 0) * (st.reps || 0), 0),
+      0
+    );
+  }
+  function sessionCardioDistance(s) {
+    return s?.distance ?? (s?.exercises || []).reduce(
+      (a, ex) => a + (ex.type === "cardio"
+        ? (ex.sets || []).filter((st) => st.done !== false).reduce((b, st) => b + (Number(st.distance) || 0), 0)
+        : 0),
       0
     );
   }
@@ -2888,6 +4672,20 @@ import "./styles.css";
       return true;
     } catch (e) {
       console.error("fsAddSession FAILED:", e.code, e.message);
+      return false;
+    }
+  }
+  async function fsUpdateSession(uid, session) {
+    try {
+      const clean = strip(session);
+      await setDoc(
+        doc(fbDb, "users", uid, "sessions", String(session.id)),
+        clean,
+        { merge: true }
+      );
+      return true;
+    } catch (e) {
+      console.error("fsUpdateSession FAILED:", e.code, e.message);
       return false;
     }
   }
@@ -4098,6 +5896,7 @@ import "./styles.css";
     const sets = ex.sets || [];
     const [removing, setRemoving] = useState(false);
     const [removingSet, setRemovingSet] = useState(null);
+    const [showInfo, setShowInfo] = useState(false);
 
     const animateRemoveEx = () => {
       setRemoving(true);
@@ -4115,7 +5914,7 @@ import "./styles.css";
           animation: removing ? "removeSlide 0.31s ease-in forwards" : wasDropped ? (dropDir === "down" ? "dropFromAbove 0.45s cubic-bezier(0.34,1.3,0.64,1) forwards" : "dropFromBelow 0.45s cubic-bezier(0.34,1.3,0.64,1) forwards") : undefined }}
       >
         {isOver && <DropLine />}
-        <div style={{ ...S.card, marginBottom: 7, overflow: "hidden" }}>
+        <div className="ib-pressable-card" {...pressableCardProps()} style={{ ...S.card, marginBottom: 7, overflow: "hidden" }}>
           {/* Header: grip + name + muscle tag + chevron + REMOVE */}
           <div
             style={{
@@ -4135,13 +5934,14 @@ import "./styles.css";
                 minWidth: 0,
               }}
             >
-              <div
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  onDragStart && onDragStart(e, exI, listRef);
-                }}
-                style={{ marginRight: 8, flexShrink: 0 }}
-              >
+	              <div
+	                onPointerDown={(e) => {
+	                  e.stopPropagation();
+	                  onDragStart && onDragStart(e, exI, listRef);
+	                }}
+	                data-no-card-press=""
+	                style={{ marginRight: 8, flexShrink: 0 }}
+	              >
                 <GripIcon />
               </div>
               <div style={{ minWidth: 0 }}>
@@ -4155,18 +5955,45 @@ import "./styles.css";
                 {/* Row 2: primary + secondary muscle tags */}
                 <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:4, flexWrap:"wrap" }}>
                   {db && (
-                    <span style={S.tag(db.group)}>
+                    <span style={S.tag(db.group, db.muscle)}>
                       {(db.muscle || "").toUpperCase()}
                     </span>
                   )}
                   {SECONDARY[ex.id] && SECONDARY[ex.id].split(" · ").map(m => {
                     const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
                     return (
-                      <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:10, padding:"2px 7px" }}>
+	                      <span key={m} style={{ ...S.tag(grp, m), opacity:0.92, fontSize:8.5, padding:"2px 5px" }}>
                         {m.toUpperCase()}
                       </span>
                     );
                   })}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowInfo(true);
+                    }}
+                    aria-label="Info"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: th.bg === "#080809" ? "#F3D25C" : "#8A6500",
+                      cursor: "pointer",
+                      fontSize: 17,
+                      fontWeight: 700,
+                      padding: 0,
+                      lineHeight: 1,
+                      width: 24,
+                      height: 22,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      opacity: 1,
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                  >
+                    ⓘ
+                  </button>
                 </div>
                 {/* Row 3: sets info */}
                 <div style={{ fontSize:11, color:th.muted, marginTop:4 }}>
@@ -4174,27 +6001,39 @@ import "./styles.css";
                 </div>
               </div>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                animateRemoveEx();
-              }}
-              style={{
-                background: "rgba(220,50,50,0.12)",
-                border: "1px solid rgba(220,50,50,0.3)",
-                borderRadius: 7,
-                color: th.delText,
-                cursor: "pointer",
-                fontSize: 13,
-                padding: "4px 9px",
-                flexShrink: 0,
-                marginLeft: 8,
-                alignSelf: "flex-start",
-              }}
-            >
-              ✕
-            </button>
+            <div style={{
+              display: "flex", flexDirection: "column", gap: 14,
+              flexShrink: 0, marginLeft: 8, alignSelf: "flex-start",
+            }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  animateRemoveEx();
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: th.delText,
+                  cursor: "pointer",
+                  fontSize: 22,
+                  width: 34,
+                  height: 34,
+                  padding: 0,
+                  lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
+          {showInfo && createPortal(
+            <ExerciseInfoSheet ex={ex} onClose={() => setShowInfo(false)} />,
+            document.body
+          )}
 
           {/* Set rows — smooth expand/collapse via max-height transition */}
           <div style={{
@@ -4329,15 +6168,20 @@ import "./styles.css";
                           animateRemoveSet(sIdx);
                         }}
                         style={{
-                          background: "rgba(220,50,50,0.12)",
-                          border: "1px solid rgba(220,50,50,0.3)",
-                          borderRadius: 6,
+                          background: "none",
+                          border: "none",
                           color: th.delText,
                           cursor: "pointer",
-                          fontSize: 12,
+                          fontSize: 22,
                           lineHeight: 1,
-                          padding: "3px 7px",
+                          width: 32,
+                          height: 32,
+                          padding: 0,
                           flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          WebkitTapHighlightColor: "transparent",
                         }}
                       >
                         ✕
@@ -4372,15 +6216,367 @@ import "./styles.css";
     );
   }
 
-  /* ─── ExercisePicker — multi-select, stays open until Done ──────────────────── */
+	  function exerciseTargetsPickedMuscle(e, muscle) {
+	    if (!muscle) return true;
+	    const secondary = (SECONDARY[e.id] || "").split(" · ").filter(Boolean);
+	    if (e.muscle === muscle || secondary.includes(muscle)) return true;
+	    const secondaryGroups = secondary.map((m) => (DB.find((d) => d && d.muscle === m) || {}).group).filter(Boolean);
+	    if (muscle === "Chest") return e.group === "Chest" || secondaryGroups.includes("Chest");
+	    if (muscle === "Shoulders") return e.group === "Shoulders" || secondaryGroups.includes("Shoulders");
+	    if (muscle === "Abs") return e.muscle === "Abs" || e.group === "Core" || secondary.includes("Core");
+	    if (muscle === "Obliques") return e.muscle === "Obliques" || secondary.includes("Obliques");
+	    if (muscle === "Mid Back") return e.muscle === "Mid Back" || e.muscle === "Full Back" || secondary.includes("Mid Back");
+	    if (muscle === "Calves") return e.muscle === "Calves" || e.muscle === "Soleus" || secondary.includes("Soleus");
+	    return false;
+	  }
+
+	  function exerciseMatchesSearch(e, query) {
+	    const q = (query || "").trim().toLowerCase();
+	    if (!q) return true;
+	    return [e.name, e.muscle, e.group, SECONDARY[e.id] || ""].join(" ").toLowerCase().includes(q);
+	  }
+
+	  function ExerciseMapIcon() {
+	    return (
+	      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" style={{ display:"block" }}>
+	        <path
+	          fill="currentColor"
+	          d="M16 1.5c2.35 0 3.95 1.75 3.95 4.1 0 .98-.25 1.86-.76 2.55-.2.27-.29.68-.24 1.08l1.45.6c2.72.74 4.42 2.33 5.05 4.84l.86 3.68c.3 1.17 1.42 2.32 2.06 3.48.62 1.14.25 2.33-.73 2.76-.98.43-1.75-.2-2.28-1.13l-1.82-3.14c-.77-1.35-1.44-3.05-1.99-5.05l-.85 4.36c-.32 1.66-.22 3.42-.04 5.12l.57 5.3c.1 1.02-.58 1.8-1.58 1.8-.92 0-1.54-.6-1.71-1.55l-1.05-5.78c-.16-.94-.44-1.45-.89-1.45s-.73.51-.89 1.45l-1.05 5.78c-.17.95-.79 1.55-1.71 1.55-1 0-1.68-.78-1.58-1.8l.57-5.3c.18-1.7.28-3.46-.04-5.12l-.85-4.36c-.55 2-1.22 3.7-1.99 5.05l-1.82 3.14c-.53.93-1.3 1.56-2.28 1.13-.98-.43-1.35-1.62-.73-2.76.64-1.16 1.76-2.31 2.06-3.48l.86-3.68c.63-2.51 2.33-4.1 5.05-4.84l1.45-.6c.05-.4-.04-.81-.24-1.08-.51-.69-.76-1.57-.76-2.55 0-2.35 1.6-4.1 3.95-4.1Z"
+	        />
+	      </svg>
+	    );
+	  }
+
+	  function addCircleButtonStyle(th, { active = false, disabled = false, size = 30 } = {}) {
+	    return {
+	      width:size,
+	      height:size,
+	      borderRadius:"50%",
+	      border:`2px solid ${disabled ? th.dim : th.accentBg}`,
+	      background:active ? th.accentBg : "transparent",
+	      color:active ? th.accentT : disabled ? th.dim : th.accentBg,
+	      display:"flex",
+	      alignItems:"center",
+	      justifyContent:"center",
+	      flexShrink:0,
+	      fontSize:active || disabled ? 15 : 21,
+	      fontWeight:900,
+	      lineHeight:1,
+	      fontFamily:"'Outfit',sans-serif",
+	      boxShadow:!active || disabled ? "none" : `0 6px 16px color-mix(in srgb, ${th.accentBg} 22%, transparent), inset 0 0 0 1px color-mix(in srgb, ${th.accentBg} 15%, transparent)`,
+	      transition:"background .15s, border-color .15s, color .15s, transform .15s, box-shadow .15s",
+	    };
+	  }
+
+	  function InteractiveExerciseAtlas({ selectedMuscle, onSelect }) {
+	    const th = useTheme();
+	    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+	    const atlasFilter = dark ? "invert(1) brightness(1.16) contrast(1.32)" : "none";
+	    const selectedGroup = (ATLAS_PICKER_SHAPES.find((s) => s.label === selectedMuscle) || {}).group;
+	    const selectedAccent = selectedMuscle ? muscleAccent(selectedMuscle, selectedGroup, dark) : th.accentBg;
+	    const cropY = 70;
+	    const cropH = 1340;
+	    const imageShift = `${-(cropY / 1536) * 100}%`;
+	    return (
+	      <div style={{
+	        position:"relative",
+	        width:"100%",
+	        maxWidth:320,
+	        margin:"0 auto",
+	        borderRadius:18,
+	        overflow:"hidden",
+	        background:dark ? "#20211f" : "#fbfbfa",
+	        padding:"3px 4px",
+	      }}>
+	        <div style={{
+	          position:"relative",
+	          width:"100%",
+	          aspectRatio:`1024 / ${cropH}`,
+	          overflow:"hidden",
+	          borderRadius:14,
+	        }}>
+	          <img
+	            src={bodyMuscleAtlasUrl}
+	            alt=""
+	            aria-hidden="true"
+	            draggable={false}
+	            style={{
+	              position:"absolute",
+	              left:0,
+	              top:0,
+	              width:"100%",
+	              height:"auto",
+	              transform:`translateY(${imageShift})`,
+	              transformOrigin:"top center",
+	              opacity:dark ? 0.98 : 0.74,
+	              filter:atlasFilter,
+	              WebkitFilter:atlasFilter,
+	              pointerEvents:"none",
+	              userSelect:"none",
+	              WebkitUserSelect:"none",
+	            }}
+	          />
+	          <svg
+	            viewBox={`0 ${cropY} 1024 ${cropH}`}
+	            xmlns="http://www.w3.org/2000/svg"
+	            preserveAspectRatio="xMidYMid meet"
+	            style={{ position:"absolute", inset:0, display:"block", width:"100%", height:"100%" }}
+	          >
+	            {ATLAS_PICKER_SHAPES.map((shape, i) => {
+	              const active = selectedMuscle === shape.label;
+	              const accent = active ? muscleAccent(shape.label, shape.group, dark) : selectedAccent;
+	              return (
+	                <path
+	                  key={`${shape.label}-${i}`}
+	                  d={shape.d}
+	                  role="button"
+	                  tabIndex={0}
+	                  aria-label={shape.label}
+	                  onClick={() => onSelect(shape.label)}
+	                  onKeyDown={(e) => {
+	                    if (e.key === "Enter" || e.key === " ") {
+	                      e.preventDefault();
+	                      onSelect(shape.label);
+	                    }
+	                  }}
+	                  fill={active ? accent : "rgba(255,255,255,0.001)"}
+	                  opacity={active ? (dark ? 0.86 : 0.78) : 0.001}
+	                  stroke={active ? accent : "transparent"}
+	                  strokeWidth={active ? 10 : 0}
+	                  strokeLinejoin="round"
+	                  strokeLinecap="round"
+	                  style={{
+	                    cursor:"pointer",
+	                    outline:"none",
+	                    pointerEvents:"all",
+	                    transition:"opacity .16s, fill .16s, stroke .16s",
+	                  }}
+	                />
+	              );
+	            })}
+	          </svg>
+	        </div>
+	      </div>
+	    );
+	  }
+
+	  function ExerciseMuscleMapBrowser({ added, pending, setPending, onBack, onConfirm }) {
+	    const th = useTheme();
+	    const S = useS();
+	    const t = useT();
+	    const [closing, setClosing] = useState(false);
+	    const [selectedMuscle, setSelectedMuscle] = useState("");
+	    const selectedShape = ATLAS_PICKER_SHAPES.find((s) => s.label === selectedMuscle);
+	    const filtered = selectedMuscle
+	      ? DB.filter((e) => exerciseTargetsPickedMuscle(e, selectedMuscle))
+	      : [];
+	    const close = () => {
+	      setClosing(true);
+	      setTimeout(onBack, 280);
+	    };
+	    const toggle = (id) => {
+	      if (added.includes(id)) return;
+	      setPending((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+	    };
+	    return (
+	      <>
+	        <style>{`
+	          @keyframes atlasBrowseIn { from{transform:translateX(100%);opacity:.8} to{transform:translateX(0);opacity:1} }
+	          @keyframes atlasBrowseOut{ from{transform:translateX(0);opacity:1} to{transform:translateX(100%);opacity:.75} }
+	        `}</style>
+	        <div style={{
+	          position:"fixed",
+	          inset:0,
+	          zIndex:92,
+	          maxWidth:480,
+	          margin:"0 auto",
+	          background:th.bg,
+	          color:th.text,
+	          display:"flex",
+	          flexDirection:"column",
+	          animation:closing ? "atlasBrowseOut 0.28s ease-in forwards" : "atlasBrowseIn 0.34s cubic-bezier(0.32,0.72,0,1) forwards",
+	        }}>
+          <div style={{
+            paddingTop:"calc(14px + env(safe-area-inset-top, 0px))",
+            paddingRight:"16px",
+            paddingBottom:"1px",
+            paddingLeft:"16px",
+            borderBottom:`1px solid ${th.border}`,
+            background:`color-mix(in srgb, ${th.bg} 25%, transparent)`,
+            backdropFilter:"blur(12px)",
+            WebkitBackdropFilter:"blur(12px)",
+            zIndex:2,
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, minHeight:32 }}>
+              <button
+                onClick={close}
+                aria-label={t("Back")}
+                style={{
+                  background:"none",
+                  border:"none",
+                  color:th.sub,
+                  fontSize:22,
+                  cursor:"pointer",
+                  padding:"0 8px 0 0",
+                  lineHeight:1,
+                  flexShrink:0,
+                }}
+              >
+                ←
+              </button>
+              <div className="bebas" style={{
+                fontSize:40,
+                letterSpacing:2,
+                color:th.text,
+                lineHeight:1,
+                flex:1,
+                minWidth:0,
+                textAlign:"left",
+                overflow:"hidden",
+                textOverflow:"ellipsis",
+                whiteSpace:"nowrap",
+              }}>
+                {t("MUSCLE MAP")}
+              </div>
+            </div>
+          </div>
+          <div style={{ flex:1, overflowY:"auto", padding:"0 16px 76px" }}>
+	            <div style={{
+	              position:"sticky",
+	              top:0,
+	              zIndex:2,
+	              margin:"0 -16px 12px",
+              padding:"7px 16px 8px",
+	              background:`linear-gradient(180deg, ${th.bg} 0%, color-mix(in srgb, ${th.bg} 92%, transparent) 78%, transparent 100%)`,
+	              backdropFilter:"blur(16px)",
+	              WebkitBackdropFilter:"blur(16px)",
+	              boxShadow:`0 14px 24px color-mix(in srgb, ${th.bg} 82%, transparent)`,
+	            }}>
+	              <div style={{
+	                ...S.card,
+                padding:"4px",
+                marginBottom:6,
+	                borderColor:selectedShape ? `${muscleAccent(selectedMuscle, selectedShape.group, th.bg === "#080809")}77` : th.border,
+	              }}>
+	                <InteractiveExerciseAtlas selectedMuscle={selectedMuscle} onSelect={setSelectedMuscle} />
+	              </div>
+	              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:0, flexWrap:"wrap" }}>
+	                {selectedMuscle ? (
+	                  <>
+	                    <span style={{ ...S.tag(selectedShape?.group || "Chest", selectedMuscle), fontSize:9.5 }}>
+	                      {t(selectedMuscle).toUpperCase()}
+	                    </span>
+	                    <span style={{ color:th.dim, fontSize:12, fontWeight:700, letterSpacing:"1px" }}>
+	                      {filtered.length} {t(filtered.length === 1 ? "exercise" : "exercises")}
+	                    </span>
+	                  </>
+	                ) : (
+	                  <span style={{ color:th.muted, fontSize:13 }}>
+	                    {t("Tap a muscle region to browse matching exercises.")}
+	                  </span>
+	                )}
+	              </div>
+		            </div>
+		            {filtered.length === 0 && (
+		              <div style={{ textAlign:"center", padding:"28px 10px", color:th.dim, fontSize:13 }}>
+		                {selectedMuscle ? t("No exercises match this muscle.") : t("Tap a muscle region to browse matching exercises.")}
+		              </div>
+		            )}
+	            {filtered.map((e) => {
+	              const isAdded = added.includes(e.id);
+	              const isPending = pending.includes(e.id);
+	              return (
+	                <div
+	                  key={e.id}
+	                  onClick={() => toggle(e.id)}
+	                  className={isAdded ? "" : "ib-pressable-card"}
+	                  {...pressableCardProps(isAdded)}
+	                  style={{
+	                    ...S.card,
+	                    marginBottom:8,
+	                    padding:"12px 12px",
+	                    cursor:isAdded ? "default" : "pointer",
+	                    display:"flex",
+	                    alignItems:"center",
+	                    justifyContent:"space-between",
+	                    gap:12,
+	                    borderColor:isPending ? th.accentBg : th.border,
+	                    background:isPending
+	                      ? `color-mix(in srgb, ${th.accentBg} 14%, ${th.card})`
+	                      : S.card.background,
+	                  }}
+	                >
+	                  <div style={{ minWidth:0, flex:1, textAlign:"left" }}>
+	                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", color:isAdded ? th.dim : th.text, fontWeight:700, fontSize:14 }}>
+	                      {e.name}
+	                      <DiffBadge id={e.id} />
+	                    </div>
+	                    <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:5, flexWrap:"wrap" }}>
+	                      <span style={{ ...S.tag(e.group, e.muscle), fontSize:8.5, padding:"2px 5px" }}>
+	                        {e.muscle.toUpperCase()}
+	                      </span>
+	                      {(SECONDARY[e.id] || "").split(" · ").filter(Boolean).map((m) => {
+	                        const grp = (DB.find((d) => d && d.muscle === m) || {}).group || e.group;
+	                        return (
+	                          <span key={m} style={{ ...S.tag(grp, m), opacity:0.9, fontSize:8, padding:"1px 5px" }}>
+	                            {m.toUpperCase()}
+	                          </span>
+	                        );
+	                      })}
+	                    </div>
+	                  </div>
+		                  <div style={{
+		                    ...addCircleButtonStyle(th, { active:isPending, disabled:isAdded }),
+		                  }}>
+			                    {(isPending || isAdded) ? "✔" : ""}
+			                  </div>
+	                </div>
+	              );
+	            })}
+	          </div>
+	          {pending.length > 0 && (
+	            <div style={{
+	              position:"fixed",
+	              left:"50%",
+              bottom:"max(-6px, calc(env(safe-area-inset-bottom, 0px) - 14px))",
+	              width:"min(448px, calc(100% - 32px))",
+	              transform:"translateX(-50%)",
+	              zIndex:3,
+	            }}>
+	              <button
+	                onClick={onConfirm}
+	                style={{
+	                  width:"100%",
+	                  ...buttonTexture(th, "accent"),
+	                  borderRadius:14,
+	                  padding:"14px",
+	                  cursor:"pointer",
+	                  fontFamily:"'Outfit',sans-serif",
+	                  fontSize:14,
+	                  fontWeight:800,
+	                  letterSpacing:0.5,
+	                  color:th.accentT,
+	                }}
+	              >
+	                {t("ADD")} {pending.length} →
+	              </button>
+	            </div>
+	          )}
+	        </div>
+	      </>
+	    );
+	  }
+
+	  /* ─── ExercisePicker — multi-select, stays open until Done ──────────────────── */
   function ExercisePicker({ onAdd, onClose, added = [] }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
-    const [q, setQ] = useState("");
-    const [flt, setFlt] = useState("All");
-    const [pending, setPending] = useState([]); // ids selected this session
-    const [epClosing, setEpClosing] = useState(false);
+	    const [q, setQ] = useState("");
+	    const [flt, setFlt] = useState("All");
+	    const [pending, setPending] = useState([]); // ids selected this session
+	    const [mapOpen, setMapOpen] = useState(false);
+	    const [epClosing, setEpClosing] = useState(false);
     const closeMe = (cb) => {
       setEpClosing(true);
       setTimeout(() => { setEpClosing(false); (cb || onClose)(); }, 300);
@@ -4420,14 +6616,27 @@ import "./styles.css";
 
     return (
       <>
-        <style>{`
-          @keyframes epFadeIn  { from { opacity: 0; } to { opacity: 1; } }
-          @keyframes epFadeOut { from { opacity: 1; } to { opacity: 0; } }
-          @keyframes epSlideUp   { from { transform: translateY(100%); opacity:0.6; } to { transform: translateY(0); opacity:1; } }
-          @keyframes epSlideDown { from { transform: translateY(0); opacity:1; } to { transform: translateY(100%); opacity:0; } }
-        `}</style>
+	        <style>{`
+	          @keyframes epFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+	          @keyframes epFadeOut { from { opacity: 1; } to { opacity: 0; } }
+	          @keyframes epSlideUp   { from { transform: translateY(100%); opacity:0.6; } to { transform: translateY(0); opacity:1; } }
+	          @keyframes epSlideDown { from { transform: translateY(0); opacity:1; } to { transform: translateY(100%); opacity:0; } }
+	        `}</style>
+	        {mapOpen && createPortal(
+	          <ExerciseMuscleMapBrowser
+	            added={added}
+	            pending={pending}
+	            setPending={setPending}
+	            onBack={() => setMapOpen(false)}
+	            onConfirm={() => {
+	              setMapOpen(false);
+	              confirmAdd();
+	            }}
+	          />,
+	          document.body
+	        )}
 
-        {/* Backdrop */}
+	        {/* Backdrop */}
         <div onClick={() => closeMe()} style={{
           position:"fixed", inset:0, zIndex:70,
           background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
@@ -4463,33 +6672,13 @@ import "./styles.css";
               <span
                 className="bebas"
                 style={{ fontSize: 24, letterSpacing: 2, color: th.text }}
-              >
-                {t("ADD EXERCISES")}
-              </span>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {pending.length > 0 && (
-                  <button
-                    onClick={confirmAdd}
-                    style={{
-                      background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                      border: "none",
-                      borderRadius: 9,
-                      color: th.accentT,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      padding: "7px 16px",
-                      cursor: "pointer",
-                      fontFamily: "'Outfit',sans-serif",
-                    }}
-                  >
-                    {t("ADD")} {pending.length} →
-                  </button>
-                )}
-                <button
-                  onClick={() => closeMe()}
-                  style={{
+	              >
+	                {t("ADD EXERCISES")}
+	              </span>
+	              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+	                <button
+	                  onClick={() => closeMe()}
+	                  style={{
                     background: "none",
                     border: "none",
                     color: th.muted,
@@ -4502,13 +6691,37 @@ import "./styles.css";
                 </button>
               </div>
             </div>
-            <input
-              type="text"
-              placeholder={t("Search exercises or muscles...")}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              style={{ ...S.input, marginBottom: 10 }}
-            />
+	            <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:10 }}>
+	              <input
+	                type="text"
+	                placeholder={t("Search exercises or muscles...")}
+	                value={q}
+	                onChange={(e) => setQ(e.target.value)}
+	                style={{ ...S.input, marginBottom: 0, flex:1, minWidth:0 }}
+	              />
+	              <button
+	                type="button"
+	                onClick={() => setMapOpen(true)}
+	                aria-label={t("MUSCLE MAP")}
+	                title={t("MUSCLE MAP")}
+	                style={{
+	                  ...buttonTexture(th, "blue"),
+	                  width:52,
+	                  minWidth:52,
+	                  borderRadius:14,
+	                  display:"flex",
+	                  alignItems:"center",
+	                  justifyContent:"center",
+	                  cursor:"pointer",
+	                  color:"#fff",
+	                  padding:0,
+	                  position:"relative",
+	                  overflow:"hidden",
+	                }}
+	              >
+	                <ExerciseMapIcon />
+	              </button>
+	            </div>
             <div
               style={{
                 display: "flex",
@@ -4561,76 +6774,52 @@ import "./styles.css";
               const isAdded = added.includes(e.id);
               const isPending = pending.includes(e.id);
               return (
-                <div
-                  key={e.id}
-                  onClick={() => toggle(e.id)}
-                  style={{
-                    padding: "12px 0",
-                    borderBottom: `1px solid ${th.border}`,
-                    cursor: isAdded ? "default" : "pointer",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    background: isPending ? `${th.accentBg}18` : "transparent",
-                    borderRadius: isPending ? 8 : 0,
-                    padding: isPending ? "12px 10px" : "12px 0",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        display: "flex",      // Added for alignment
-                        alignItems: "center", // Added for alignment
-                        gap: 8,               // Added for spacing (adjust as needed)
-                        fontWeight: 500,
-                        fontSize: 14,
-                        color: isAdded ? th.dim : th.text,
-                      }}
-                    >
-                      {e.name}
-                      <DiffBadge id={e.id} />
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 11, color: gc(e.group), fontWeight: 600 }}>
-                        {e.muscle.toUpperCase()}
-                        </span>
-                        {SECONDARY[e.id] && SECONDARY[e.id].split(" · ").map(m => {
-                          const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
-                          return (
-                          <span key={m} style={{ ...S.tag(grp), opacity: 0.55, fontSize: 9, padding: "2px 6px" }}>
-                            {m.toUpperCase()}
-                            </span>
-                            );
-                            })}
-                            </div>
-                  </div>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      border: `2px solid ${
-                        isPending ? th.accentBg : isAdded ? th.dim : th.inputB
-                      }`,
-                      background: isPending ? th.accentBg : "transparent",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {(isPending || isAdded) && (
-                      <span
-                        style={{
-                          color: isPending ? th.accentT : th.dim,
-                          fontSize: 14,
-                          fontWeight: 800,
-                        }}
-                      >
-                        ✔
-                      </span>
-                    )}
-                  </div>
+	                <div
+	                  key={e.id}
+	                  onClick={() => toggle(e.id)}
+	                  className={isAdded ? "" : "ib-pressable-card"}
+	                  {...pressableCardProps(isAdded)}
+	                  style={{
+	                    ...S.card,
+	                    marginBottom:8,
+	                    padding:"12px 12px",
+	                    cursor:isAdded ? "default" : "pointer",
+	                    display:"flex",
+	                    alignItems:"center",
+	                    justifyContent:"space-between",
+	                    gap:12,
+	                    borderColor:isPending ? th.accentBg : th.border,
+	                    background:isPending
+	                      ? `color-mix(in srgb, ${th.accentBg} 14%, ${th.card})`
+	                      : S.card.background,
+	                  }}
+	                >
+	                  <div style={{ minWidth:0, flex:1, textAlign:"left" }}>
+	                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", color:isAdded ? th.dim : th.text, fontWeight:700, fontSize:14 }}>
+	                      {e.name}
+	                      <DiffBadge id={e.id} />
+	                    </div>
+	                    <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:5, flexWrap:"wrap" }}>
+	                      <span style={{ ...S.tag(e.group, e.muscle), fontSize:8.5, padding:"2px 5px" }}>
+	                        {e.muscle.toUpperCase()}
+	                      </span>
+	                      {(SECONDARY[e.id] || "").split(" · ").filter(Boolean).map((m) => {
+	                        const grp = (DB.find((d) => d && d.muscle === m) || {}).group || e.group;
+	                        return (
+	                          <span key={m} style={{ ...S.tag(grp, m), opacity:0.9, fontSize:8, padding:"1px 5px" }}>
+	                            {m.toUpperCase()}
+	                          </span>
+	                        );
+	                      })}
+	                    </div>
+	                  </div>
+	                  <div
+	                    style={{
+	                      ...addCircleButtonStyle(th, { active:isPending, disabled:isAdded }),
+	                    }}
+	                  >
+		                    {(isPending || isAdded) ? "✔" : ""}
+	                  </div>
                 </div>
               );
             })}
@@ -6236,7 +8425,7 @@ import "./styles.css";
                   <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign:"left" }}>{t(d.label)}</span>
                   <button
                     onClick={() => removeItem(d.id)}
-                    style={{ background:"rgba(220,50,50,0.12)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:7, color:th.delText, cursor:"pointer", fontSize:14, padding:"2px 7px", lineHeight:1, flexShrink:0 }}
+                    style={{ background:"rgba(220,50,50,0.12)", border:"1px solid rgba(220,50,50,0.3)", borderRadius:8, color:th.delText, cursor:"pointer", fontSize:15, padding:"4px 9px", lineHeight:1, flexShrink:0, minWidth:30, minHeight:28 }}
                   >✕</button>
                 </div>
               </div>
@@ -6257,16 +8446,23 @@ import "./styles.css";
                 borderBottom: i < availableItems.length - 1 ? `1px solid ${th.border}` : "none",
               }}>
                 <span style={{ flex:1, fontSize:14, fontWeight:600, color:th.text, textAlign:"left" }}>{t(d.label)}</span>
-                <button
-                  onClick={() => addItem(d.id)}
-                  style={{
-                    background:`color-mix(in srgb, ${th.accentBg} 85%, transparent)`,
-                    backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
-                    border:"none", borderRadius:8, color:th.accentT,
-                    padding:"0px 9px", cursor:"pointer", fontSize:20,
-                    fontFamily:"'Outfit',sans-serif", fontWeight:600, flexShrink:0,
-                  }}
-                >+</button>
+	                <button
+	                  onClick={() => addItem(d.id)}
+	                  style={{
+	                    background:"rgba(91,156,246,0.14)",
+	                    border:"1px solid rgba(91,156,246,0.34)",
+	                    borderRadius:8,
+	                    color:"#5B9CF6",
+	                    cursor:"pointer",
+	                    fontSize:15,
+	                    padding:"4px 9px",
+	                    lineHeight:1,
+	                    flexShrink:0,
+	                    fontWeight:700,
+	                    minWidth:30,
+	                    minHeight:28,
+	                  }}
+	                >+</button>
               </div>
             ))
           )}
@@ -8094,13 +10290,18 @@ import "./styles.css";
                   else { const next = (friendPrograms||[]).filter(x=>x.id!==p.id); setFriendPrograms(next); onSaveCoachPrograms(friend.uid, next); }
                 }}
                 style={{
-                  position:"absolute", top:-8, right:-8, zIndex:50,
-                  background:"rgba(200,10,10,0.65)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
-                  border:"1px solid rgba(220,50,50,0.3)", borderRadius:"50%",
-                  width:24, height:24, minWidth:24, minHeight:24,
-                  padding:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  cursor:"pointer", color:"#fff", fontSize:12, fontWeight:700, lineHeight:1,
-                                    animation:"coachXPop 0.38s cubic-bezier(0.34,1.5,0.64,1) forwards",
+                  position:"absolute", top:-4, right:-4, zIndex:50,
+                  background:"rgba(160, 10, 10, 0.65)",
+                  backdropFilter:"blur(10px)",
+                  WebkitBackdropFilter:"blur(10px)",
+                  border:"1px solid rgba(220, 50, 50, 0.3)",
+                  borderRadius:"50%",
+                  minWidth:22, minHeight:22, width:22, height:22, aspectRatio:"1 / 1",
+                  padding:0, boxSizing:"content-box",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  cursor:"pointer", color:"#fff", fontSize:11, fontWeight:700, lineHeight:1,
+                  WebkitTapHighlightColor:"transparent",
+                  animation:"xBadgePop 0.4s cubic-bezier(0.54,1.56,0.64,0.8) forwards",
                 }}
               >✕</button>
             )}
@@ -8213,7 +10414,6 @@ import "./styles.css";
           @keyframes fdBdIn  { from{opacity:0} to{opacity:1} }
           @keyframes fdBdOut { from{opacity:1} to{opacity:0} }
           @keyframes coachPulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
-          @keyframes coachXPop  { 0%{transform:scale(0) rotate(-45deg);opacity:0} 65%{transform:scale(1.25) rotate(5deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
           @keyframes removeSlide { to{transform:translateX(-100%);opacity:0} }
           @keyframes sheetUp { from{transform:translateY(100%);opacity:.5} to{transform:translateY(0);opacity:1} }
         `}</style>
@@ -8858,7 +11058,7 @@ import "./styles.css";
                   {/* End competition */}
                   <button
                     onClick={async () => { if (window.confirm(t("End this competition?"))) { await onWithdrawCompeteInvite(comp.id); close(); } }}
-                    style={{ width:"100%", marginTop:16, background:"rgba(220, 50, 50, 0.45)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", border:"1px solid rgba(220, 50, 50, 0.3)", borderRadius:13, padding:14, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14, color:th.text }}
+                    style={{ width:"100%", marginTop:16, ...buttonTexture(th, "danger"), borderRadius:13, padding:14, cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:14 }}
                   >{t("END COMPETITION")}</button>
                 </>
               )}
@@ -9217,15 +11417,13 @@ import "./styles.css";
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:5 }}>
                           {dbEx && (
-                            <span style={{ fontSize:11, color:gc(dbEx.group), fontWeight:700,
-                              background:`color-mix(in srgb, ${gc(dbEx.group)}18, ${th.sect})`,
-                              borderRadius:6, padding:"2px 8px" }}>
+	                            <span style={{ ...S.tag(dbEx.group, dbEx.muscle), fontSize:9.5, padding:"2px 6px" }}>
                               {dbEx.muscle.toUpperCase()}
                             </span>
                           )}
                           {SECONDARY[ex.id] && SECONDARY[ex.id].split(" · ").map(m => {
                             const grp = DB.find(d=>d&&d.muscle===m)?.group||"Back";
-                            return <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:9, padding:"2px 6px" }}>{m.toUpperCase()}</span>;
+	                            return <span key={m} style={{ ...S.tag(grp, m), opacity:0.92, fontSize:8, padding:"1px 5px" }}>{m.toUpperCase()}</span>;
                           })}
                         </div>
                         <div style={{ fontSize:12, color:th.dim }}>
@@ -9938,7 +12136,27 @@ import "./styles.css";
         {(() => {
           const tabs = ["feed","friends"];
           return (
-            <div style={{ display:"flex", position:"relative", marginBottom:16, padding:"3px", background:th.row, borderRadius:14 }}>
+            <div style={{
+              display:"flex",
+              position:"sticky",
+              top:0,
+              zIndex:30,
+              marginBottom:16,
+              background:"transparent",
+              isolation:"isolate",
+            }}>
+              <div style={{
+                display:"flex",
+                width:"100%",
+                padding:"3px",
+                background:th.row,
+                borderRadius:14,
+                boxShadow: th.bg === "#080809"
+                  ? "0 16px 30px rgba(0,0,0,0.58), 0 3px 10px rgba(0,0,0,0.32), 0 1px 0 rgba(255,255,255,0.05)"
+                  : "0 16px 30px rgba(0,0,0,0.18), 0 3px 10px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.78)",
+                position:"relative",
+                zIndex:1,
+              }}>
               {tabs.map(tabId => {
                 const active = sharingTab === tabId;
                 return (
@@ -10014,6 +12232,7 @@ import "./styles.css";
                   </button>
                 );
               })}
+              </div>
             </div>
           );
         })()}
@@ -10999,9 +13218,8 @@ import "./styles.css";
       onUpdateSettings && onUpdateSettings({ ...settings, hasProgramOnboarded: true });
     };
     return (
-      <div className="slide-up" style={{ paddingBottom: 160 }}>
+        <div className="slide-up" style={{ paddingBottom: 160 }}>
         <style>{`
-          @keyframes progXPop   { 0%{transform:scale(0) rotate(-45deg);opacity:0} 70%{transform:scale(1.2) rotate(4deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
           @keyframes playPulse  { 0%{transform:scale(1);opacity:1} 40%{transform:scale(0.91);opacity:0.85} 100%{transform:scale(1);opacity:1} }
           @keyframes playRipple { 0%{transform:translate(-50%,-50%) scale(0.6);opacity:0.5} 100%{transform:translate(-50%,-50%) scale(2.4);opacity:0} }
         `}</style>
@@ -11031,6 +13249,8 @@ import "./styles.css";
               const programExs = Array.isArray(p.exs) ? p.exs : [];
               return (
               <div key={p.id} id={"prog-card-" + p.id}
+                className={editing ? "" : "ib-pressable-card"}
+                {...pressableCardProps(editing)}
                 style={{ ...S.card, marginBottom:9, overflow:"visible", position:"relative",
                   // no wobble in edit mode
                 }}>
@@ -11042,14 +13262,18 @@ import "./styles.css";
                       else onDelete(p.id);
                     }}
                     style={{
-                      position:"absolute", top:-8, right:-8, zIndex:50,
-                      background:"rgba(200,10,10,0.65)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
-                      border:"1px solid rgba(220,50,50,0.3)", borderRadius:"50%",
-                      minWidth:24, minHeight:24, width:24, height:24, aspectRatio:"1/1",
+                      position:"absolute", top:-4, right:-4, zIndex:50,
+                      background:"rgba(160, 10, 10, 0.65)",
+                      backdropFilter:"blur(10px)",
+                      WebkitBackdropFilter:"blur(10px)",
+                      border:"1px solid rgba(220, 50, 50, 0.3)",
+                      borderRadius:"50%",
+                      minWidth:22, minHeight:22, width:22, height:22, aspectRatio:"1 / 1",
                       padding:0, boxSizing:"content-box",
                       display:"flex", alignItems:"center", justifyContent:"center",
-                      cursor:"pointer", color:"#fff", fontSize:12, fontWeight:700, lineHeight:1,
-                      animation:"progXPop 0.4s cubic-bezier(0.54,1.56,0.64,0.8) forwards",
+                      cursor:"pointer", color:"#fff", fontSize:11, fontWeight:700, lineHeight:1,
+                      WebkitTapHighlightColor:"transparent",
+                      animation:"xBadgePop 0.4s cubic-bezier(0.54,1.56,0.64,0.8) forwards",
                     }}>✕</button>
                 )}
                 <div style={{ padding:"15px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -11448,7 +13672,7 @@ import "./styles.css";
               style={{
                 fontSize: 12,
                 color: th.dim,
-                fontWeight: 400,
+	                  fontWeight: 300,
                 letterSpacing: 0,
               }}
             >
@@ -11526,7 +13750,7 @@ import "./styles.css";
           {/* SHARE button — shown only when editing an existing program and has friends */}
           {editing && friends?.length > 0 && (
             <button
-              onClick={(e) => { addRipple(e, th.accentFg); onShare && onShare({ id: program?.id || uid(), name: name.trim(), exs }); }}
+              onClick={(e) => { addRipple(e, "#fff"); onShare && onShare({ id: program?.id || uid(), name: name.trim(), exs }); }}
               disabled={!name.trim() || exs.length === 0}
               style={{
                 width: 50, height: 50, minWidth: 50, maxWidth: 50, minHeight: 50, maxHeight: 50,
@@ -11534,7 +13758,7 @@ import "./styles.css";
                 flex: "0 0 50px",
                 flexShrink: 0,
                 boxSizing: "border-box",
-                ...buttonTexture(th, "accentSoft", !name.trim() || exs.length === 0),
+                ...buttonTexture(th, "blue", !name.trim() || exs.length === 0),
                 borderRadius: 14,
                 cursor: (!name.trim() || exs.length === 0) ? "default" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -11554,9 +13778,9 @@ import "./styles.css";
                 style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, maxWidth: 26, maxHeight: 26, display: "block", flex: "0 0 26px", overflow: "visible" }}
               >
                 {/* Share tray — open-top box with centred up-arrow, universally recognised */}
-                <path d="M8.5 8.5H6C5.44772 8.5 5 8.94772 5 9.5V19C5 19.5523 5.44772 20 6 20H18C18.5523 20 19 19.5523 19 19V9.5C19 8.94772 18.5523 8.5 18 8.5H15.5" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
-                <path d="M12 14V3" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
-                <path d="M9 6L12 3L15 6" stroke={(!name.trim() || exs.length === 0) ? th.dim : th.accentFg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>
+                <path d="M8.5 8.5H6C5.44772 8.5 5 8.94772 5 9.5V19C5 19.5523 5.44772 20 6 20H18C18.5523 20 19 19.5523 19 19V9.5C19 8.94772 18.5523 8.5 18 8.5H15.5" stroke={(!name.trim() || exs.length === 0) ? "rgba(91,156,246,0.35)" : "#fff"} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+                <path d="M12 14V3" stroke={(!name.trim() || exs.length === 0) ? "rgba(91,156,246,0.35)" : "#fff"} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+                <path d="M9 6L12 3L15 6" stroke={(!name.trim() || exs.length === 0) ? "rgba(91,156,246,0.35)" : "#fff"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>
               </svg>
             </button>
           )}
@@ -11742,7 +13966,7 @@ import "./styles.css";
               const isOpen = expandedEx === ex.uid;
               const isCardio = ex.type === "cardio";
               return (
-                <div key={ex.uid} style={{ ...S.card, marginBottom: 8 }}>
+                <div key={ex.uid} className="ib-pressable-card" {...pressableCardProps()} style={{ ...S.card, marginBottom: 8 }}>
                   <div
                     style={{
                       padding: "13px 15px",
@@ -11763,13 +13987,13 @@ import "./styles.css";
                       </div>
                       {/* Row 2: primary + secondary muscle tags */}
                       <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:4, flexWrap:"wrap" }}>
-                        <span style={S.tag(ex.group)}>
+                        <span style={S.tag(ex.group, ex.muscle)}>
                           {ex.muscle.toUpperCase()}
                         </span>
                         {SECONDARY[ex.exId] && SECONDARY[ex.exId].split(" · ").map(m => {
                           const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
                           return (
-                            <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:10, padding:"2px 7px" }}>
+	                            <span key={m} style={{ ...S.tag(grp, m), opacity:0.92, fontSize:8.5, padding:"2px 5px" }}>
                               {m.toUpperCase()}
                             </span>
                           );
@@ -11803,10 +14027,17 @@ import "./styles.css";
                         style={{
                           background: "none",
                           border: "none",
-                          color: th.dim,
+                          color: th.delText,
                           cursor: "pointer",
-                          fontSize: 15,
-                          padding: "2px 6px",
+                          fontSize: 22,
+                          width: 34,
+                          height: 34,
+                          padding: 0,
+                          lineHeight: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          WebkitTapHighlightColor: "transparent",
                         }}
                       >
                         ✕
@@ -12119,11 +14350,17 @@ import "./styles.css";
             style={{
               background: "none",
               border: "none",
-              color: th.dim,
+              color: th.delText,
               cursor: "pointer",
-              fontSize: 15,
-              padding: "2px 6px",
-              opacity: 0.6,
+              fontSize: 22,
+              width: 34,
+              height: 34,
+              padding: 0,
+              lineHeight: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              WebkitTapHighlightColor: "transparent",
             }}
           >
             ✕
@@ -12405,10 +14642,12 @@ import "./styles.css";
           const someDone = ex.sets.some((s) => s.done);
           const showMilestone = milestoneMsg && milestoneExIdx === eIdx;
           return (
-            <div
-              key={ex.uid}
-              style={{
-                ...S.card,
+	            <div
+	              key={ex.uid}
+	              className="ib-pressable-card"
+	              {...pressableCardProps()}
+	              style={{
+	                ...S.card,
                 marginBottom: 9,
                 position: "relative",
                 overflow: "hidden",
@@ -12517,11 +14756,11 @@ import "./styles.css";
                     </div>
                   </div>
                   <div style={{ paddingLeft: 14, marginTop: 2, textAlign: "left", display:"flex", flexWrap:"wrap", gap:5 }}>
-                    <span style={S.tag(ex.group)}>{ex.muscle.toUpperCase()}</span>
+                    <span style={S.tag(ex.group, ex.muscle)}>{ex.muscle.toUpperCase()}</span>
                     {(SECONDARY[ex.exId] || SECONDARY[ex.id]) && (SECONDARY[ex.exId] || SECONDARY[ex.id]).split(" · ").map(m => {
                       const grp = DB.find(d => d && d.muscle === m)?.group || "Back";
                       return (
-                        <span key={m} style={{ ...S.tag(grp), opacity:0.55, fontSize:10, padding:"2px 7px" }}>
+	                        <span key={m} style={{ ...S.tag(grp, m), opacity:0.92, fontSize:8.5, padding:"2px 5px" }}>
                           {m.toUpperCase()}
                         </span>
                       );
@@ -12675,16 +14914,20 @@ import "./styles.css";
                           onClick={() => removeSet(eIdx, sIdx)}
                           title={t("Remove set")}
                           style={{
-                            background: "rgba(220,50,50,0.12)",
-                            border: "1px solid rgba(220,50,50,0.3)",
-                            borderRadius: 6,
+                            background: "none",
+                            border: "none",
                             color: th.delText,
                             cursor: "pointer",
-                            fontSize: 16,
+                            fontSize: 22,
                             lineHeight: 1,
-                            padding: "4px",
+                            width: 34,
+                            height: 34,
+                            padding: 0,
                             flexShrink: 0,
-                            opacity: 0.6,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            WebkitTapHighlightColor: "transparent",
                           }}
                         >
                           ✕
@@ -13139,6 +15382,260 @@ import "./styles.css";
     );
   }
 
+  function MissedCardioPickerSheet({ choices, onSelect, onClose }) {
+    const th = useTheme();
+    const S = useS();
+    const t = useT();
+    const [closing, setClosing] = useState(false);
+    const close = (cb) => {
+      setClosing(true);
+      setTimeout(() => {
+        setClosing(false);
+        (cb || onClose)();
+      }, 300);
+    };
+    return createPortal(
+      <>
+        <style>{`
+          @keyframes mcBdIn  { from{opacity:0} to{opacity:1} }
+          @keyframes mcBdOut { from{opacity:1} to{opacity:0} }
+          @keyframes mcSheetIn  { from{transform:translateY(100%);opacity:.6} to{transform:translateY(0);opacity:1} }
+          @keyframes mcSheetOut { from{transform:translateY(0);opacity:1} to{transform:translateY(100%);opacity:0} }
+        `}</style>
+        <div
+          onClick={() => close()}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 80,
+            background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            animation: closing ? "mcBdOut .34s ease forwards" : "mcBdIn .26s ease forwards",
+          }}
+        />
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 81,
+          display: "flex",
+          flexDirection: "column",
+          maxWidth: 480,
+          margin: "0 auto",
+          pointerEvents: "none",
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: `color-mix(in srgb, ${th.card} 92%, transparent)`,
+            backdropFilter: "blur(28px) saturate(1.5)",
+            WebkitBackdropFilter: "blur(28px) saturate(1.5)",
+            borderRadius: "24px 24px 0 0",
+            borderTop: `1px solid ${th.border}`,
+            marginTop: "auto",
+            maxHeight: "80vh",
+            display: "flex",
+            flexDirection: "column",
+            pointerEvents: "auto",
+            animation: closing ? "mcSheetOut .34s cubic-bezier(0.4,0,1,1) forwards" : "mcSheetIn .42s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
+            <div style={{ padding: "12px 18px 0" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: th.inputB }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div className="bebas" style={{ fontSize: 22, letterSpacing: 2, color: th.text }}>
+                  {t("SELECT CARDIO WORKOUT")}
+                </div>
+                <button onClick={() => close()} style={{ background: "none", border: "none", color: th.muted, cursor: "pointer", fontSize: 22, lineHeight: 1, padding: "4px 6px" }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div style={{ overflowY: "auto", padding: "0 18px 18px", flex: 1 }}>
+              {choices.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "34px 8px 42px" }}>
+                  <div className="bebas" style={{ fontSize: 34, color: th.dim, letterSpacing: 1.5 }}>
+                    {t("NO CARDIO WORKOUTS")}
+                  </div>
+                  <div style={{ fontSize: 13, color: th.muted, marginTop: 8, lineHeight: 1.5 }}>
+                    {t("Add a cardio exercise to a workout program first.")}
+                  </div>
+                </div>
+              ) : choices.map((choice) => (
+                <button
+                  key={choice.key}
+                  onClick={() => close(() => onSelect(choice))}
+                  style={{
+                    width: "100%",
+                    background: "none",
+                    border: "none",
+                    borderBottom: `1px solid ${th.border}`,
+                    padding: "12px 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontFamily: "'Outfit',sans-serif",
+                  }}
+                >
+                  <ProgramIcon name={choice.program?.name || choice.db.name} size={44} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: th.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {choice.program?.name || t("Cardio workout")}
+                    </div>
+                    <div style={{ fontSize: 12, color: th.muted, marginTop: 2 }}>
+                      {choice.db.name}
+                    </div>
+                  </div>
+                  <span style={{ ...S.tag("Cardio"), flexShrink: 0 }}>CARDIO</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
+
+  function MissedCardioResultView({ draft, onSave, onCancel }) {
+    const th = useTheme();
+    const S = useS();
+    const t = useT();
+    const [duration, setDuration] = useState("");
+    const [distance, setDistance] = useState("");
+    const [calories, setCalories] = useState("");
+    const [workoutDate, setWorkoutDate] = useState(dateInputValue());
+    const [intensity, setIntensity] = useState(7);
+    const [saving, setSaving] = useState(false);
+    if (!draft) return null;
+    const durationNum = parseFloat(duration) || 0;
+    const canSave = durationNum > 0 && !saving;
+    const save = async () => {
+      if (!canSave) return;
+      setSaving(true);
+      await onSave({
+        duration: durationNum,
+        distance: parseFloat(distance) || 0,
+        calories: parseInt(calories, 10) || 0,
+        workoutDate,
+        intensity,
+      });
+      setSaving(false);
+    };
+    return (
+      <div className="slide-up" style={{ paddingBottom: 60, paddingTop: 4 }}>
+        <div style={{ textAlign: "center", marginBottom: 18, paddingTop: 4 }}>
+          <div className="bebas" style={{ fontSize: 48, color: th.accentFg, lineHeight: 1, letterSpacing: 2.5 }}>
+            {t("LOG MISSED CARDIO")}
+          </div>
+          <div style={{ fontSize: 13, color: th.muted, marginTop: 8 }}>
+            {t("Enter the numbers from your wearable or cardio machine.")}
+          </div>
+        </div>
+
+        <div style={{ ...S.card, padding: 16, marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+          <ProgramIcon name={draft.program?.name || draft.db.name} size={48} />
+          <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: th.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {draft.program?.name || t("Cardio workout")}
+            </div>
+            <div style={{ fontSize: 12, color: th.muted, marginTop: 3 }}>{draft.db.name}</div>
+          </div>
+          <span style={S.tag("Cardio")}>CARDIO</span>
+        </div>
+
+        <div style={{ ...S.card, padding: 15, marginBottom: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>{t("WORKOUT DATE")}</div>
+              <input
+                type="date"
+                value={workoutDate}
+                max={dateInputValue()}
+                onChange={(e) => setWorkoutDate(e.target.value)}
+                style={S.input}
+              />
+            </div>
+            <div>
+              <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>{t("DURATION (min)")}</div>
+              <input type="number" min="0" step="1" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="0" style={S.input} />
+            </div>
+            <div>
+              <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>{t("DISTANCE (km)")}</div>
+              <input type="number" min="0" step="0.1" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="0.0" style={S.input} />
+            </div>
+            <div>
+              <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>{t("CALORIES (kcal)")}</div>
+              <input type="number" min="0" step="1" value={calories} onChange={(e) => setCalories(e.target.value)} placeholder="0" style={S.input} />
+            </div>
+            <div>
+              <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>{t("INTENSITY")}</div>
+              <div className="bebas" style={{ height: 50, borderRadius: 12, background: th.row, border: `1px solid ${th.inputB}`, display: "flex", alignItems: "center", justifyContent: "center", color: intColor(intensity, th), fontSize: 26 }}>
+                {intensity}/10
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 4, marginTop: 14 }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
+              const col = intColor(n, th);
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setIntensity(n)}
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    borderRadius: 7,
+                    padding: "11px 0",
+                    cursor: "pointer",
+                    fontFamily: "'Bebas Neue',sans-serif",
+                    fontSize: 15,
+                    background: intensity >= n ? col : th.row,
+                    color: intensity >= n ? "#080809" : th.dim,
+                  }}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <Btn
+          disabled={!canSave}
+          onClick={save}
+          style={{
+            width: "100%",
+            marginBottom: 10,
+            fontFamily: "'Outfit',sans-serif",
+            fontSize: 14,
+            letterSpacing: 0.5,
+          }}
+        >
+          {saving ? t("Saving...") : t("SAVE CARDIO →")}
+        </Btn>
+        <button
+          onClick={onCancel}
+          disabled={saving}
+          style={{
+            width: "100%",
+            background: "none",
+            border: "none",
+            color: th.muted,
+            cursor: saving ? "default" : "pointer",
+            padding: "10px 0",
+            fontFamily: "'Outfit',sans-serif",
+            fontWeight: 700,
+          }}
+        >
+          {t("Cancel")}
+        </button>
+      </div>
+    );
+  }
+
   /* ─── History & Session Detail ───────────────────────────────────────────────── */
   function HistoryView({
     sessions,
@@ -13168,11 +15665,14 @@ import "./styles.css";
           sessions.map((s) => {
             const ic = intColor(s.intensity || 0, th);
             const isPendingDelete = confirmDelete === s.id;
+            const cardioDistance = sessionCardioDistance(s);
             return (
-              <div
-                key={s.id}
-                style={{
-                  ...S.card,
+	              <div
+	                key={s.id}
+	                className={isPendingDelete ? "" : "ib-pressable-card"}
+	                {...pressableCardProps(isPendingDelete)}
+	                style={{
+	                  ...S.card,
                   marginBottom: 8,
                   overflow: "hidden",
                   borderColor: isPendingDelete ? th.delB : th.border,
@@ -13256,6 +15756,7 @@ import "./styles.css";
                     <div style={{ fontSize: 12, color: th.muted, textAlign: "left", }}>
                       {fmtDateLocal(s.startTime)} · {s.doneSets}/{s.totalSets} {t("sets")} ·{" "}
                       {s.duration || "?"}{t("min")}
+                      {cardioDistance ? ` · ${cardioDistance}km` : ""}
                       {s.calories ? ` · ${s.calories}kcal` : ""}
                     </div>
                     <div style={{ fontSize: 12, color: th.dim, marginTop: 2,textAlign: "left", }}>
@@ -13305,16 +15806,20 @@ import "./styles.css";
                         setConfirmDelete(isPendingDelete ? null : s.id);
                       }}
                       style={{
-                        background: "rgba(220,50,50,0.12)",
-                        border: "1px solid rgba(220,50,50,0.3)",
-                        borderRadius: 7,
+                        background: "none",
+                        border: "none",
                         color: th.delText,
                         cursor: "pointer",
-                        padding: "4px 9px",
-                        fontSize: 13,
+                        width: 34,
+                        height: 34,
+                        padding: 0,
+                        fontSize: 22,
                         lineHeight: 1,
-                        fontWeight: 700,
                         alignSelf: "flex-start",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        WebkitTapHighlightColor: "transparent",
                       }}
                     >
                       ✕
@@ -13365,17 +15870,109 @@ import "./styles.css";
       </div>
     );
   }
-  function SessionDetailView({ session }) {
+  function SessionDetailView({ session, onSave }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
     const lang = useLang();
+    const distanceDraftValue = (s) => {
+      const distance = sessionCardioDistance(s);
+      return distance ? String(distance) : "";
+    };
+    const [editing, setEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [durationDraft, setDurationDraft] = useState(session?.duration != null ? String(session.duration) : "");
+    const [caloriesDraft, setCaloriesDraft] = useState(session?.calories != null ? String(session.calories) : "");
+    const [distanceDraft, setDistanceDraft] = useState(distanceDraftValue(session));
+    const [intensityDraft, setIntensityDraft] = useState(session?.intensity != null ? String(session.intensity) : "");
+    const [dateDraft, setDateDraft] = useState(dateInputValue(new Date(session?.startTime || Date.now())));
+    useEffect(() => {
+      setEditing(false);
+      setSaving(false);
+      setDurationDraft(session?.duration != null ? String(session.duration) : "");
+      setCaloriesDraft(session?.calories != null ? String(session.calories) : "");
+      setDistanceDraft(distanceDraftValue(session));
+      setIntensityDraft(session?.intensity != null ? String(session.intensity) : "");
+      setDateDraft(dateInputValue(new Date(session?.startTime || Date.now())));
+    }, [session?.id]);
     const fmtDateFullLocal = (ts) => new Date(ts).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
       weekday: "long", day: "numeric", month: "long", year: "numeric",
     });
     const vol = sessionVol(session);
     const ic = intColor(session.intensity || 0, th);
     const exercises = session.exercises || [];
+    const isCardioSession = exercises.length > 0 && exercises.every((e) => e.type === "cardio");
+    const cardioDistance = sessionCardioDistance(session);
+    const canEdit = typeof onSave === "function";
+    const saveEdits = async () => {
+      if (!canEdit || saving) return;
+      const cleanDuration = durationDraft.trim();
+      const cleanCalories = caloriesDraft.trim();
+      const cleanDistance = distanceDraft.trim();
+      const cleanIntensity = intensityDraft.trim();
+      const originalStart = session?.startTime || Date.now();
+      const originalEnd = session?.endTime || originalStart;
+      const originalDurationMs = Math.max(0, originalEnd - originalStart);
+      const nextStartTime = dateDraft
+        ? localDateAtNoon(dateDraft).getTime()
+        : originalStart;
+      const nextDuration = cleanDuration === "" ? null : Math.max(0, parseInt(cleanDuration, 10) || 0);
+      let next = {
+        ...session,
+        startTime: nextStartTime,
+        endTime: nextDuration != null
+          ? nextStartTime + nextDuration * 60000
+          : (session?.endTime ? nextStartTime + originalDurationMs : session?.endTime),
+        duration: nextDuration,
+        calories: cleanCalories === "" ? null : Math.max(0, parseInt(cleanCalories, 10) || 0),
+        intensity: cleanIntensity === ""
+          ? null
+          : Math.min(10, Math.max(1, parseFloat(cleanIntensity) || 1)),
+      };
+      if (isCardioSession) {
+        const distanceVal = cleanDistance === ""
+          ? null
+          : Math.max(0, Math.round((parseFloat(cleanDistance) || 0) * 100) / 100);
+        const cardioSets = exercises.flatMap((ex) =>
+          ex.type === "cardio" ? (ex.sets || []).filter((st) => st.done !== false) : []
+        );
+        const currentTotal = cardioSets.reduce((sum, st) => sum + (Number(st.distance) || 0), 0);
+        const targetDistance = distanceVal ?? 0;
+        let seen = 0;
+        let assigned = 0;
+        next = {
+          ...next,
+          distance: distanceVal,
+          exercises: exercises.map((ex) => {
+            if (ex.type !== "cardio") return ex;
+            return {
+              ...ex,
+              sets: (ex.sets || []).map((st) => {
+                if (st.done === false) return st;
+                seen += 1;
+                let setDistance = targetDistance;
+                if (cardioSets.length > 1) {
+                  if (seen === cardioSets.length) {
+                    setDistance = Math.max(0, Math.round((targetDistance - assigned) * 100) / 100);
+                  } else {
+                    const share = currentTotal > 0
+                      ? (Number(st.distance) || 0) / currentTotal
+                      : 1 / cardioSets.length;
+                    setDistance = Math.max(0, Math.round(targetDistance * share * 100) / 100);
+                    assigned += setDistance;
+                  }
+                }
+                return { ...st, distance: setDistance };
+              }),
+            };
+          }),
+        };
+      }
+      setSaving(true);
+      await onSave(next);
+      setSaving(false);
+      setEditing(false);
+    };
     return (
       <div className="slide-up" style={{ paddingBottom: 60, paddingTop: 4 }}>
         <div style={{ ...S.card, padding: 16, marginBottom: 12 }}>
@@ -13387,7 +15984,7 @@ import "./styles.css";
               marginBottom: 14,
             }}
           >
-            <div>
+            <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
               <div
                 style={{
                   fontWeight: 700,
@@ -13402,6 +15999,68 @@ import "./styles.css";
               <div style={{ fontSize: 13, color: th.sub }}>
                 {fmtDateFullLocal(session.startTime)}
               </div>
+              {canEdit && (
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  {editing ? (
+                    <>
+	                      <button
+	                        onClick={saveEdits}
+	                        disabled={saving}
+                        style={{
+                          ...buttonTexture(th, "accent", saving),
+                          borderRadius: 9,
+                          padding: "6px 12px",
+                          cursor: saving ? "default" : "pointer",
+                          fontFamily: "'Outfit',sans-serif",
+                          fontWeight: 800,
+                          fontSize: 11,
+                          letterSpacing: "0.4px",
+                        }}
+	                      >
+	                        {saving ? t("Saving...") : t("SAVE")}
+	                      </button>
+	                      <button
+	                        onClick={() => {
+	                          setDurationDraft(session?.duration != null ? String(session.duration) : "");
+	                          setCaloriesDraft(session?.calories != null ? String(session.calories) : "");
+	                          setDistanceDraft(distanceDraftValue(session));
+	                          setIntensityDraft(session?.intensity != null ? String(session.intensity) : "");
+	                          setDateDraft(dateInputValue(new Date(session?.startTime || Date.now())));
+	                          setEditing(false);
+	                        }}
+	                        disabled={saving}
+	                        style={{
+	                          ...buttonTexture(th, "neutral", saving),
+                          borderRadius: 9,
+                          padding: "6px 12px",
+                          cursor: saving ? "default" : "pointer",
+                          fontFamily: "'Outfit',sans-serif",
+                          fontWeight: 700,
+                          fontSize: 11,
+                        }}
+                      >
+                        {t("Cancel")}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setEditing(true)}
+                      style={{
+                        ...buttonTexture(th, "neutral"),
+                        borderRadius: 9,
+                        padding: "6px 12px",
+                        cursor: "pointer",
+                        fontFamily: "'Outfit',sans-serif",
+                        fontWeight: 800,
+                        fontSize: 11,
+                        letterSpacing: "0.4px",
+                      }}
+                    >
+                      {t("EDIT")}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             {session.intensity != null && (
               <div
@@ -13435,7 +16094,9 @@ import "./styles.css";
           >
             {[
               { v: `${session.duration || "?"}${t("min")}`, l: t("DURATION") },
-              { v: Math.round(vol).toLocaleString() + "kg", l: t("VOLUME") },
+              isCardioSession
+                ? { v: cardioDistance ? `${cardioDistance}km` : "—", l: t("Distance") }
+                : { v: Math.round(vol).toLocaleString() + "kg", l: t("VOLUME") },
               {
                 v: session.calories ? `${session.calories}kcal` : "—",
                 l: t("CALORIES"),
@@ -13469,12 +16130,132 @@ import "./styles.css";
               </div>
             ))}
           </div>
+          {editing && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+              marginTop: 12,
+              paddingTop: 12,
+              borderTop: `1px solid ${th.border}`,
+            }}>
+              <div style={{ gridColumn: "1 / -1", minWidth: 0, width: "100%", overflow: "hidden" }}>
+                <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>
+                  {t("DATE")}
+                </div>
+                <input
+                  type="date"
+                  value={dateDraft}
+                  max={dateInputValue()}
+                  onChange={(e) => setDateDraft(e.target.value)}
+                  style={{
+                    ...S.input,
+                    width: "calc(100% - 2px)",
+                    maxWidth: "calc(100% - 2px)",
+                    minWidth: 0,
+                  }}
+                />
+              </div>
+              <div>
+                <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>
+                  {t("DURATION (min)")}
+                </div>
+	                <input
+	                  type="number"
+	                  min="0"
+	                  step="1"
+	                  value={durationDraft}
+	                  placeholder="0"
+	                  onChange={(e) => setDurationDraft(e.target.value)}
+	                  style={S.input}
+	                />
+	              </div>
+	              {isCardioSession && (
+	                <div>
+	                  <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>
+	                    {t("DISTANCE (km)")}
+	                  </div>
+	                  <input
+	                    type="number"
+	                    min="0"
+	                    step="0.1"
+	                    value={distanceDraft}
+	                    placeholder="0.0"
+	                    onChange={(e) => setDistanceDraft(e.target.value)}
+	                    style={S.input}
+	                  />
+	                </div>
+	              )}
+	              <div>
+	                <div style={{ ...S.label, fontSize: 10, marginBottom: 6 }}>
+	                  {t("CALORIES (kcal)")}
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={caloriesDraft}
+                  placeholder="0"
+                  onChange={(e) => setCaloriesDraft(e.target.value)}
+                  style={S.input}
+                />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <div style={{ ...S.label, fontSize: 10, marginBottom: 8 }}>
+                  {t("INTENSITY")}
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
+                    const active = intensityDraft !== "" && Math.round(parseFloat(intensityDraft)) === n;
+                    const col = intColor(n, th);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setIntensityDraft(String(n))}
+                        style={{
+                          flex: 1,
+                          border: `1px solid ${active ? col : th.inputB}`,
+                          borderRadius: 7,
+                          padding: "10px 0",
+                          cursor: "pointer",
+                          fontFamily: "'Bebas Neue',sans-serif",
+                          fontSize: 15,
+                          background: active ? col : th.row,
+                          color: active ? "#080809" : th.dim,
+                        }}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIntensityDraft("")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: th.dim,
+                    cursor: "pointer",
+                    fontFamily: "'Outfit',sans-serif",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "8px 0 0",
+                  }}
+                >
+                  {t("Clear")}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ ...S.label, marginBottom: 12, textAlign: "left" }}>
           {t("EXERCISES")} ({exercises.length})
         </div>
         {exercises.map((ex, i) => {
           const sets = ex.sets || [];
+          const isCardioEx = ex.type === "cardio";
           const muscle = ex.muscle || ex.group || "Exercise";
           const doneS = sets.filter((s) => s.done).length;
           const exVol = sets
@@ -13501,7 +16282,7 @@ import "./styles.css";
                       {doneS}/{sets.length} {t("sets")} · {exVol}kg {t("volume")}
                     </div>
                   </div>
-                  <span style={S.tag(ex.group || muscle)}>{muscle.toUpperCase()}</span>
+                  <span style={S.tag(ex.group || muscle, muscle)}>{muscle.toUpperCase()}</span>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {sets.map((s, si) => (
@@ -13522,7 +16303,7 @@ import "./styles.css";
                           color: s.done ? th.accentFg : th.dim,
                         }}
                       >
-                        {s.reps}×{s.weight}kg
+                        {isCardioEx ? `${s.duration || 0}${t("min")}` : `${s.reps}×${s.weight}kg`}
                       </div>
                       <div
                         style={{
@@ -13530,7 +16311,13 @@ import "./styles.css";
                           color: s.done ? th.doneText : th.dim,
                         }}
                       >
-                        {t("SET")} {si + 1}
+                        {isCardioEx
+                          ? [
+                              s.distance ? `${s.distance}km` : null,
+                              s.calories ? `${s.calories}kcal` : null,
+                              s.intensity ? `${s.intensity}/10` : null,
+                            ].filter(Boolean).join(" · ") || t("SET") + " " + (si + 1)
+                          : t("SET") + " " + (si + 1)}
                       </div>
                     </div>
                   ))}
@@ -13588,6 +16375,9 @@ import "./styles.css";
     const S = useS();
     const t = useT();
     const [aPage, setAPage] = useState(0);
+    const [awardPopup, setAwardPopup] = useState(null);
+    const pendingAwardPopupsRef = useRef([]);
+    const awardNotifyGuardRef = useRef(new Set());
 
     const daySet = new Set(sessions.map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); }));
     const sortedDays = [...daySet].sort((a,b) => b-a);
@@ -13648,6 +16438,7 @@ import "./styles.css";
     // Persisted earned streak awards: once unlocked, they stay earned forever
     // regardless of whether the current live streak has since dropped.
     const persistedEarned = Array.isArray(settings?.earnedAwards) ? settings.earnedAwards : [];
+    const notifiedAwards = Array.isArray(settings?.notifiedAwards) ? settings.notifiedAwards : [];
     const isPersisted = (id) => persistedEarned.includes(id);
 
     const awards = [
@@ -13660,17 +16451,48 @@ import "./styles.css";
       { id:"weekly",   icon:"🗓️", label:weekLabel,          desc:t("5 workouts this week"),           earned: daysThisWeek >= 5 },
     ];
 
-    // Persist any newly-earned persistable awards so they survive a broken streak.
-    // Union with any prior earnedAwards rather than replacing, so we never lose
-    // historical achievements even if `settings` is briefly stale.
+    const earnedAwardIds = awards.filter(a => a.earned).map(a => a.id).join(",");
+    const closeAwardPopup = () => {
+      const next = pendingAwardPopupsRef.current.shift();
+      setAwardPopup(next || null);
+    };
+
+    // Persist any newly-earned persistable awards so they survive a broken streak,
+    // and notify the user exactly once when any award is first achieved.
     useEffect(() => {
       if (!onUpdateSettings) return;
+      const knownAwards = new Set([...persistedEarned, ...notifiedAwards]);
       const newlyEarned = awards.filter(a => a.persistable && a.earned && !persistedEarned.includes(a.id)).map(a => a.id);
-      if (newlyEarned.length) {
-        const union = Array.from(new Set([...persistedEarned, ...newlyEarned]));
-        onUpdateSettings({ ...settings, earnedAwards: union });
+      const newlyUnlocked = awards.filter(a =>
+        a.earned &&
+        !knownAwards.has(a.id) &&
+        !awardNotifyGuardRef.current.has(a.id)
+      );
+      if (!newlyEarned.length && !newlyUnlocked.length) return;
+
+      newlyUnlocked.forEach(a => awardNotifyGuardRef.current.add(a.id));
+
+      if (newlyUnlocked.length) {
+        pendingAwardPopupsRef.current.push(...newlyUnlocked.slice(1));
+        setAwardPopup(prev => prev || newlyUnlocked[0]);
+        if (user?.id) {
+          newlyUnlocked.forEach(a => {
+            fsPushNotification(user.id, {
+              type: "award_earned",
+              name: "Iron Body",
+              awardId: a.id,
+              awardIcon: a.icon,
+              awardLabel: a.label,
+              text: `${t("Award unlocked")}: ${a.label}`,
+            });
+          });
+        }
       }
-    }, [bestStreak, streak, persistedEarned.join(",")]);
+
+      const earnedUnion = Array.from(new Set([...persistedEarned, ...newlyEarned]));
+      const notifiedUnion = Array.from(new Set([...notifiedAwards, ...newlyUnlocked.map(a => a.id)]));
+      onUpdateSettings({ ...settings, earnedAwards: earnedUnion, notifiedAwards: notifiedUnion });
+    }, [earnedAwardIds, persistedEarned.join(","), notifiedAwards.join(","), user?.id]);
 
     const PAGE = 3;
     const totalPages = Math.ceil(awards.length / PAGE);
@@ -13682,6 +16504,7 @@ import "./styles.css";
     );
 
     return (
+      <>
       <div {...swipe} style={{ ...S.card, padding:"18px 18px 14px", marginBottom:14, touchAction:"pan-y" }}>
         <style>{`@keyframes awSlideL{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}} @keyframes awSlideR{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}`}</style>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
@@ -13712,6 +16535,65 @@ import "./styles.css";
           ))}
         </div>
       </div>
+      {awardPopup && createPortal(
+        <>
+          <style>{`
+            @keyframes awardPopIn{from{opacity:0;transform:translateY(calc(-50% + 18px)) scale(0.94)}to{opacity:1;transform:translateY(-50%) scale(1)}}
+          `}</style>
+          <div
+            onClick={closeAwardPopup}
+            style={{ position:"fixed", inset:0, zIndex:88, background:"rgba(0,0,0,0.48)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)" }}
+          />
+          <div style={{
+            position:"fixed",
+            left:18,
+            right:18,
+            top:"50%",
+            transform:"translateY(-50%)",
+            zIndex:89,
+            maxWidth:360,
+            margin:"0 auto",
+            borderRadius:22,
+            padding:"24px 20px 18px",
+            textAlign:"center",
+            background:`color-mix(in srgb, ${th.card} 92%, transparent)`,
+            border:`1px solid ${th.border}`,
+            boxShadow:"0 24px 70px rgba(0,0,0,0.42)",
+            animation:"awardPopIn 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards",
+          }}>
+            <div style={{
+              width:74,
+              height:74,
+              borderRadius:20,
+              margin:"0 auto 14px",
+              display:"flex",
+              alignItems:"center",
+              justifyContent:"center",
+              fontSize:38,
+              background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.card})`,
+              border:`1px solid color-mix(in srgb, ${th.accentBg} 48%, transparent)`,
+              boxShadow:`0 10px 28px color-mix(in srgb, ${th.accentBg} 24%, transparent)`,
+            }}>
+              {awardPopup.icon}
+            </div>
+            <div style={{ ...S.label, textAlign:"center", color:th.accentFg, marginBottom:6 }}>{t("ACHIEVEMENT UNLOCKED")}</div>
+            <div className="bebas" style={{ fontSize:30, letterSpacing:1.4, color:th.text, marginBottom:8 }}>
+              {awardPopup.label}
+            </div>
+            <div style={{ fontSize:13, color:th.muted, lineHeight:1.5, marginBottom:18 }}>
+              {awardPopup.desc}<br />{t("Nice work. This award has been added to your profile.")}
+            </div>
+            <button
+              onClick={closeAwardPopup}
+              style={{ width:"100%", ...buttonTexture(th, "accent"), borderRadius:13, padding:"13px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:800, fontSize:13, letterSpacing:0.6 }}
+            >
+              {t("NICE WORK")}
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
+      </>
     );
   }
 
@@ -13740,6 +16622,7 @@ import "./styles.css";
     const [eName, setEName] = useState(user.name);
     const [eEmail, setEEmail] = useState(user.email);
     const [ePhoto, setEPhoto] = useState(user.photoURL || "");
+    const profilePhotoInputRef = useRef(null);
     const [eAge, setEAge] = useState(user.age || "");
     const [eGender, setEGender] = useState(user.gender || "");
     const [ePw, setEPw] = useState("");
@@ -13911,6 +16794,20 @@ import "./styles.css";
       onSaveMeasurement(measurements.filter((_, i) => i !== idx));
     };
     const latest = measurements[0] || null;
+    const handleProfilePhotoFile = (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      if (file.size > 3 * 1024 * 1024) {
+        alert("Please choose a photo under 3MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => setEPhoto(ev.target.result);
+      reader.onerror = () =>
+        alert("Could not read the file. Please try another image.");
+      reader.readAsDataURL(file);
+    };
     const handleSaveProfile = async () => {
       setEditErr("");
       setEditOk("");
@@ -14032,6 +16929,7 @@ import "./styles.css";
         setUpgErr(friendlyError(e.code));
       }
     };
+    const displayPhoto = editMode ? ePhoto : user.photoURL || "";
 
     return (
       <div className="slide-up" style={{ paddingBottom: 90 }}>
@@ -14144,6 +17042,7 @@ import "./styles.css";
           >
             <div
               style={{
+                position: "relative",
                 width: 54,
                 height: 54,
                 borderRadius: "50%",
@@ -14155,9 +17054,9 @@ import "./styles.css";
                 justifyContent: "center",
               }}
             >
-              {user.photoURL ? (
+              {displayPhoto ? (
                 <img
-                  src={user.photoURL}
+                  src={displayPhoto}
                   alt="avatar"
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   onError={(e) => {
@@ -14172,6 +17071,43 @@ import "./styles.css";
                   {user.name?.[0]?.toUpperCase() || "?"}
                 </span>
               )}
+              {editMode && (
+                <button
+                  type="button"
+                  aria-label={t("Change photo")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    profilePhotoInputRef.current?.click();
+                  }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    border: "none",
+                    borderRadius: "50%",
+                    background: "rgba(0,0,0,0.46)",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    cursor: "pointer",
+                    backdropFilter: "blur(2px)",
+                    WebkitBackdropFilter: "blur(2px)",
+                  }}
+                >
+                  <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7.4 7.2 8.9 5h6.2l1.5 2.2H19c1.1 0 2 .9 2 2v7.3c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V9.2c0-1.1.9-2 2-2h2.4Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                    <path d="M12 15.7a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                </button>
+              )}
+              <input
+                ref={profilePhotoInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleProfilePhotoFile}
+              />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 17, color: th.text, textAlign: "left" }}>
@@ -14269,102 +17205,6 @@ import "./styles.css";
                   </div>
                 </div>
               </div>
-              <div style={{ ...S.label, marginBottom: 8, textAlign: "left", }}>
-                {t("PROFILE PHOTO")}{" "}
-                <span
-                  style={{
-                    color: th.dim,
-                    fontSize: 9,
-                    fontWeight: 400,
-                    letterSpacing: 0,
-                  }}
-                >
-                  {t("(optional)")}
-                </span>
-              </div>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  background: th.row,
-                  border: `1px dashed ${th.inputB}`,
-                  borderRadius: 12,
-                  padding: "12px 16px",
-                  cursor: "pointer",
-                  marginBottom: 12,
-                }}
-              >
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    background: th.accentBg,
-                    overflow: "hidden",
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {ePhoto ? (
-                    <img
-                      src={ePhoto}
-                      alt="preview"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 22 }}>📷</span>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, textAlign: "left", fontWeight: 700, color: th.text }}>
-                    {ePhoto ? t("Change photo") : t("Upload from camera roll")}
-                  </div>
-                  <div style={{ fontSize: 11, color: th.muted, marginTop: 2 }}>
-                    {t("Tap to choose an image")}
-                  </div>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    if (file.size > 3 * 1024 * 1024) {
-                      alert("Please choose a photo under 3MB.");
-                      return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = (ev) => setEPhoto(ev.target.result);
-                    reader.onerror = () =>
-                      alert("Could not read the file. Please try another image.");
-                    reader.readAsDataURL(file);
-                  }}
-                />
-              </label>
-              {ePhoto && (
-                <button
-                  onClick={() => setEPhoto("")}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: th.dim,
-                    cursor: "pointer",
-                    fontSize: 12,
-                    marginBottom: 12,
-                    padding: 0,
-                  }}
-                >
-                  ✕ {t("Remove photo")}
-                </button>
-              )}
               <div style={{ ...S.label, marginBottom: 6, textAlign: "left", }}>
                 {t("NEW PASSWORD")}{" "}
                 <span style={{ color: th.dim, fontSize: 9, letterSpacing: 0 }}>
@@ -15486,7 +18326,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.8.4 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.9.0 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             {t("DEVELOPED BY AZAD")}
@@ -15572,7 +18412,7 @@ import "./styles.css";
               style={{
                 fontSize: 12,
                 color: th.dim,
-                fontWeight: 400,
+	                  fontWeight: 300,
                 letterSpacing: 0,
               }}
             >
@@ -15839,6 +18679,8 @@ import "./styles.css";
     const [shareProgClosing, setShareProgClosing] = useState(false);
     const [shareProgTarget, setShareProgTarget] = useState(null); // program to share
     const [sharingSending, setSharingSending] = useState({}); // {friendUid: 'idle'|'sending'|'sent'}
+    const [missedCardioPickerOpen, setMissedCardioPickerOpen] = useState(false);
+    const [missedCardioDraft, setMissedCardioDraft] = useState(null);
     const closeShareProg = () => { setShareProgClosing(true); setTimeout(() => { setShareProgOpen(false); setShareProgClosing(false); setSharingSending({}); }, 340); };
     const closeProfile = () => {
       setProfileClosing(true);
@@ -16111,6 +18953,9 @@ import "./styles.css";
               const prevAwards   = Array.isArray(prev.earnedAwards)   ? prev.earnedAwards   : [];
               const remoteAwards = Array.isArray(remote.earnedAwards) ? remote.earnedAwards : [];
               merged.earnedAwards = Array.from(new Set([...prevAwards, ...remoteAwards]));
+              const prevNotifiedAwards   = Array.isArray(prev.notifiedAwards)   ? prev.notifiedAwards   : [];
+              const remoteNotifiedAwards = Array.isArray(remote.notifiedAwards) ? remote.notifiedAwards : [];
+              merged.notifiedAwards = Array.from(new Set([...prevNotifiedAwards, ...remoteNotifiedAwards]));
               // Onboarding flags are sticky — once dismissed locally, never revert
               // even if a stale snapshot still has the old false value
               ["hasDashOnboarded", "hasProgramOnboarded", "hasProgramBuildOnboarded", "hasSharingOnboarded", "hasSharingOnboardedV2", "hasSharingOnboardedV3"].forEach(k => {
@@ -16120,6 +18965,7 @@ import "./styles.css";
                 JSON.stringify(merged.homeDashboards) !== JSON.stringify(prev.homeDashboards) ||
                 JSON.stringify(merged.homePrograms)   !== JSON.stringify(prev.homePrograms)   ||
                 JSON.stringify(merged.earnedAwards)   !== JSON.stringify(prevAwards)          ||
+                JSON.stringify(merged.notifiedAwards) !== JSON.stringify(prevNotifiedAwards)  ||
                 merged.hasDashOnboarded         !== prev.hasDashOnboarded         ||
                 merged.hasProgramOnboarded      !== prev.hasProgramOnboarded      ||
                 merged.hasProgramBuildOnboarded !== prev.hasProgramBuildOnboarded ||
@@ -16518,6 +19364,18 @@ import "./styles.css";
       saveSessions(next);
       await fsDeleteSession(user.id, sessionId);
     };
+    const handleUpdateSession = async (updatedSession) => {
+      const normalized = {
+        ...updatedSession,
+        exercises: (updatedSession?.exercises || []).map(normalizeWorkoutExercise),
+      };
+      const next = sessions
+        .map((s) => (String(s.id) === String(normalized.id) ? normalized : s))
+        .sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+      saveSessions(next);
+      setSelSession(normalized);
+      await fsUpdateSession(user.id, normalized);
+    };
 
     const handleSaveSession = async ({ intensity, calories, duration }) => {
       const normalizedFinished = {
@@ -16583,6 +19441,55 @@ import "./styles.css";
       resetWorkoutTimerState();
       setView("home");
     };
+    const handleSaveMissedCardio = async ({ duration, distance, calories, workoutDate, intensity }) => {
+      if (!missedCardioDraft?.db) return;
+      const db = missedCardioDraft.db;
+      const dur = Math.max(0, Math.round(duration || 0));
+      const dist = Math.max(0, Math.round((distance || 0) * 100) / 100);
+      const cals = Math.max(0, Math.round(calories || 0));
+      const intVal = Math.min(10, Math.max(1, parseFloat(intensity) || 1));
+      const recordedAt = localDateAtNoon(workoutDate).getTime();
+      const session = {
+        id: uid(),
+        name: missedCardioDraft.program?.name || db.name,
+        progId: missedCardioDraft.program?.id || null,
+        startTime: recordedAt,
+        endTime: recordedAt + dur * 60000,
+        totalSets: 1,
+        doneSets: 1,
+        intensity: intVal,
+        calories: cals || null,
+        duration: dur || null,
+        distance: dist || null,
+        exercises: [
+          {
+            uid: uid(),
+            id: db.id,
+            exId: db.id,
+            name: db.name,
+            muscle: db.muscle,
+            group: db.group,
+            type: "cardio",
+            sets: [
+              {
+                i: 0,
+                done: true,
+                duration: dur,
+                distance: dist,
+                calories: cals,
+                intensity: intVal,
+              },
+            ],
+          },
+        ],
+      };
+      const next = [session, ...sessions].sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+      saveSessions(next);
+      const ok = await fsAddSession(user.id, session);
+      if (!ok) console.warn("Missed cardio session may not have synced to Firestore — will retry on next sync");
+      setMissedCardioDraft(null);
+      setView("history");
+    };
     const handleAbandon = () => {
       if (!window.confirm("Abandon workout? Progress will be lost.")) return;
       lsDel(uKey(user.id, "active"));
@@ -16597,20 +19504,32 @@ import "./styles.css";
       setSessions([]);
       setPrograms([]);
       setActive(null);
+      setMissedCardioPickerOpen(false);
+      setMissedCardioDraft(null);
       resetWorkoutTimerState();
     };
+
+    const cardioProgramChoices = programs.flatMap((program) =>
+      (program?.exs || []).flatMap((ex, idx) => {
+        const db = DB.find((d) => d.id === ex?.id);
+        return db?.type === "cardio"
+          ? [{ key: `${program.id || program.name || "program"}-${db.id}-${idx}`, program, db }]
+          : [];
+      })
+    );
 
     // Nav is always visible (even during workout — user can minimize)
     const hideNav = [
       "complete",
       "create",
       "editProgram",
+      "missedCardio",
       "sessionDetail",
       "shortcutDetail",
     ].includes(view);
 
     const tLang = (en) => (lang === "tr" && TR[en] != null ? TR[en] : en);
-    // Nav bar: enlarged stroke-based icons with the text labels underneath.
+    // Nav bar: enlarged icons with the standard text labels underneath.
     const NAV_ICON = 28;
     const NAV = [
       {
@@ -16622,7 +19541,7 @@ import "./styles.css";
         id: "programs",
         label: tLang("WORKOUTS"),
         icon: (c) => (
-          // Angled dumbbell — bar tilted upward to the right for a more dynamic, "in motion" feel.
+          // Angled dumbbell: bar tilted upward to the right for a more dynamic, "in motion" feel.
           <svg width={NAV_ICON} height={NAV_ICON} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <g transform="rotate(-32 12 12)">
               {/* Outer end caps (collars) */}
@@ -16655,8 +19574,10 @@ import "./styles.css";
           <div style={{ position: "relative", display: "inline-flex" }}>
             {/* Two overlapping figures — front person fully visible, back person peeking. */}
             <svg width={NAV_ICON} height={NAV_ICON} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Back figure (partially hidden behind the front one) */}
               <circle cx="16.5" cy="8.5" r="2.6" stroke={c} strokeWidth="1.6" />
               <path d="M14.5 14.2c1-.4 2-.6 3-.6 2.8 0 5.2 2 5.7 4.7" stroke={c} strokeWidth="1.6" strokeLinecap="round" />
+              {/* Front figure */}
               <circle cx="9.5" cy="9" r="3.2" stroke={c} strokeWidth="1.6" />
               <path d="M2.5 20c.6-3.4 3.6-6 7-6s6.4 2.6 7 6" stroke={c} strokeWidth="1.6" strokeLinecap="round" />
             </svg>
@@ -17138,6 +20059,7 @@ import "./styles.css";
                 {[
                   "create",
                   "editProgram",
+                  "missedCardio",
                   "sessionDetail",
                   "shortcutDetail",
                 ].includes(view) && (
@@ -17147,6 +20069,10 @@ import "./styles.css";
                         setView(selSessionOrigin || "history");
                       else if (view === "editProgram") setView("programs");
                       else if (view === "create") setView("home");
+                      else if (view === "missedCardio") {
+                        setMissedCardioDraft(null);
+                        setView("history");
+                      }
                       else if (view === "shortcutDetail") setView("home");
                       else if (view === "complete") {
                         /* complete has its own save/flow */
@@ -17194,6 +20120,8 @@ import "./styles.css";
                     ? editingProg
                       ? tLang("EDIT PROGRAM")
                       : tLang("NEW PROGRAM")
+                    : view === "missedCardio"
+                    ? tLang("LOG CARDIO")
                     : view === "sessionDetail"
                     ? tLang("SESSION DETAIL")
                     : view === "complete"
@@ -17230,6 +20158,11 @@ import "./styles.css";
               60%  { opacity: 0; transform: translateX(24px) scaleY(0.8); }
               100% { opacity: 0; transform: translateX(24px) scaleY(0); max-height: 0; padding: 0; margin: 0; }
             }
+            @keyframes xBadgePop {
+              0%   { transform: scale(0) rotate(-45deg); opacity: 0; }
+              70%  { transform: scale(1.18) rotate(4deg); opacity: 1; }
+              100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            }
             @keyframes dropFromAbove {
               0%   { transform: translateY(-28px) scale(1.03); opacity: 0.7; box-shadow: 0 12px 28px rgba(0,0,0,0.22); }
               55%  { transform: translateY(4px) scale(0.99); opacity: 1; }
@@ -17264,13 +20197,51 @@ import "./styles.css";
               from { opacity: 0; transform: translateY(48px); }
               to   { opacity: 1; transform: translateY(0); }
             }
-            @keyframes pipExit {
-              from { opacity: 1; transform: translateY(0)   scale(1); }
-              to   { opacity: 0; transform: translateY(10px) scale(0.97); }
-            }
-            /* ── Global button press feedback ── */
-            button:not(:disabled):active {
-              transform: scale(0.95);
+	            @keyframes pipExit {
+	              from { opacity: 1; transform: translateY(0)   scale(1); }
+	              to   { opacity: 0; transform: translateY(10px) scale(0.97); }
+	            }
+	            .ib-pressable-card {
+	              transform-origin: center;
+	              will-change: transform, filter, box-shadow;
+	              -webkit-tap-highlight-color: transparent;
+	              cursor: pointer;
+	              transition:
+	                transform 0.15s cubic-bezier(0.25,0.46,0.45,0.94),
+	                filter 0.15s ease,
+	                border-color 0.15s ease,
+	                box-shadow 0.15s ease !important;
+	            }
+		            .ib-pressable-card.ib-card-pressed {
+		              transform: translateY(2px) scale(0.968);
+		              filter: brightness(1.02) saturate(1.05);
+		              border-color: color-mix(in srgb, ${th.accentBg} 58%, ${th.border}) !important;
+		              box-shadow:
+		                inset 0 0 0 1px color-mix(in srgb, ${th.accentBg} 45%, transparent),
+		                inset 0 0 20px color-mix(in srgb, ${th.accentBg} 18%, transparent),
+		                0 7px 18px color-mix(in srgb, ${th.accentBg} 18%, transparent) !important;
+		              transition-duration: 0.055s !important;
+		            }
+	            @media (hover: hover) and (pointer: fine) {
+	              .ib-pressable-card:hover {
+	                transform: translateY(-1px);
+	              }
+	              .ib-pressable-card:hover.ib-card-pressed {
+	                transform: translateY(1px) scale(0.968);
+	              }
+	            }
+	            @media (prefers-reduced-motion: reduce) {
+	              .ib-pressable-card,
+	              .ib-pressable-card:hover,
+	              .ib-pressable-card.ib-card-pressed,
+	              .ib-pressable-card:hover.ib-card-pressed {
+	                transform: none;
+	                transition: filter 0.08s ease, border-color 0.08s ease !important;
+	              }
+	            }
+	            /* ── Global button press feedback ── */
+	            button:not(:disabled):active {
+	              transform: scale(0.95);
               opacity: 0.82;
               transition: transform 0.08s ease, opacity 0.08s ease !important;
             }
@@ -17316,6 +20287,16 @@ import "./styles.css";
                 finished={finished}
                 elapsed={elapsed}
                 onSave={handleSaveSession}
+              />
+            )}
+            {view === "missedCardio" && missedCardioDraft && (
+              <MissedCardioResultView
+                draft={missedCardioDraft}
+                onSave={handleSaveMissedCardio}
+                onCancel={() => {
+                  setMissedCardioDraft(null);
+                  setView("history");
+                }}
               />
             )}
             {view === "programs" && (
@@ -17370,6 +20351,7 @@ import "./styles.css";
             {view === "sessionDetail" && selSession && (
               <SessionDetailView
                 session={selSession}
+                onSave={handleUpdateSession}
                 onOrigin={selSessionOrigin}
               />
             )}
@@ -17462,7 +20444,50 @@ import "./styles.css";
                   justifyContent: "center",
                   cursor: "pointer",
                   fontSize: 32,
-                  fontWeight: 400,
+	                  fontWeight: 300,
+                  lineHeight: 1,
+                  userSelect: "none",
+                  transition: "transform .18s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow .2s",
+                }}
+              >
+                +
+              </div>
+            </div>
+          )}
+
+          {/* ── History FAB — log missed cardio ── */}
+          {view === "history" && !hideNav && (
+            <div
+              style={{ position:"absolute", bottom:105, right:28, zIndex:20, width:52, height:52 }}
+            >
+              <style>{`@keyframes cardioFabRipple{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0.6}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}`}</style>
+              <div
+                onClick={(e) => { addRipple(e, "#fff"); setMissedCardioPickerOpen(true); }}
+                onPointerDown={e => {
+                  const el = e.currentTarget;
+                  el.style.transform = "scale(0.88)";
+                  const wrap = el.parentElement;
+                  const old = wrap.querySelector(".cardio-fab-ripple");
+                  if (old) old.remove();
+                  const r = document.createElement("div");
+                  r.className = "cardio-fab-ripple";
+                  r.style.cssText = `position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;border:2.5px solid ${"#5B9CF6"};pointer-events:none;animation:cardioFabRipple 0.55s ease-out forwards;`;
+                  wrap.appendChild(r);
+                  setTimeout(() => r.remove(), 560);
+                }}
+                onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+                onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+                title={tLang("Log missed cardio")}
+                style={{
+                  ...buttonTexture(th, "blue"),
+                  width: 52, height: 52,
+                  borderRadius: 20,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: 32,
+	                  fontWeight: 300,
                   lineHeight: 1,
                   userSelect: "none",
                   transition: "transform .18s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow .2s",
@@ -17525,14 +20550,13 @@ import "./styles.css";
                       background: "none",
                       border: "none",
                       cursor: "pointer",
-                      padding: "10px 0 10px",
+                      padding: "10px 0",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      gap: 6,
+                      gap: 5,
                       fontFamily: "'Outfit',sans-serif",
-                      // Turkish labels are longer — slightly larger than before but still
-                      // smaller than English so they fit on narrow screens.
+                      // Turkish labels are longer — slightly smaller so they still fit.
                       fontSize: lang === "tr" ? 9.5 : 10,
                       fontWeight: 700,
                       letterSpacing: lang === "tr" ? "0.6px" : "1.5px",
@@ -17542,19 +20566,8 @@ import "./styles.css";
                       WebkitTapHighlightColor: "transparent",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 6,
-                        marginTop: -1,
-                      }}
-                    >
-                      {tab.icon(col, user?.email === "freeazadbhos@gmail.com")}
-                      <span>{tab.label}</span>
-                    </div>
-
+                    {tab.icon(col, user?.email === "freeazadbhos@gmail.com")}
+                    <span>{tab.label}</span>
                   </button>
                 );
               })}
@@ -17865,12 +20878,16 @@ import "./styles.css";
                     : diff < 86400000 ? `${Math.floor(diff/3600000)}${tLang("h ago")}`
                     : d === 1 ? tLang("1 day ago")
                     : `${d} ${tLang("days ago")}`;
-                  const iconBg = n.type === "compete_accepted" || n.type === "compete_invite"
+                  const iconBg = n.type === "award_earned"
+                    ? "rgba(212,175,55,0.18)"
+                    : n.type === "compete_accepted" || n.type === "compete_invite"
                     ? "rgba(212,175,55,0.18)"
                     : n.type === "coach_request" || n.type === "coach_accepted"
                     ? "rgba(91,156,246,0.18)"
                     : `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`;
-                  const icon = n.type === "compete_accepted" || n.type === "compete_invite"
+                  const icon = n.type === "award_earned"
+                    ? <span style={{ fontSize:15 }}>{n.awardIcon || "🏅"}</span>
+                    : n.type === "compete_accepted" || n.type === "compete_invite"
                     ? <span style={{ fontSize:14 }}>🏆</span>
                     : n.type === "coach_request" || n.type === "coach_accepted"
                     ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="19" rx="2" stroke="#5B9CF6" strokeWidth="2" fill="none"/><rect x="9" y="1.5" width="6" height="4" rx="1" stroke="#5B9CF6" strokeWidth="1.6" fill="rgba(91,156,246,0.25)"/><line x1="7" y1="10" x2="17" y2="10" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round"/><line x1="7" y1="14" x2="17" y2="14" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/><line x1="7" y1="18" x2="14" y2="18" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.45"/></svg>
@@ -17904,6 +20921,9 @@ import "./styles.css";
                     }
                     if (n.type === "coach_accepted") {
                       return <><span style={{ fontWeight:700 }}>{who}</span><span style={{ color:th.muted }}> {tLang("accepted your coaching request")}</span></>;
+                    }
+                    if (n.type === "award_earned") {
+                      return <><span style={{ fontWeight:700 }}>{tLang("Award unlocked")}</span><span style={{ color:th.muted }}> · </span><span style={{ fontWeight:700, color:th.text }}>{n.awardLabel || n.text}</span></>;
                     }
                     return n.text || <span style={{ color:th.text }}>{who}</span>;
                   };
@@ -18077,6 +21097,18 @@ import "./styles.css";
             </div>
           </div>
         </>
+      )}
+
+      {missedCardioPickerOpen && (
+        <MissedCardioPickerSheet
+          choices={cardioProgramChoices}
+          onClose={() => setMissedCardioPickerOpen(false)}
+          onSelect={(choice) => {
+            setMissedCardioPickerOpen(false);
+            setMissedCardioDraft(choice);
+            setView("missedCardio");
+          }}
+        />
       )}
 
       {/* ── Share Program Modal ── */}
