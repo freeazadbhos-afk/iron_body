@@ -19845,7 +19845,7 @@ import "./styles.css";
               }}
               style={{
                 position: "absolute",
-                bottom: 88,
+                bottom: 102,
                 left: "50%",
                 transform: "translateX(-50%)",
                 width: "calc(100% - 80px)",
