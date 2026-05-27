@@ -18273,6 +18273,9 @@ import "./styles.css";
                             style={{
                               width: "100%",
                               fontSize: 13,
+                              fontFamily: "'Outfit',sans-serif",
+                              fontWeight: 700,
+                              letterSpacing: "0.5px",
                               padding: "10px",
                             }}
                           >
