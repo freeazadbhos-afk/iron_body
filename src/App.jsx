@@ -6460,22 +6460,16 @@ import "./styles.css";
 	              }}>
 	                <InteractiveExerciseAtlas selectedMuscle={selectedMuscle} onSelect={setSelectedMuscle} />
 	              </div>
-	              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:0, flexWrap:"wrap" }}>
-	                {selectedMuscle ? (
-	                  <>
-	                    <span style={{ ...S.tag(selectedShape?.group || "Chest", selectedMuscle), fontSize:9.5 }}>
-	                      {t(selectedMuscle).toUpperCase()}
-	                    </span>
-	                    <span style={{ color:th.dim, fontSize:12, fontWeight:700, letterSpacing:"1px" }}>
-	                      {filtered.length} {t(filtered.length === 1 ? "exercise" : "exercises")}
-	                    </span>
-	                  </>
-	                ) : (
-	                  <span style={{ color:th.muted, fontSize:13 }}>
-	                    {t("Tap a muscle region to browse matching exercises.")}
+	              {selectedMuscle && (
+	                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:0, flexWrap:"wrap" }}>
+	                  <span style={{ ...S.tag(selectedShape?.group || "Chest", selectedMuscle), fontSize:9.5 }}>
+	                    {t(selectedMuscle).toUpperCase()}
 	                  </span>
-	                )}
-	              </div>
+	                  <span style={{ color:th.dim, fontSize:12, fontWeight:700, letterSpacing:"1px" }}>
+	                    {filtered.length} {t(filtered.length === 1 ? "exercise" : "exercises")}
+	                  </span>
+	                </div>
+	              )}
 		            </div>
 		            {filtered.length === 0 && (
 		              <div style={{ textAlign:"center", padding:"28px 10px", color:th.dim, fontSize:13 }}>
