@@ -42,6 +42,8 @@ import "./styles.css";
     where,
     updateDoc,
     serverTimestamp,
+    deleteField,
+    increment,
   } from "firebase/firestore";
 
   const firebaseConfig = {
@@ -1814,17 +1816,17 @@ import "./styles.css";
     { id: "x12", name: "Tibialis Raise", muscle: "Calves", group: "Legs" },
     // Chest extras
     { id: "x13", name: "Svend Press", muscle: "Chest", group: "Chest" },
-    { id: "x14", name: "Landmine Press", muscle: "Upper Chest", group: "Chest" },
+    { id: "x14", name: "Landmine Chest Press", muscle: "Upper Chest", group: "Chest" },
     { id: "x15", name: "Plate Press", muscle: "Chest", group: "Chest" },
     {
       id: "x16",
-      name: "Cable Fly (High-to-Low)",
+      name: "Single-Arm High-to-Low Cable Fly",
       muscle: "Lower Chest",
       group: "Chest",
     },
     {
       id: "x17",
-      name: "Cable Fly (Low-to-High)",
+      name: "Single-Arm Low-to-High Cable Fly",
       muscle: "Upper Chest",
       group: "Chest",
     },
@@ -1844,11 +1846,11 @@ import "./styles.css";
     },
     {
       id: "x21",
-      name: "Straight-Arm Cable Pulldown",
+      name: "Kneeling Straight-Arm Pulldown",
       muscle: "Lats",
       group: "Back",
     },
-    { id: "x22", name: "Face Pull (Rope)", muscle: "Rear Delts", group: "Back" },
+    { id: "x22", name: "Rear Delt Cable Row", muscle: "Rear Delts", group: "Back" },
     { id: "x23", name: "Kroc Row", muscle: "Lats", group: "Back" },
     { id: "x24", name: "Pendlay Row", muscle: "Mid Back", group: "Back" },
     // Arms extras
@@ -1965,13 +1967,13 @@ import "./styles.css";
     },
     {
       id: "m9",
-      name: "Shoulder Press Machine",
+      name: "Iso-Lateral Shoulder Press Machine",
       muscle: "Shoulders",
       group: "Shoulders",
     },
     {
       id: "m10",
-      name: "Lateral Raise Machine",
+      name: "Single-Arm Lateral Raise Machine",
       muscle: "Side Delts",
       group: "Shoulders",
     },
@@ -1983,7 +1985,7 @@ import "./styles.css";
     },
     { id: "m12", name: "Shrug Machine", muscle: "Traps", group: "Shoulders" },
     { id: "m13", name: "Bicep Curl Machine", muscle: "Biceps", group: "Arms" },
-    { id: "m14", name: "Preacher Curl Machine", muscle: "Biceps", group: "Arms" },
+    { id: "m14", name: "Single-Arm Preacher Curl Machine", muscle: "Biceps", group: "Arms" },
     {
       id: "m15",
       name: "Tricep Extension Machine",
@@ -1991,16 +1993,16 @@ import "./styles.css";
       group: "Arms",
     },
     { id: "m16", name: "Tricep Dip Machine", muscle: "Triceps", group: "Arms" },
-    { id: "m17", name: "Leg Extension Machine", muscle: "Quads", group: "Legs" },
+    { id: "m17", name: "Single-Leg Leg Extension Machine", muscle: "Quads", group: "Legs" },
     {
       id: "m18",
-      name: "Lying Leg Curl Machine",
+      name: "Single-Leg Lying Leg Curl Machine",
       muscle: "Hamstrings",
       group: "Legs",
     },
     {
       id: "m19",
-      name: "Seated Leg Curl Machine",
+      name: "Single-Leg Seated Leg Curl Machine",
       muscle: "Hamstrings",
       group: "Legs",
     },
@@ -2013,17 +2015,17 @@ import "./styles.css";
     },
     {
       id: "m24",
-      name: "Seated Calf Raise Machine",
+      name: "Donkey Calf Raise Machine",
       muscle: "Calves",
       group: "Legs",
     },
     {
       id: "m25",
-      name: "Standing Calf Raise Machine",
+      name: "Single-Leg Standing Calf Raise Machine",
       muscle: "Calves",
       group: "Legs",
     },
-    { id: "m26", name: "Hack Squat Machine", muscle: "Quads", group: "Legs" },
+    { id: "m26", name: "Pendulum Squat Machine", muscle: "Quads", group: "Legs" },
 
     /* ── CARDIO ── type:"cardio" marks these as cardio log entries (no sets/reps/weight) */
     {
@@ -2203,7 +2205,22 @@ import "./styles.css";
       muscle: "Outer Thigh",
       group: "Legs",
     },
-    { id: "lg11", name: "Cable Hip Flexion", muscle: "Quads", group: "Legs" },
+    { id: "lg11", name: "Cable Hip Flexion", muscle: "Hip Flexors", group: "Legs" },
+    { id: "lg12", name: "Cable Hip Adduction", muscle: "Inner Thigh", group: "Legs" },
+    { id: "lg13", name: "Copenhagen Plank", muscle: "Inner Thigh", group: "Legs" },
+    { id: "lg14", name: "Lateral Band Walk", muscle: "Outer Thigh", group: "Legs" },
+    { id: "lg15", name: "Side-Lying Hip Abduction", muscle: "Outer Thigh", group: "Legs" },
+    { id: "lg16", name: "Standing Hip Flexion", muscle: "Hip Flexors", group: "Legs" },
+    { id: "bk5", name: "Superman Hold", muscle: "Lower Back", group: "Back" },
+    { id: "bk6", name: "Bird Dog", muscle: "Lower Back", group: "Back" },
+    { id: "tr1", name: "Farmer's Carry", muscle: "Traps", group: "Shoulders" },
+    { id: "core1", name: "Crunch", muscle: "Abs", group: "Core" },
+    { id: "core2", name: "Reverse Crunch", muscle: "Abs", group: "Core" },
+    { id: "core3", name: "Bicycle Crunch", muscle: "Obliques", group: "Core" },
+    { id: "core4", name: "Dumbbell Side Bend", muscle: "Obliques", group: "Core" },
+    { id: "core5", name: "Captain's Chair Knee Raise", muscle: "Abs", group: "Core" },
+    { id: "core6", name: "Medicine Ball Slam", muscle: "Core", group: "Core" },
+    { id: "core7", name: "Suitcase Carry", muscle: "Obliques", group: "Core" },
   ];
 
 
@@ -2244,6 +2261,8 @@ import "./styles.css";
     x1:"E", x2:"E", x3:"M", x4:"M", x5:"H", x6:"M", x7:"M", x9:"M", x10:"H",
     x11:"E", x12:"E",
     lg1:"H", lg2:"H", lg5:"E", lg6:"M", lg7:"M", lg8:"E", lg9:"E", lg10:"E", lg11:"E",
+    lg12:"E", lg13:"M", lg14:"E", lg15:"E", lg16:"E",
+    bk5:"E", bk6:"E", tr1:"M",
     m17:"E", m18:"E", m19:"E", m22:"E", m23:"E", m24:"E", m25:"E", m26:"E",
     // ── Core ───────────────────────────────────────────────────────────────────
     x13:"M", x14:"H", x15:"M", x16:"M", x17:"M", x18:"E", x19:"E", x20:"E",
@@ -2251,6 +2270,7 @@ import "./styles.css";
     x29:"E", x30:"M", x31:"E", x32:"M", x33:"H", x34:"M", x35:"E", x36:"M",
     x37:"M", x38:"H", x39:"M", x40:"M", x41:"E", x42:"M", x43:"E", x44:"M",
     x45:"E", x46:"M", x47:"M", x48:"M",
+    core1:"E", core2:"E", core3:"M", core4:"E", core5:"M", core6:"M", core7:"M",
     // ── Machines (all Easy) ────────────────────────────────────────────────────
     m1:"E", m2:"E", m3:"E", m4:"E", m5:"E", m6:"E", m7:"E", m8:"E",
     m9:"E", m10:"E", m11:"E", m12:"E", m13:"E", m14:"E", m15:"E", m16:"E",
@@ -2330,10 +2350,16 @@ import "./styles.css";
     x4:"Hamstrings", x5:"Hamstrings · Core",
     x6:"Glutes · Hamstrings · Core", x7:"Hamstrings · Quads",
     x9:"Lower Back · Hamstrings", x10:"Hip Flexors",
+    lg11:"Abs", lg12:"Glutes", lg13:"Obliques · Glutes",
+    lg14:"Glutes", lg15:"Glutes", lg16:"Abs",
+    bk5:"Glutes", bk6:"Glutes · Core", tr1:"Forearms · Core",
     m17:"Hip Flexors", m18:"Glutes · Calves",
     m19:"Glutes · Calves", m22:"Hamstrings · Core",
     m23:"Hamstrings", m24:"Soleus", m25:"Soleus",
     m26:"Glutes · Hamstrings",
+    core1:"Hip Flexors", core2:"Hip Flexors", core3:"Abs · Hip Flexors",
+    core4:"Lower Back", core5:"Hip Flexors", core6:"Shoulders · Lats",
+    core7:"Forearms · Traps",
   };
 
   // ── Difficulty badge helper ──────────────────────────────────────────────────
@@ -2389,9 +2415,9 @@ import "./styles.css";
     "Obliques":      ["obliqueL","obliqueR"],
     "Core":          ["abs","obliqueL","obliqueR"],
     "Quads":         ["quadL","quadR"],
-    "Hip Flexors":   ["quadL","quadR"],
-    "Inner Thigh":   ["quadL","quadR"],
-    "Outer Thigh":   ["quadL","quadR"],
+    "Hip Flexors":   ["hipFlexorL","hipFlexorR"],
+    "Inner Thigh":   ["innerThighL","innerThighR"],
+    "Outer Thigh":   ["outerThighL","outerThighR"],
     "Hamstrings":    ["hamL","hamR"],
     "Glutes":        ["gluteL","gluteR"],
     "Calves":        ["calfFL","calfFR","calfBL","calfBR"],
@@ -3694,28 +3720,34 @@ import "./styles.css";
       { ids:["abs"], d:"M229 478 C246 467 264 470 275 486 C286 470 304 467 321 478 C331 531 326 641 276 704 C226 641 219 531 229 478 Z" },
       { ids:["obliqueL"], d:"M190 468 C210 503 217 597 207 665 C181 644 163 587 164 530 C165 501 174 480 190 468 Z" },
       { ids:["obliqueR"], d:"M368 468 C348 503 341 597 351 665 C377 644 395 587 394 530 C393 501 384 480 368 468 Z" },
-      { ids:["bicepL"], d:"M92 425 C122 398 150 422 153 469 C150 527 128 591 91 621 C73 576 70 462 92 425 Z" },
-      { ids:["bicepR"], d:"M466 425 C436 398 408 422 405 469 C408 527 430 591 467 621 C485 576 488 462 466 425 Z" },
-      { ids:["tricepL"], d:"M573 424 C602 398 630 422 632 470 C628 535 608 597 572 625 C552 577 550 462 573 424 Z" },
-      { ids:["tricepR"], d:"M937 424 C908 398 880 422 878 470 C882 535 902 597 938 625 C958 577 960 462 937 424 Z" },
-      { ids:["foreFL"], d:"M55 566 C84 562 106 592 100 651 C90 720 64 812 35 843 C25 772 28 642 55 566 Z" },
-      { ids:["foreFR"], d:"M503 566 C474 562 452 592 458 651 C468 720 494 812 523 843 C533 772 530 642 503 566 Z" },
-      { ids:["foreBL"], d:"M530 566 C559 562 581 592 575 651 C565 720 539 812 510 843 C500 772 503 642 530 566 Z" },
-      { ids:["foreBR"], d:"M980 566 C951 562 929 592 935 651 C945 720 971 812 1000 843 C1010 772 1007 642 980 566 Z" },
+      { ids:["bicepL"], d:"M99 430 C124 408 145 425 146 468 C144 514 125 566 96 592 C80 552 80 462 99 430 Z" },
+      { ids:["bicepR"], d:"M459 430 C434 408 413 425 412 468 C414 514 433 566 462 592 C478 552 478 462 459 430 Z" },
+      { ids:["tricepL"], d:"M580 430 C605 408 626 425 627 468 C624 518 607 568 579 595 C561 553 561 462 580 430 Z" },
+      { ids:["tricepR"], d:"M930 430 C905 408 884 425 883 468 C886 518 903 568 931 595 C949 553 949 462 930 430 Z" },
+      { ids:["foreFL"], d:"M63 570 C87 568 96 596 91 640 C85 686 69 736 52 760 C43 706 45 612 63 570 Z" },
+      { ids:["foreFR"], d:"M495 570 C471 568 462 596 467 640 C473 686 489 736 506 760 C515 706 513 612 495 570 Z" },
+      { ids:["foreBL"], d:"M542 570 C566 568 575 596 570 640 C564 686 548 736 531 760 C522 706 524 612 542 570 Z" },
+      { ids:["foreBR"], d:"M968 570 C944 568 935 596 940 640 C946 686 962 736 979 760 C988 706 986 612 968 570 Z" },
       { ids:["latL"], d:"M642 392 C669 415 690 477 697 548 C703 617 692 690 672 739 C649 701 632 619 627 529 C624 459 629 411 642 392 Z" },
       { ids:["latR"], d:"M868 392 C841 415 820 477 813 548 C807 617 818 690 838 739 C861 701 878 619 883 529 C886 459 881 411 868 392 Z" },
       { ids:["midBack"], d:"M712 315 C737 299 773 299 798 315 C804 434 794 581 754 679 C714 581 706 434 712 315 Z" },
       { ids:["lowerBack"], d:"M700 667 C723 645 784 645 810 667 C807 721 784 768 754 793 C724 768 702 721 700 667 Z" },
       { ids:["gluteL"], d:"M652 620 C706 586 756 625 758 706 C754 775 707 804 655 777 C620 737 617 660 652 620 Z" },
       { ids:["gluteR"], d:"M858 620 C804 586 754 625 752 706 C756 775 803 804 855 777 C890 737 893 660 858 620 Z" },
+      { ids:["hipFlexorL"], d:"M207 636 C232 648 252 681 250 728 C226 711 210 679 207 636 Z" },
+      { ids:["hipFlexorR"], d:"M351 636 C326 648 306 681 308 728 C332 711 348 679 351 636 Z" },
+      { ids:["outerThighL"], d:"M126 704 C145 727 155 816 150 930 C146 1000 134 1038 118 1049 C106 982 108 784 126 704 Z" },
+      { ids:["outerThighR"], d:"M432 704 C413 727 403 816 408 930 C412 1000 424 1038 440 1049 C452 982 450 784 432 704 Z" },
+      { ids:["innerThighL"], d:"M244 704 C266 744 273 851 266 963 C262 1014 254 1047 244 1056 C229 1005 228 780 244 704 Z" },
+      { ids:["innerThighR"], d:"M314 704 C292 744 285 851 292 963 C296 1014 304 1047 314 1056 C329 1005 330 780 314 704 Z" },
       { ids:["quadL"], d:"M158 670 C199 697 223 803 221 918 C219 990 198 1040 164 1057 C126 1001 119 795 142 715 C146 696 152 680 158 670 Z" },
       { ids:["quadR"], d:"M400 670 C359 697 335 803 337 918 C339 990 360 1040 394 1057 C432 1001 439 795 416 715 C412 696 406 680 400 670 Z" },
       { ids:["hamL"], d:"M649 779 C682 795 702 867 700 950 C699 1009 681 1052 651 1067 C619 1014 615 856 649 779 Z" },
       { ids:["hamR"], d:"M861 779 C828 795 808 867 810 950 C811 1009 829 1052 859 1067 C891 1014 895 856 861 779 Z" },
-      { ids:["calfFL"], d:"M141 1118 C179 1144 206 1215 201 1331 C197 1434 174 1510 140 1517 C108 1450 106 1202 141 1118 Z" },
-      { ids:["calfFR"], d:"M417 1118 C379 1144 352 1215 357 1331 C361 1434 384 1510 418 1517 C450 1450 452 1202 417 1118 Z" },
-      { ids:["calfBL"], d:"M639 1160 C680 1183 704 1260 696 1375 C689 1465 665 1515 637 1518 C601 1450 605 1236 639 1160 Z" },
-      { ids:["calfBR"], d:"M871 1160 C830 1183 806 1260 814 1375 C821 1465 845 1515 873 1518 C909 1450 905 1236 871 1160 Z" },
+      { ids:["calfFL"], d:"M151 1052 C178 1082 185 1162 178 1245 C172 1300 156 1338 139 1342 C122 1285 126 1132 151 1052 Z" },
+      { ids:["calfFR"], d:"M407 1052 C380 1082 373 1162 380 1245 C386 1300 402 1338 419 1342 C436 1285 432 1132 407 1052 Z" },
+      { ids:["calfBL"], d:"M650 1057 C681 1088 690 1169 681 1258 C675 1310 658 1343 638 1348 C616 1289 622 1136 650 1057 Z" },
+      { ids:["calfBR"], d:"M860 1057 C829 1088 820 1169 829 1258 C835 1310 852 1343 872 1348 C894 1289 888 1136 860 1057 Z" },
     ];
 
     const activeShape = (ids) => {
@@ -3774,13 +3806,14 @@ import "./styles.css";
             {atlasShapes.map((shape, i) => {
               const active = activeShape(shape.ids);
               if (!active) return null;
-              return (
+      return (
                 <path
                   key={`atlas-highlight-${i}`}
                   d={shape.d}
                   fill={active.fill || "#f4511e"}
                   opacity={regionOpacity(active)}
-                  stroke="none"
+                  stroke={bg}
+                  strokeWidth="5"
                   strokeLinejoin="round"
                   strokeLinecap="round"
                 />
@@ -3851,12 +3884,12 @@ import "./styles.css";
           @keyframes eiSlideDown { from{transform:translateY(0);opacity:1} to{transform:translateY(100%);opacity:0} }
         `}</style>
         <div onClick={close} style={{
-          position:"fixed", inset:0, zIndex:70,
+          position:"fixed", inset:0, zIndex:120,
           background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
           animation: closing ? "eiFadeOut 0.3s ease-in forwards" : "eiFadeIn 0.25s ease-out forwards",
         }} />
         <div style={{
-          position:"fixed", inset:0, zIndex:71,
+          position:"fixed", inset:0, zIndex:121,
           display:"flex", flexDirection:"column", justifyContent:"flex-end",
           maxWidth:480, margin:"0 auto", pointerEvents:"none",
         }}>
@@ -3956,7 +3989,12 @@ import "./styles.css";
     { label: "Hamstrings",  fn: (e) => e.muscle === "Hamstrings" },
     { label: "Glutes",      fn: (e) => e.muscle === "Glutes" },
     { label: "Calves",      fn: (e) => e.muscle === "Calves" || e.muscle === "Soleus" },
+    { label: "Hip Flexors", fn: (e) => e.muscle === "Hip Flexors" },
+    { label: "Inner Thigh", fn: (e) => e.muscle === "Inner Thigh" },
+    { label: "Outer Thigh", fn: (e) => e.muscle === "Outer Thigh" },
     { label: "Thighs",      fn: (e) => e.muscle === "Inner Thigh" || e.muscle === "Outer Thigh" || e.muscle === "Hip Flexors" },
+    { label: "Abs",         fn: (e) => e.muscle === "Abs" },
+    { label: "Obliques",    fn: (e) => e.muscle === "Obliques" },
     { label: "Core",        fn: (e) => e.group === "Core" || e.muscle === "Abs" || e.muscle === "Obliques" },
     { label: "Cardio",      fn: (e) => e.group === "Cardio" },
   ];
@@ -3971,6 +4009,8 @@ import "./styles.css";
     "Upper Back",
     "Lower Back",
     "Full Back",
+    "Abs",
+    "Obliques",
     "Shoulders",
     "Rear Delts",
     "Side Delts",
@@ -3984,6 +4024,7 @@ import "./styles.css";
     "Hamstrings",
     "Glutes",
     "Calves",
+    "Hip Flexors",
     "Inner Thigh",
 	    "Outer Thigh",
 	  ];
@@ -4004,28 +4045,34 @@ import "./styles.css";
 	    { label: "Abs", group: "Core", d: "M229 478 C246 467 264 470 275 486 C286 470 304 467 321 478 C331 531 326 641 276 704 C226 641 219 531 229 478 Z" },
 	    { label: "Obliques", group: "Core", d: "M190 468 C210 503 217 597 207 665 C181 644 163 587 164 530 C165 501 174 480 190 468 Z" },
 	    { label: "Obliques", group: "Core", d: "M368 468 C348 503 341 597 351 665 C377 644 395 587 394 530 C393 501 384 480 368 468 Z" },
-	    { label: "Biceps", group: "Arms", d: "M92 425 C122 398 150 422 153 469 C150 527 128 591 91 621 C73 576 70 462 92 425 Z" },
-	    { label: "Biceps", group: "Arms", d: "M466 425 C436 398 408 422 405 469 C408 527 430 591 467 621 C485 576 488 462 466 425 Z" },
-	    { label: "Triceps", group: "Arms", d: "M573 424 C602 398 630 422 632 470 C628 535 608 597 572 625 C552 577 550 462 573 424 Z" },
-	    { label: "Triceps", group: "Arms", d: "M937 424 C908 398 880 422 878 470 C882 535 902 597 938 625 C958 577 960 462 937 424 Z" },
-	    { label: "Forearms", group: "Arms", d: "M55 566 C84 562 106 592 100 651 C90 720 64 812 35 843 C25 772 28 642 55 566 Z" },
-	    { label: "Forearms", group: "Arms", d: "M503 566 C474 562 452 592 458 651 C468 720 494 812 523 843 C533 772 530 642 503 566 Z" },
-	    { label: "Forearms", group: "Arms", d: "M530 566 C559 562 581 592 575 651 C565 720 539 812 510 843 C500 772 503 642 530 566 Z" },
-	    { label: "Forearms", group: "Arms", d: "M980 566 C951 562 929 592 935 651 C945 720 971 812 1000 843 C1010 772 1007 642 980 566 Z" },
+	    { label: "Biceps", group: "Arms", d: "M99 430 C124 408 145 425 146 468 C144 514 125 566 96 592 C80 552 80 462 99 430 Z" },
+	    { label: "Biceps", group: "Arms", d: "M459 430 C434 408 413 425 412 468 C414 514 433 566 462 592 C478 552 478 462 459 430 Z" },
+	    { label: "Triceps", group: "Arms", d: "M580 430 C605 408 626 425 627 468 C624 518 607 568 579 595 C561 553 561 462 580 430 Z" },
+	    { label: "Triceps", group: "Arms", d: "M930 430 C905 408 884 425 883 468 C886 518 903 568 931 595 C949 553 949 462 930 430 Z" },
+	    { label: "Forearms", group: "Arms", d: "M63 570 C87 568 96 596 91 640 C85 686 69 736 52 760 C43 706 45 612 63 570 Z" },
+	    { label: "Forearms", group: "Arms", d: "M495 570 C471 568 462 596 467 640 C473 686 489 736 506 760 C515 706 513 612 495 570 Z" },
+	    { label: "Forearms", group: "Arms", d: "M542 570 C566 568 575 596 570 640 C564 686 548 736 531 760 C522 706 524 612 542 570 Z" },
+	    { label: "Forearms", group: "Arms", d: "M968 570 C944 568 935 596 940 640 C946 686 962 736 979 760 C988 706 986 612 968 570 Z" },
 	    { label: "Lats", group: "Back", d: "M642 392 C669 415 690 477 697 548 C703 617 692 690 672 739 C649 701 632 619 627 529 C624 459 629 411 642 392 Z" },
 	    { label: "Lats", group: "Back", d: "M868 392 C841 415 820 477 813 548 C807 617 818 690 838 739 C861 701 878 619 883 529 C886 459 881 411 868 392 Z" },
 	    { label: "Mid Back", group: "Back", d: "M712 315 C737 299 773 299 798 315 C804 434 794 581 754 679 C714 581 706 434 712 315 Z" },
 	    { label: "Lower Back", group: "Back", d: "M700 667 C723 645 784 645 810 667 C807 721 784 768 754 793 C724 768 702 721 700 667 Z" },
 	    { label: "Glutes", group: "Legs", d: "M652 620 C706 586 756 625 758 706 C754 775 707 804 655 777 C620 737 617 660 652 620 Z" },
 	    { label: "Glutes", group: "Legs", d: "M858 620 C804 586 754 625 752 706 C756 775 803 804 855 777 C890 737 893 660 858 620 Z" },
+	    { label: "Hip Flexors", group: "Legs", d: "M207 636 C232 648 252 681 250 728 C226 711 210 679 207 636 Z" },
+	    { label: "Hip Flexors", group: "Legs", d: "M351 636 C326 648 306 681 308 728 C332 711 348 679 351 636 Z" },
+	    { label: "Outer Thigh", group: "Legs", d: "M126 704 C145 727 155 816 150 930 C146 1000 134 1038 118 1049 C106 982 108 784 126 704 Z" },
+	    { label: "Outer Thigh", group: "Legs", d: "M432 704 C413 727 403 816 408 930 C412 1000 424 1038 440 1049 C452 982 450 784 432 704 Z" },
+	    { label: "Inner Thigh", group: "Legs", d: "M244 704 C266 744 273 851 266 963 C262 1014 254 1047 244 1056 C229 1005 228 780 244 704 Z" },
+	    { label: "Inner Thigh", group: "Legs", d: "M314 704 C292 744 285 851 292 963 C296 1014 304 1047 314 1056 C329 1005 330 780 314 704 Z" },
 	    { label: "Quads", group: "Legs", d: "M158 670 C199 697 223 803 221 918 C219 990 198 1040 164 1057 C126 1001 119 795 142 715 C146 696 152 680 158 670 Z" },
 	    { label: "Quads", group: "Legs", d: "M400 670 C359 697 335 803 337 918 C339 990 360 1040 394 1057 C432 1001 439 795 416 715 C412 696 406 680 400 670 Z" },
 	    { label: "Hamstrings", group: "Legs", d: "M649 779 C682 795 702 867 700 950 C699 1009 681 1052 651 1067 C619 1014 615 856 649 779 Z" },
 	    { label: "Hamstrings", group: "Legs", d: "M861 779 C828 795 808 867 810 950 C811 1009 829 1052 859 1067 C891 1014 895 856 861 779 Z" },
-	    { label: "Calves", group: "Legs", d: "M141 1118 C179 1144 206 1215 201 1331 C197 1434 174 1510 140 1517 C108 1450 106 1202 141 1118 Z" },
-	    { label: "Calves", group: "Legs", d: "M417 1118 C379 1144 352 1215 357 1331 C361 1434 384 1510 418 1517 C450 1450 452 1202 417 1118 Z" },
-	    { label: "Calves", group: "Legs", d: "M639 1160 C680 1183 704 1260 696 1375 C689 1465 665 1515 637 1518 C601 1450 605 1236 639 1160 Z" },
-	    { label: "Calves", group: "Legs", d: "M871 1160 C830 1183 806 1260 814 1375 C821 1465 845 1515 873 1518 C909 1450 905 1236 871 1160 Z" },
+	    { label: "Calves", group: "Legs", d: "M151 1052 C178 1082 185 1162 178 1245 C172 1300 156 1338 139 1342 C122 1285 126 1132 151 1052 Z" },
+	    { label: "Calves", group: "Legs", d: "M407 1052 C380 1082 373 1162 380 1245 C386 1300 402 1338 419 1342 C436 1285 432 1132 407 1052 Z" },
+	    { label: "Calves", group: "Legs", d: "M650 1057 C681 1088 690 1169 681 1258 C675 1310 658 1343 638 1348 C616 1289 622 1136 650 1057 Z" },
+	    { label: "Calves", group: "Legs", d: "M860 1057 C829 1088 820 1169 829 1258 C835 1310 852 1343 872 1348 C894 1289 888 1136 860 1057 Z" },
 	  ];
 
   /* ─── Suggested program templates ──────────────────────────────────────────── */
@@ -4994,8 +5041,185 @@ import "./styles.css";
     );
   }
 
+  async function fsToggleCommentStar(postId, uid, messageId) {
+    if (!postId || !uid || !messageId) return { ok:false };
+    const ref = doc(fbDb, "comments", String(postId), "messages", String(messageId));
+    try {
+      const snap = await getDoc(ref);
+      const reactions = snap.exists() ? (snap.data().reactions || {}) : {};
+      const field = `reactions.${uid}`;
+      if (reactions?.[uid] === "star") {
+        await updateDoc(ref, { [field]: deleteField() });
+        return { ok:true, starred:false };
+      }
+      await updateDoc(ref, { [field]: "star" });
+      return { ok:true, starred:true };
+    } catch (e) {
+      console.warn("fsToggleCommentStar:", e.code, e.message);
+      return { ok:false, error:e };
+    }
+  }
+
+  async function fsEditComment(postId, messageId, text) {
+    const clean = (text || "").trim();
+    if (!postId || !messageId || !clean) return { ok:false };
+    try {
+      await updateDoc(doc(fbDb, "comments", String(postId), "messages", String(messageId)), {
+        text: clean,
+        editedAt: Date.now(),
+      });
+      return { ok:true };
+    } catch (e) {
+      console.warn("fsEditComment:", e.code, e.message);
+      return { ok:false, error:e };
+    }
+  }
+
   async function fsDeleteComment(postId, messageId) {
     try { await deleteDoc(doc(fbDb, "comments", postId, "messages", messageId)); } catch {}
+  }
+
+  function directThreadId(uidA, uidB) {
+    return [String(uidA || ""), String(uidB || "")].sort().join("__");
+  }
+
+  function fsListenDirectMessages(uid, friendUid, cb) {
+    const threadId = directThreadId(uid, friendUid);
+    if (!uid || !friendUid) return () => {};
+    return onSnapshot(
+      collection(fbDb, "directThreads", threadId, "messages"),
+      snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.ts - b.ts)),
+      err => { console.warn("fsListenDirectMessages:", err.code, err.message); cb([], err); }
+    );
+  }
+
+  function fsListenDirectThreads(uid, cb) {
+    if (!uid) return () => {};
+    const q = query(collection(fbDb, "directThreads"), where("participantUids", "array-contains", uid));
+    return onSnapshot(
+      q,
+      snap => cb(snap.docs.map(d => ({ id:d.id, ...d.data() }))),
+      err => { console.warn("fsListenDirectThreads:", err.code, err.message); cb([], err); }
+    );
+  }
+
+  async function fsMarkDirectThreadRead(uid, friendUid) {
+    if (!uid || !friendUid) return { ok:false };
+    const threadId = directThreadId(uid, friendUid);
+    try {
+      await setDoc(doc(fbDb, "directThreads", threadId), {
+        readBy: { [uid]: Date.now() },
+        unreadCounts: { [uid]: 0 },
+      }, { merge:true });
+      return { ok:true };
+    } catch (e) {
+      console.warn("fsMarkDirectThreadRead:", e.code, e.message);
+      return { ok:false, error:e };
+    }
+  }
+
+  async function fsSendDirectMessage(user, friend, text) {
+    const clean = (text || "").trim();
+    if (!user?.id || !friend?.uid || !clean) return { ok:false };
+    const threadId = directThreadId(user.id, friend.uid);
+    const now = Date.now();
+    try {
+      await setDoc(doc(fbDb, "directThreads", threadId), {
+        participantUids: [user.id, friend.uid],
+        participants: [
+          { uid:user.id, name:user.name || "You", photoURL:user.photoURL || null },
+          { uid:friend.uid, name:friend.name || "Friend", photoURL:friend.photoURL || null },
+        ],
+        updatedAt: now,
+        lastText: clean,
+        lastSenderUid: user.id,
+        readBy: { [user.id]: now },
+        unreadCounts: {
+          [user.id]: 0,
+          [friend.uid]: increment(1),
+        },
+      }, { merge:true });
+      const ref = await addDoc(collection(fbDb, "directThreads", threadId, "messages"), {
+        senderUid:user.id,
+        senderName:user.name || "You",
+        senderPhotoURL:user.photoURL || null,
+        text:clean,
+        ts:now,
+      });
+      fsPushNotification(friend.uid, {
+        type:"direct_message",
+        fromUid:user.id,
+        name:user.name || "Friend",
+        photoURL:user.photoURL || null,
+        threadId,
+        messageId:ref.id,
+        text:`${user.name || "Friend"} sent you a message`,
+        messageText:clean,
+      });
+      return { ok:true, id:ref.id };
+    } catch (e) {
+      console.warn("fsSendDirectMessage:", e.code, e.message);
+      return { ok:false, error:e };
+    }
+  }
+
+  async function fsToggleDirectMessageStar(uid, friendUid, messageId) {
+    if (!uid || !friendUid || !messageId) return { ok:false };
+    const threadId = directThreadId(uid, friendUid);
+    const ref = doc(fbDb, "directThreads", threadId, "messages", String(messageId));
+    try {
+      const snap = await getDoc(ref);
+      const reactions = snap.exists() ? (snap.data().reactions || {}) : {};
+      const field = `reactions.${uid}`;
+      if (reactions?.[uid] === "star") {
+        await updateDoc(ref, { [field]: deleteField() });
+        return { ok:true, starred:false };
+      }
+      await updateDoc(ref, { [field]: "star" });
+      return { ok:true, starred:true };
+    } catch (e) {
+      console.warn("fsToggleDirectMessageStar:", e.code, e.message);
+      return { ok:false, error:e };
+    }
+  }
+
+  async function fsEditDirectMessage(user, friend, messageId, text) {
+    const clean = (text || "").trim();
+    if (!user?.id || !friend?.uid || !messageId || !clean) return { ok:false };
+    const threadId = directThreadId(user.id, friend.uid);
+    const now = Date.now();
+    try {
+      await updateDoc(doc(fbDb, "directThreads", threadId, "messages", String(messageId)), {
+        text: clean,
+        editedAt: now,
+      });
+      await setDoc(doc(fbDb, "directThreads", threadId), {
+        updatedAt: now,
+        lastText: clean,
+        lastSenderUid: user.id,
+      }, { merge:true });
+      return { ok:true };
+    } catch (e) {
+      console.warn("fsEditDirectMessage:", e.code, e.message);
+      return { ok:false, error:e };
+    }
+  }
+
+  async function fsDeleteDirectMessage(uid, friendUid, messageId) {
+    if (!uid || !friendUid || !messageId) return { ok:false };
+    const threadId = directThreadId(uid, friendUid);
+    try {
+      await deleteDoc(doc(fbDb, "directThreads", threadId, "messages", String(messageId)));
+      await setDoc(doc(fbDb, "directThreads", threadId), {
+        updatedAt: Date.now(),
+        lastText: "Message deleted",
+        lastSenderUid: uid,
+      }, { merge:true });
+      return { ok:true };
+    } catch (e) {
+      console.warn("fsDeleteDirectMessage:", e.code, e.message);
+      return { ok:false, error:e };
+    }
   }
 
   // Stars on shared programs
@@ -5414,6 +5638,15 @@ import "./styles.css";
     };
   }
 
+  const bottomSheetCtaBarStyle = {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: "12px 18px 20px",
+    zIndex: 10,
+  };
+
   function Btn({ children, onClick, disabled, style = {} }) {
     const th = useTheme();
     return (
@@ -5585,18 +5818,17 @@ import "./styles.css";
         <div
           onClick={() => { if (open) closeWp(); else setOpen(true); }}
           style={{
-            background: th.row,
-            border: `1px solid ${open ? th.accentBg : th.inputB}`,
+            ...buttonTexture(th, open ? "accentSoft" : "neutral"),
             borderRadius: 9,
             padding: "7px 11px",
             cursor: "pointer",
             minWidth: 64,
             textAlign: "center",
-            color: th.text,
+            color: open ? th.accentFg : th.text,
             fontWeight: 700,
             fontSize: 14,
             userSelect: "none",
-            transition: "border-color .15s",
+            transition: "border-color .15s, background .15s, box-shadow .15s, transform .15s",
           }}
         >
           {value}kg
@@ -5699,12 +5931,8 @@ import "./styles.css";
                 <button
                   onClick={() => closeWp()}
                   style={{
-                    background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                    backdropFilter: "blur(10px)",
-                    WebkitBackdropFilter: "blur(10px)",
-                    border: "none",
+                    ...buttonTexture(th, "accent"),
                     borderRadius: 8,
-                    color: th.accentT,
                     fontWeight: 700,
                     fontSize: 12,
                     padding: "6px 14px",
@@ -5847,12 +6075,9 @@ import "./styles.css";
                       );
                     }}
                     style={{
+                      ...(value === w ? buttonTexture(th, "accent") : buttonTexture(th, "neutral")),
                       padding: "6px 10px",
                       borderRadius: 8,
-                      border: `1px solid ${
-                        value === w ? th.accentBg : th.inputB
-                      }`,
-                      background: value === w ? th.accentBg : th.input,
                       color: value === w ? th.accentT : th.sub,
                       fontSize: 12,
                       fontWeight: 700,
@@ -6239,9 +6464,10 @@ import "./styles.css";
 	  function ExerciseMapIcon() {
 	    return (
 	      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" style={{ display:"block" }}>
+	        <circle cx="16" cy="4.7" r="3.2" fill="currentColor" />
 	        <path
 	          fill="currentColor"
-	          d="M16 1.5c2.35 0 3.95 1.75 3.95 4.1 0 .98-.25 1.86-.76 2.55-.2.27-.29.68-.24 1.08l1.45.6c2.72.74 4.42 2.33 5.05 4.84l.86 3.68c.3 1.17 1.42 2.32 2.06 3.48.62 1.14.25 2.33-.73 2.76-.98.43-1.75-.2-2.28-1.13l-1.82-3.14c-.77-1.35-1.44-3.05-1.99-5.05l-.85 4.36c-.32 1.66-.22 3.42-.04 5.12l.57 5.3c.1 1.02-.58 1.8-1.58 1.8-.92 0-1.54-.6-1.71-1.55l-1.05-5.78c-.16-.94-.44-1.45-.89-1.45s-.73.51-.89 1.45l-1.05 5.78c-.17.95-.79 1.55-1.71 1.55-1 0-1.68-.78-1.58-1.8l.57-5.3c.18-1.7.28-3.46-.04-5.12l-.85-4.36c-.55 2-1.22 3.7-1.99 5.05l-1.82 3.14c-.53.93-1.3 1.56-2.28 1.13-.98-.43-1.35-1.62-.73-2.76.64-1.16 1.76-2.31 2.06-3.48l.86-3.68c.63-2.51 2.33-4.1 5.05-4.84l1.45-.6c.05-.4-.04-.81-.24-1.08-.51-.69-.76-1.57-.76-2.55 0-2.35 1.6-4.1 3.95-4.1Z"
+	          d="M12.4 8.4h7.2c2.2 0 3.9 1.45 4.38 3.58l1.58 7.02c.22.96-.38 1.78-1.28 1.98-.82.18-1.52-.28-1.78-1.12l-1.62-5.26-1.05 5.08 1.52 8.52c.18 1-.48 1.88-1.47 1.88-.76 0-1.38-.5-1.52-1.25L17.15 22.2c-.11-.6-.45-.9-1.15-.9s-1.04.3-1.15.9l-1.21 6.63c-.14.75-.76 1.25-1.52 1.25-.99 0-1.65-.88-1.47-1.88l1.52-8.52-1.05-5.08-1.62 5.26c-.26.84-.96 1.3-1.78 1.12-.9-.2-1.5-1.02-1.28-1.98l1.58-7.02C8.5 9.85 10.2 8.4 12.4 8.4Z"
 	        />
 	      </svg>
 	    );
@@ -9731,10 +9957,7 @@ import "./styles.css";
             </div>
 
             {/* ── Sticky save bar ── */}
-            <div style={{
-              position:"absolute", bottom:0, left:0, right:0,
-              padding:`12px 16px calc(env(safe-area-inset-bottom, 0px) + 16px)`,
-            }}>
+            <div style={bottomSheetCtaBarStyle}>
               <button
                 onClick={handleSave}
                 disabled={saving || !name.trim() || exs.length === 0}
@@ -9776,7 +9999,7 @@ import "./styles.css";
     );
   }
 
-  function FriendDashboardSheet({ friend, user, competitions, onClose, onGetFriendSessions, onCompete, coachRelations, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching }) {
+  function FriendDashboardSheet({ friend, user, competitions, onClose, onGetFriendSessions, onCompete, coachRelations, onSendCoachRequest, onGetFriendPrograms, onSaveCoachPrograms, onStopCoaching, unreadMessages = 0 }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -9796,6 +10019,7 @@ import "./styles.css";
     const [selHistSession, setSelHistSession]   = useState(null);
     const [showCoachRules, setShowCoachRules]   = useState(false);
     const [showStopCoach, setShowStopCoach]     = useState(false);
+    const [messageOpen, setMessageOpen]         = useState(false);
     const [stoppingCoach, setStoppingCoach]     = useState(false);
     const [permissionError, setPermissionError] = useState(false); // set if any cross-user read fails
     const [reloadKey, setReloadKey]             = useState(0);      // increment to force re-fetch
@@ -10421,12 +10645,71 @@ import "./styles.css";
 
         {/* Session detail overlay when in history tab */}
         {selHistSession && (
-          <div style={{ position:"fixed", inset:0, zIndex:73, background:`color-mix(in srgb, ${th.card} 96%, transparent)`, backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", overflowY:"auto" }}>
-            <div style={{ padding:"16px 16px 8px", borderBottom:`1px solid ${th.border}`, display:"flex", alignItems:"center", gap:12 }}>
-              <button onClick={() => setSelHistSession(null)} style={{ background:"none", border:"none", color:th.accentFg, fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, cursor:"pointer", padding:"4px 0" }}>← BACK</button>
-              <div className="bebas" style={{ fontSize:20, letterSpacing:1, color:th.text }}>{selHistSession.name}</div>
+          <div style={{
+            position:"fixed",
+            inset:0,
+            zIndex:73,
+            background:`color-mix(in srgb, ${th.card} 96%, transparent)`,
+            backdropFilter:"blur(24px)",
+            WebkitBackdropFilter:"blur(24px)",
+            display:"flex",
+            flexDirection:"column",
+            maxWidth:480,
+            margin:"0 auto",
+            overflow:"hidden",
+          }}>
+            <div style={{
+              flexShrink:0,
+              background:`color-mix(in srgb, ${th.bg} 25%, transparent)`,
+              backdropFilter:"blur(12px)",
+              WebkitBackdropFilter:"blur(12px)",
+              borderBottom:`1px solid ${th.border}`,
+              paddingTop:"calc(14px + env(safe-area-inset-top, 0px))",
+              paddingRight:16,
+              paddingBottom:1,
+              paddingLeft:16,
+            }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, minHeight:32 }}>
+                <button
+                  onClick={() => setSelHistSession(null)}
+                  style={{
+                    background:"none",
+                    border:"none",
+                    color:th.sub,
+                    fontSize:22,
+                    cursor:"pointer",
+                    padding:"0 8px 0 0",
+                    lineHeight:1,
+                    flexShrink:0,
+                  }}
+                  aria-label={t("Back")}
+                  title={t("Back")}
+                >
+                  ←
+                </button>
+                <div className="bebas" style={{
+                  fontSize:40,
+                  letterSpacing:2,
+                  color:th.text,
+                  lineHeight:1,
+                  flex:1,
+                  textAlign:"left",
+                  overflow:"hidden",
+                  textOverflow:"ellipsis",
+                  whiteSpace:"nowrap",
+                }}>
+                  {t("SESSION DETAIL")}
+                </div>
+              </div>
             </div>
-            <div style={{ padding:"16px 16px calc(48px + env(safe-area-inset-bottom,0px))", flex:1 }}>
+            <div style={{
+              padding:"16px 16px calc(48px + env(safe-area-inset-bottom,0px))",
+              flex:1,
+              minHeight:0,
+              overflowY:"auto",
+              overflowX:"hidden",
+              WebkitOverflowScrolling:"touch",
+            }}>
               <SessionDetailView session={selHistSession} onOrigin="coachHistory" />
             </div>
           </div>
@@ -10525,6 +10808,56 @@ import "./styles.css";
                         : t("REQUEST COACHING")}
                   </button>
                 )}
+                <button
+                  onClick={() => setMessageOpen(true)}
+                  aria-label={t("Message")}
+                  title={t("Message")}
+                  style={{
+                    ...buttonTexture(th, "blue"),
+                    width:42,
+                    minWidth:42,
+                    borderRadius:11,
+                    padding:0,
+                    cursor:"pointer",
+                    display:"flex",
+                    alignItems:"center",
+                    justifyContent:"center",
+                    color:"#fff",
+                    flexShrink:0,
+                    position:"relative",
+                  }}
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display:"block" }}>
+                    <path d="M21 12.2c0 4.3-4 7.8-9 7.8-1.1 0-2.2-.17-3.2-.5L4 21l1.5-3.8C3.9 15.9 3 14.1 3 12.2 3 7.9 7 4.4 12 4.4s9 3.5 9 7.8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                    <path d="M8.2 12h.01M12 12h.01M15.8 12h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/>
+                  </svg>
+                  {unreadMessages > 0 && (
+                    <span style={{
+                      position:"absolute",
+                      top:-6,
+                      right:-6,
+                      minWidth:19,
+                      height:19,
+                      borderRadius:10,
+                      padding:"0 5px",
+                      background:th.accentBg,
+                      border:`2px solid ${th.card}`,
+                      color:th.accentT,
+                      display:"flex",
+                      alignItems:"center",
+                      justifyContent:"center",
+                      fontSize:10,
+                      fontWeight:800,
+                      fontFamily:"'Outfit',sans-serif",
+                      lineHeight:1,
+                      boxShadow:`0 2px 10px color-mix(in srgb, ${th.accentBg} 42%, transparent)`,
+                      animation:"notifPop 0.24s cubic-bezier(0.34,1.4,0.64,1) forwards",
+                      pointerEvents:"none",
+                    }}>
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                    </span>
+                  )}
+                </button>
               </div>
 
               {/* ── Inner tabs (only when coaching is active and I am the coach) ──
@@ -10621,6 +10954,16 @@ import "./styles.css";
             </div>
           </div>
         </div>
+
+        {messageOpen && createPortal(
+          <DirectMessageSheet
+            user={user}
+            friend={friend}
+            onClose={() => setMessageOpen(false)}
+            onOpenProfile={() => setMessageOpen(false)}
+          />,
+          document.body
+        )}
 
         {/* ── Coaching Rules Popup ─────────────────────────────────────────── */}
         {showCoachRules && (
@@ -11434,9 +11777,167 @@ import "./styles.css";
 
             {/* Save button — mirrors ExercisePicker confirm button, receiver only */}
             {isReceiver && (
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 18px 20px", zIndex: 10 }}>
+              <div style={bottomSheetCtaBarStyle}>
                 <button
                   onClick={() => { if (saved) return; onSave(prog); setSaved(true); }}
+                  style={{
+                    width:"100%",
+                    ...buttonTexture(th, "accent", saved),
+                    borderRadius:13, padding:"14px",
+                    cursor: saved ? "default" : "pointer",
+                    fontFamily:"'Outfit',sans-serif", fontSize:14, fontWeight:700,
+                    letterSpacing:0.5, color: saved ? th.accentFg : th.accentT,
+                    transition:"background .2s, color .2s",
+                  }}
+                >{saved ? `✓ ${t("SAVED TO MY WORKOUTS")}` : t("SAVE TO MY WORKOUTS")}</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function SharedSessionSheet({ item, user, onClose, onSave }) {
+    const th = useTheme();
+    const S = useS();
+    const t = useT();
+    const [closing, setClosing] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const session = item?.session || {};
+    const friend = item?.friend || {};
+    const isOwn = !!item?.isOwn || friend.uid === user?.id;
+    const senderName = isOwn ? t("You") : (friend.name || "Friend");
+    const initials = (friend.name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const closeMe = () => { setClosing(true); setTimeout(onClose, 300); };
+    const exercises = (session.exercises || []).filter(Boolean);
+    const muscles = [...new Set(exercises.map(e => e.group || DB.find(d => d.id === e.id)?.group).filter(Boolean))];
+    const buildProgram = () => ({
+      id: uid(),
+      name: session.name || `${senderName} ${t("Workout")}`,
+      exs: exercises.map((ex) => {
+        const dbEx = DB.find(d => d.id === ex.id || d.name === ex.name);
+        const doneSets = (ex.sets || []).filter(st => st.done !== false);
+        const sets = (doneSets.length ? doneSets : (ex.sets || [])).map(st => ({
+          reps: Number(st.reps) || 0,
+          weight: Number(st.weight) || 0,
+          duration: Number(st.duration) || 0,
+          distance: Number(st.distance) || 0,
+        }));
+        return {
+          id: dbEx?.id || ex.id,
+          sets: sets.length ? sets : [{ reps: 10, weight: 0 }],
+        };
+      }).filter(ex => ex.id),
+    });
+
+    return (
+      <>
+        <style>{`
+          @keyframes ssFadeIn    { from{opacity:0}                           to{opacity:1} }
+          @keyframes ssFadeOut   { from{opacity:1}                           to{opacity:0} }
+          @keyframes ssSlideUp   { from{transform:translateY(100%);opacity:.6} to{transform:translateY(0);opacity:1} }
+          @keyframes ssSlideDown { from{transform:translateY(0);opacity:1}     to{transform:translateY(100%);opacity:0} }
+        `}</style>
+        <div onClick={closeMe} style={{
+          position:"fixed", inset:0, zIndex:70,
+          background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)",
+          animation: closing ? "ssFadeOut .3s ease-in forwards" : "ssFadeIn .25s ease-out forwards",
+        }} />
+        <div style={{
+          position:"fixed", inset:0, zIndex:71,
+          display:"flex", flexDirection:"column", justifyContent:"flex-end",
+          maxWidth:480, margin:"0 auto", pointerEvents:"none",
+        }}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background:`color-mix(in srgb, ${th.card} 90%, transparent)`,
+            backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+            borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
+            marginTop:"auto", maxHeight:"80vh",
+            display:"flex", flexDirection:"column", overflow:"hidden",
+            pointerEvents:"auto",
+            animation: closing ? "ssSlideDown .34s cubic-bezier(0.4,0,1,1) forwards" : "ssSlideUp .42s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
+            <div style={{ padding:"18px 18px 0" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                <div style={{ minWidth:0, flex:1 }}>
+                  <span className="bebas" style={{ fontSize:24, letterSpacing:2, color:th.text }}>
+                    {session.name || t("WORKOUT")}
+                  </span>
+                  <div style={{ display:"flex", alignItems:"center", gap:7, marginTop:4 }}>
+                    {friend.photoURL ? (
+                      <img src={friend.photoURL} alt={senderName} style={{ width:20, height:20, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+                    ) : (
+                      <div style={{ width:20, height:20, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, fontWeight:700, color:th.accentFg, flexShrink:0 }}>
+                        {initials}
+                      </div>
+                    )}
+                    <span style={{ fontSize:13, color:th.muted }}>
+                      <span style={{ fontWeight:700, color:th.text }}>{senderName}</span>
+                      <span> {t("completed a workout")}</span>
+                    </span>
+                  </div>
+                </div>
+                <button onClick={closeMe} style={{ background:"none", border:"none", color:th.muted, fontSize:22, cursor:"pointer", lineHeight:1, marginTop:2 }}>✕</button>
+              </div>
+              <div style={{ display:"flex", gap:5, overflowX:"auto", paddingBottom:12, scrollbarWidth:"none" }}>
+                {muscles.map(g => (
+                  <span key={g} style={{
+                    padding:"5px 13px", borderRadius:20, fontSize:12, fontWeight:700,
+                    whiteSpace:"nowrap", flexShrink:0, fontFamily:"'Outfit',sans-serif",
+                    background:`color-mix(in srgb, ${gc(g)}22, ${th.sect})`,
+                    color: gc(g),
+                  }}>{g.toUpperCase()}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{
+              flex:1, overflowY:"auto", overscrollBehavior:"contain",
+              padding:"6px 18px",
+              paddingBottom: !isOwn ? "90px" : "18px",
+            }}>
+              {exercises.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"30px 0", color:th.dim, fontSize:13 }}>{t("No exercises.")}</div>
+              ) : exercises.map((ex, i) => {
+                const dbEx = DB.find(d => d.id === ex.id || d.name === ex.name);
+                const isCardio = ex.type === "cardio" || dbEx?.type === "cardio";
+                const doneSets = (ex.sets || []).filter(st => st.done !== false);
+                const sets = doneSets.length ? doneSets : (ex.sets || []);
+                const firstSet = sets[0] || {};
+                const muscle = dbEx?.muscle || ex.muscle || ex.group || t("Exercise");
+                return (
+                  <div key={`${ex.id || ex.name || i}-${i}`} style={{ ...S.card, padding:"12px 14px", marginBottom:8 }}>
+                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, fontWeight:700, fontSize:14, color:th.text, marginBottom:5 }}>
+                          {dbEx?.name || ex.name || t("Exercise")}
+                          {dbEx && <DiffBadge id={dbEx.id} />}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:5 }}>
+                          <span style={{ ...S.tag(dbEx?.group || ex.group, muscle), fontSize:9.5, padding:"2px 6px" }}>
+                            {String(muscle).toUpperCase()}
+                          </span>
+                          {SECONDARY[dbEx?.id || ex.id] && SECONDARY[dbEx?.id || ex.id].split(" · ").map(m => {
+                            const grp = DB.find(d=>d&&d.muscle===m)?.group||"Back";
+                            return <span key={m} style={{ ...S.tag(grp, m), opacity:0.92, fontSize:8, padding:"1px 5px" }}>{m.toUpperCase()}</span>;
+                          })}
+                        </div>
+                        <div style={{ fontSize:12, color:th.dim }}>
+                          {sets.length} {t(sets.length===1 ? "set" : "sets")}
+                          {isCardio
+                            ? `${firstSet.duration ? ` · ${firstSet.duration}${t("min")}` : ""}${firstSet.distance ? ` · ${firstSet.distance}km` : ""}`
+                            : `${firstSet.reps ? ` · ${firstSet.reps} ${t("reps")}` : ""}${firstSet.weight ? ` · ${firstSet.weight}kg` : ""}`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {!isOwn && (
+              <div style={bottomSheetCtaBarStyle}>
+                <button
+                  onClick={() => { if (saved) return; onSave(buildProgram()); setSaved(true); }}
                   style={{
                     width:"100%",
                     ...buttonTexture(th, "accent", saved),
@@ -11465,10 +11966,28 @@ import "./styles.css";
     const [sending, setSending] = useState(false);
     const [closing, setClosing] = useState(false);
     const [permError, setPermError] = useState(false);
+    const [menuCommentId, setMenuCommentId] = useState(null);
+    const [closingMenuId, setClosingMenuId] = useState(null);
+    const [editingComment, setEditingComment] = useState(null);
     const listRef = useRef(null);
     const mountedRef = useRef(true);
-    useEffect(() => () => { mountedRef.current = false; }, []);
-    const close = () => { setClosing(true); setTimeout(onClose, 300); };
+    const menuCloseTimerRef = useRef(null);
+    useEffect(() => () => {
+      mountedRef.current = false;
+      if (menuCloseTimerRef.current) clearTimeout(menuCloseTimerRef.current);
+    }, []);
+    const closeCommentMenu = () => {
+      if (!menuCommentId) return;
+      const id = menuCommentId;
+      if (menuCloseTimerRef.current) clearTimeout(menuCloseTimerRef.current);
+      setClosingMenuId(id);
+      setMenuCommentId(null);
+      menuCloseTimerRef.current = setTimeout(() => {
+        setClosingMenuId(cur => cur === id ? null : cur);
+        menuCloseTimerRef.current = null;
+      }, 170);
+    };
+    const close = () => { closeCommentMenu(); setClosing(true); setTimeout(onClose, 300); };
 
     const fmtAgo = (ts) => {
       if (!ts) return "";
@@ -11497,13 +12016,37 @@ import "./styles.css";
     }, [postId]);
 
     const send = async () => {
-      const t = text.trim();
-      if (!t || sending) return;
+      const clean = text.trim();
+      if (!clean || sending) return;
       setSending(true);
       setText("");
-      await fsPostComment(postId, user.id, user.name, user.photoURL, t, ownerUid, contextName);
+      if (editingComment) {
+        await fsEditComment(postId, editingComment.id, clean);
+        setEditingComment(null);
+      } else {
+        await fsPostComment(postId, user.id, user.name, user.photoURL, clean, ownerUid, contextName);
+      }
       // Sheet may have been closed during the await — don't setState on unmount.
       if (mountedRef.current) setSending(false);
+    };
+    const startEditComment = (comment) => {
+      setEditingComment(comment);
+      setText(comment.text || "");
+      closeCommentMenu();
+    };
+    const cancelEditComment = () => {
+      setEditingComment(null);
+      setText("");
+    };
+    const toggleCommentStar = async (comment) => {
+      closeCommentMenu();
+      await fsToggleCommentStar(postId, user.id, comment.id);
+    };
+    const deleteComment = async (comment) => {
+      if (!comment || comment.authorUid !== user.id) return;
+      closeCommentMenu();
+      if (editingComment?.id === comment.id) cancelEditComment();
+      await fsDeleteComment(postId, comment.id);
     };
     const canSendComment = text.trim().length > 0 && !sending;
     const sendIconColor = canSendComment ? th.accentT : th.muted;
@@ -11515,6 +12058,8 @@ import "./styles.css";
           @keyframes cmBdOut {from{opacity:1}to{opacity:0}}
           @keyframes cmIn    {from{transform:translateY(100%);opacity:.6}to{transform:translateY(0);opacity:1}}
           @keyframes cmOut   {from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
+          @keyframes cmBubbleMenuIn  { from{opacity:0;transform:translateY(-4px) scale(.985);filter:blur(8px)} to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)} }
+          @keyframes cmBubbleMenuOut { from{opacity:1;transform:translateY(0) scale(1);filter:blur(0)} to{opacity:0;transform:translateY(-4px) scale(.985);filter:blur(8px)} }
         `}</style>
         <div onClick={close} style={{ position:"fixed",inset:0,zIndex:80,background:"rgba(0,0,0,0.5)",backdropFilter:"blur(6px)",WebkitBackdropFilter:"blur(6px)", animation: closing ? "cmBdOut .3s ease forwards" : "cmBdIn .25s ease forwards" }} />
         <div style={{ position:"fixed",inset:0,zIndex:81,display:"flex",flexDirection:"column",justifyContent:"flex-end",maxWidth:480,margin:"0 auto",pointerEvents:"none" }}>
@@ -11522,7 +12067,7 @@ import "./styles.css";
             background:`color-mix(in srgb, ${th.card} 92%, transparent)`,
             backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
             borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
-            marginTop:"auto", maxHeight:"75vh",
+            marginTop:"auto", height:"50vh", maxHeight:"50vh",
             display:"flex", flexDirection:"column", pointerEvents:"auto",
             animation: closing ? "cmOut .3s cubic-bezier(0.4,0,1,1) forwards" : "cmIn .38s cubic-bezier(0.32,0.72,0,1) forwards",
           }}>
@@ -11535,7 +12080,11 @@ import "./styles.css";
               <button onClick={close} style={{ background:"none",border:"none",color:th.muted,fontSize:22,cursor:"pointer",lineHeight:1 }}>✕</button>
             </div>
             {/* Comment list */}
-            <div ref={listRef} style={{ flex:1, overflowY:"auto", overscrollBehavior:"contain", padding:"12px 18px" }}>
+            <div
+              ref={listRef}
+              onClick={closeCommentMenu}
+              style={{ flex:1, overflowY:"auto", overscrollBehavior:"contain", padding:"12px 18px 76px" }}
+            >
               {permError ? (
                 <div style={{ textAlign:"center", padding:"24px 0" }}>
                   <div style={{ fontSize:24, marginBottom:8 }}>🔒</div>
@@ -11550,24 +12099,185 @@ import "./styles.css";
               ) : comments.map(c => {
                 const ini = (c.authorName||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
                 const isOwn = c.authorUid === user.id;
+                const starred = c.reactions && Object.values(c.reactions).some(v => v === "star");
+                const starredByMe = c.reactions?.[user.id] === "star";
+                const menuOpen = menuCommentId === c.id;
+                const menuClosing = closingMenuId === c.id && !menuOpen;
+                const menuVisible = menuOpen || menuClosing;
                 return (
-                  <div key={c.id} style={{ display:"flex", gap:10, marginBottom:14, alignItems:"flex-start" }}>
+                  <div key={c.id} style={{ display:"flex", gap:10, marginBottom:14, alignItems:"flex-start", position:"relative", zIndex:menuVisible ? 8 : 1 }}>
                     {c.authorPhotoURL ? (
                       <img src={c.authorPhotoURL} alt={c.authorName} style={{ width:34,height:34,borderRadius:"50%",objectFit:"cover",flexShrink:0 }} />
                     ) : (
                       <div style={{ width:34,height:34,borderRadius:"50%",background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:th.accentFg,flexShrink:0 }}>{ini}</div>
                     )}
-                    <div style={{ flex:1 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
                         <span style={{ fontWeight:700, fontSize:13, color:th.text }}>{c.authorName?.split(" ")[0]}</span>
                         <span style={{ fontSize:11, color:th.dim }}>{fmtAgo(c.ts)}</span>
-                        {isOwn && (
-                          <button onClick={() => fsDeleteComment(postId, c.id)}
-                            style={{ marginLeft:"auto", background:"none",border:"none",color:th.delText,fontSize:11,cursor:"pointer",padding:0 }}>{tr("Delete")}</button>
-                        )}
                       </div>
-                      <div style={{ fontSize:14, color:th.sub, lineHeight:1.5, background:th.sect, borderRadius:"4px 12px 12px 12px", padding:"8px 12px", display:"inline-block", maxWidth:"100%", wordBreak:"break-word" }}>
-                        {c.text}
+                      <div style={{ position:"relative", display:"inline-block", maxWidth:"100%" }}>
+                        {menuVisible && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              position:"absolute",
+                              left:0,
+                              top:"calc(100% + 11px)",
+                              zIndex:12,
+                              display:"flex",
+                              gap:6,
+                              padding:"6px",
+                              borderRadius:16,
+                              background:`linear-gradient(135deg, color-mix(in srgb, ${th.card} 66%, transparent) 0%, color-mix(in srgb, ${th.row} 38%, transparent) 100%)`,
+                              border:`1px solid color-mix(in srgb, ${th.border} 74%, rgba(255,255,255,0.22))`,
+                              boxShadow:"0 14px 34px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.08)",
+                              backdropFilter:"blur(26px) saturate(1.75)",
+                              WebkitBackdropFilter:"blur(26px) saturate(1.75)",
+                              pointerEvents:menuClosing ? "none" : "auto",
+                              animation:menuClosing ? "cmBubbleMenuOut .18s ease forwards" : "cmBubbleMenuIn .2s cubic-bezier(0.18,0.9,0.2,1) forwards",
+                              transformOrigin:"top left",
+                            }}
+                          >
+                            <button
+                              onClick={() => toggleCommentStar(c)}
+                              style={{
+                                ...buttonTexture(th, starredByMe ? "accent" : "neutral"),
+                                borderRadius:12,
+                                width:36,
+                                height:34,
+                                padding:0,
+                                cursor:"pointer",
+                                display:"flex",
+                                alignItems:"center",
+                                justifyContent:"center",
+                                color:starredByMe ? th.accentT : th.accentFg,
+                              }}
+                              title={tr("Star")}
+                              aria-label={tr("Star")}
+                            >
+                              <svg
+                                width="17"
+                                height="17"
+                                viewBox="0 0 22 22"
+                                fill={starredByMe ? "currentColor" : "none"}
+                                aria-hidden="true"
+                                style={{ display:"block" }}
+                              >
+                                <polygon
+                                  points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                            {isOwn && (
+                              <button
+                                onClick={() => startEditComment(c)}
+                                style={{
+                                  ...buttonTexture(th, "neutral"),
+                                  borderRadius:12,
+                                  width:36,
+                                  height:34,
+                                  padding:0,
+                                  cursor:"pointer",
+                                  display:"flex",
+                                  alignItems:"center",
+                                  justifyContent:"center",
+                                  color:th.sub,
+                                }}
+                                title={tr("Edit")}
+                                aria-label={tr("Edit")}
+                              >
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display:"block", transform:"rotate(-8deg)" }}>
+                                  <path d="M4 16.7V20h3.3L18.6 8.7l-3.3-3.3L4 16.7Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                                  <path d="M14.4 6.3 16.2 4.5c.7-.7 1.8-.7 2.5 0l.8.8c.7.7.7 1.8 0 2.5l-1.8 1.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+                            )}
+                            {isOwn && (
+                              <button
+                                onClick={() => deleteComment(c)}
+                                style={{
+                                  ...buttonTexture(th, "danger"),
+                                  borderRadius:12,
+                                  width:36,
+                                  height:34,
+                                  padding:0,
+                                  cursor:"pointer",
+                                  display:"flex",
+                                  alignItems:"center",
+                                  justifyContent:"center",
+                                  color:"#fff",
+                                }}
+                                title={tr("Delete")}
+                                aria-label={tr("Delete")}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display:"block" }}>
+                                  <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                  <path d="M9 7V5.5C9 4.7 9.7 4 10.5 4h3C14.3 4 15 4.7 15 5.5V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                  <path d="M7 7l.8 12.2c.1 1 1 1.8 2 1.8h4.4c1 0 1.9-.8 2-1.8L17 7" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                                  <path d="M10.5 11v6M13.5 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (menuOpen) closeCommentMenu();
+                            else {
+                              if (menuCloseTimerRef.current) clearTimeout(menuCloseTimerRef.current);
+                              setClosingMenuId(null);
+                              setMenuCommentId(c.id);
+                            }
+                          }}
+                          style={{
+                            fontSize:14,
+                            color:th.sub,
+                            lineHeight:1.5,
+                            background:th.sect,
+                            border:`1px solid ${menuOpen ? th.accentBg : "transparent"}`,
+                            borderRadius:"4px 12px 12px 12px",
+                            padding:"8px 12px",
+                            display:"inline-block",
+                            maxWidth:"100%",
+                            wordBreak:"break-word",
+                            cursor:"pointer",
+                            WebkitTapHighlightColor:"transparent",
+                            boxShadow:menuOpen ? `0 4px 14px color-mix(in srgb, ${th.accentBg} 16%, transparent)` : "none",
+                          }}
+                        >
+                          {c.text}
+                          {c.editedAt && (
+                            <span style={{ display:"block", marginTop:3, fontSize:10, color:th.dim, fontWeight:700 }}>
+                              {tr("edited")}
+                            </span>
+                          )}
+                        </div>
+                        {starred && (
+                          <div style={{
+                            position:"absolute",
+                            left:6,
+                            bottom:-11,
+                            width:22,
+                            height:22,
+                            borderRadius:"50%",
+                            background:th.card,
+                            border:`1px solid ${th.border}`,
+                            display:"flex",
+                            alignItems:"center",
+                            justifyContent:"center",
+                            color:th.accentFg,
+                            fontSize:12,
+                            boxShadow:"0 2px 8px rgba(0,0,0,0.18)",
+                            pointerEvents:"none",
+                          }}>
+                            ★
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -11576,6 +12286,27 @@ import "./styles.css";
             </div>
             {/* Input */}
             <div style={{ padding:"10px 18px calc(16px + env(safe-area-inset-bottom,0px))", borderTop:`1px solid ${th.border}`, display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
+              {editingComment && (
+                <button
+                  onClick={cancelEditComment}
+                  style={{
+                    background:"transparent",
+                    border:`1px solid ${th.border}`,
+                    borderRadius:"50%",
+                    width:32,
+                    height:32,
+                    color:th.muted,
+                    cursor:"pointer",
+                    flexShrink:0,
+                    fontSize:17,
+                    lineHeight:1,
+                  }}
+                  title={tr("Cancel")}
+                  aria-label={tr("Cancel")}
+                >
+                  ✕
+                </button>
+              )}
               {user.photoURL ? (
                 <img src={user.photoURL} alt="" style={{ width:32,height:32,borderRadius:"50%",objectFit:"cover",flexShrink:0 }} />
               ) : (
@@ -11587,7 +12318,7 @@ import "./styles.css";
                 value={text}
                 onChange={e => setText(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && send()}
-                placeholder={tr("Add a comment…")}
+                placeholder={editingComment ? tr("Edit comment...") : tr("Add a comment…")}
                 style={{ flex:1, background:th.sect, border:`1px solid ${th.border}`, borderRadius:20, padding:"9px 14px", fontSize:14, color:th.text, fontFamily:"'Outfit',sans-serif", outline:"none" }}
               />
               <button onClick={send} disabled={!canSendComment}
@@ -11609,6 +12340,414 @@ import "./styles.css";
                   boxShadow: canSendComment ? `0 0 0 3px color-mix(in srgb, ${th.accentBg} 14%, transparent)` : "none",
                 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display:"block", color:sendIconColor, opacity:1 }}>
+                  <path d="M22 2L11 13" stroke={sendIconColor} strokeWidth="2.35" strokeLinecap="round"/>
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke={sendIconColor} strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function DirectMessageSheet({ user, friend, onClose, onOpenProfile }) {
+    const th = useTheme();
+    const t = useT();
+    const [messages, setMessages] = useState([]);
+    const [text, setText] = useState("");
+    const [sending, setSending] = useState(false);
+    const [closing, setClosing] = useState(false);
+    const [permError, setPermError] = useState(false);
+    const [menuMessageId, setMenuMessageId] = useState(null);
+    const [closingMenuId, setClosingMenuId] = useState(null);
+    const [editingMessage, setEditingMessage] = useState(null);
+    const [lastSeenAt, setLastSeenAt] = useState(friend.lastSeenAt || friend.lastActiveAt || friend.updatedAt || friend.since || Date.now());
+    const listRef = useRef(null);
+    const mountedRef = useRef(true);
+    const menuCloseTimerRef = useRef(null);
+    useEffect(() => () => {
+      mountedRef.current = false;
+      if (menuCloseTimerRef.current) clearTimeout(menuCloseTimerRef.current);
+    }, []);
+    const closeMenu = () => {
+      if (!menuMessageId) return;
+      const id = menuMessageId;
+      if (menuCloseTimerRef.current) clearTimeout(menuCloseTimerRef.current);
+      setClosingMenuId(id);
+      setMenuMessageId(null);
+      menuCloseTimerRef.current = setTimeout(() => {
+        setClosingMenuId(cur => cur === id ? null : cur);
+        menuCloseTimerRef.current = null;
+      }, 170);
+    };
+    const close = () => { closeMenu(); setClosing(true); setTimeout(onClose, 300); };
+    const openFriendProfile = () => {
+      closeMenu();
+      setClosing(true);
+      setTimeout(() => {
+        if (onOpenProfile) onOpenProfile();
+        else onClose();
+      }, 260);
+    };
+    const friendInitials = (friend.name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const formatLastSeen = (ts) => {
+      const when = Number(ts) || Date.now();
+      const d = new Date(when);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const time = d.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
+      if (day === today) return `${t("last seen today at")} ${time}`;
+      if (day === today - 86400000) return `${t("last seen yesterday at")} ${time}`;
+      return `${t("last seen")} ${d.toLocaleDateString(undefined, { day:"numeric", month:"short" })} ${t("at")} ${time}`;
+    };
+    const friendStatus = formatLastSeen(lastSeenAt);
+
+    useEffect(() => {
+      let cancelled = false;
+      setLastSeenAt(friend.lastSeenAt || friend.lastActiveAt || friend.updatedAt || friend.since || Date.now());
+      if (!friend.uid) return () => { cancelled = true; };
+      getDoc(doc(fbDb, "publicProfiles", friend.uid))
+        .then(snap => {
+          if (cancelled) return;
+          const data = snap.exists() ? snap.data() : null;
+          setLastSeenAt(data?.lastSeenAt || data?.lastActiveAt || data?.updatedAt || friend.lastSeenAt || friend.lastActiveAt || friend.updatedAt || friend.since || Date.now());
+        })
+        .catch(() => {});
+      return () => { cancelled = true; };
+    }, [friend.uid, friend.lastSeenAt, friend.lastActiveAt, friend.updatedAt, friend.since]);
+
+    useEffect(() => {
+      let unsub = () => {};
+      try {
+        fsMarkDirectThreadRead(user.id, friend.uid).catch(() => {});
+        unsub = fsListenDirectMessages(user.id, friend.uid, (items, err) => {
+          if (err) { setPermError(true); return; }
+          setMessages(items);
+          setPermError(false);
+          fsMarkDirectThreadRead(user.id, friend.uid).catch(() => {});
+          setTimeout(() => listRef.current?.scrollTo({ top:999999, behavior:"smooth" }), 80);
+        });
+      } catch (e) {
+        console.warn("DirectMessageSheet listener error:", e);
+        setPermError(true);
+      }
+      return () => { try { unsub(); } catch {} };
+    }, [user.id, friend.uid]);
+
+    const send = async () => {
+      const clean = text.trim();
+      if (!clean || sending) return;
+      setSending(true);
+      setText("");
+      if (editingMessage) {
+        await fsEditDirectMessage(user, friend, editingMessage.id, clean);
+        setEditingMessage(null);
+      } else {
+        await fsSendDirectMessage(user, friend, clean);
+      }
+      if (mountedRef.current) setSending(false);
+    };
+    const startEdit = (msg) => {
+      setEditingMessage(msg);
+      setText(msg.text || "");
+      closeMenu();
+    };
+    const cancelEdit = () => {
+      setEditingMessage(null);
+      setText("");
+    };
+    const deleteMessage = async (msg) => {
+      if (!msg || msg.senderUid !== user.id) return;
+      closeMenu();
+      if (editingMessage?.id === msg.id) cancelEdit();
+      await fsDeleteDirectMessage(user.id, friend.uid, msg.id);
+    };
+    const toggleStar = async (msg) => {
+      closeMenu();
+      await fsToggleDirectMessageStar(user.id, friend.uid, msg.id);
+    };
+    const canSend = text.trim().length > 0 && !sending;
+    const sendIconColor = canSend ? th.accentT : th.muted;
+
+    return (
+      <>
+        <style>{`
+          @keyframes dmBdIn  { from{opacity:0} to{opacity:1} }
+          @keyframes dmBdOut { from{opacity:1} to{opacity:0} }
+          @keyframes dmIn    { from{transform:translateY(100%);opacity:.6} to{transform:translateY(0);opacity:1} }
+          @keyframes dmOut   { from{transform:translateY(0);opacity:1} to{transform:translateY(100%);opacity:0} }
+          @keyframes dmBubbleMenuIn  { from{opacity:0;transform:translateY(-4px) scale(.985);filter:blur(8px)} to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)} }
+          @keyframes dmBubbleMenuOut { from{opacity:1;transform:translateY(0) scale(1);filter:blur(0)} to{opacity:0;transform:translateY(-4px) scale(.985);filter:blur(8px)} }
+        `}</style>
+        <div onClick={close} style={{ position:"fixed", inset:0, zIndex:86, background:"rgba(0,0,0,0.5)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", animation:closing ? "dmBdOut .3s ease forwards" : "dmBdIn .25s ease forwards" }} />
+        <div style={{ position:"fixed", inset:0, zIndex:87, display:"flex", flexDirection:"column", justifyContent:"flex-end", maxWidth:480, margin:"0 auto", pointerEvents:"none" }}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background:`color-mix(in srgb, ${th.card} 94%, transparent)`,
+            backdropFilter:"blur(28px) saturate(1.5)", WebkitBackdropFilter:"blur(28px) saturate(1.5)",
+            borderRadius:"24px 24px 0 0", borderTop:`1px solid ${th.border}`,
+            marginTop:"calc(72px + env(safe-area-inset-top, 0px))",
+            display:"flex", flexDirection:"column", flex:1, pointerEvents:"auto", overflow:"hidden",
+            animation:closing ? "dmOut .3s cubic-bezier(0.4,0,1,1) forwards" : "dmIn .38s cubic-bezier(0.32,0.72,0,1) forwards",
+          }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"14px 18px 12px", borderBottom:`1px solid ${th.border}`, flexShrink:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+                <button
+                  onClick={openFriendProfile}
+                  title={t("View profile")}
+                  aria-label={t("View profile")}
+                  style={{ border:"none", background:"transparent", padding:0, margin:0, width:38, height:38, borderRadius:"50%", flexShrink:0, cursor:"pointer", WebkitTapHighlightColor:"transparent" }}
+                >
+                  {friend.photoURL ? (
+                    <img src={friend.photoURL} alt={friend.name} style={{ width:38, height:38, borderRadius:"50%", objectFit:"cover", display:"block" }} />
+                  ) : (
+                    <div style={{ width:38, height:38, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:th.accentFg }}>
+                      {friendInitials}
+                    </div>
+                  )}
+                </button>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontWeight:800, fontSize:16, color:th.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{friend.name}</div>
+                  <div style={{ fontSize:11, color:th.dim, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{friendStatus}</div>
+                </div>
+              </div>
+              <button onClick={close} style={{ background:"none", border:"none", color:th.muted, fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+            </div>
+
+            <div
+              ref={listRef}
+              onClick={closeMenu}
+              style={{ flex:1, overflowY:"auto", overscrollBehavior:"contain", padding:"14px 16px" }}
+            >
+              {permError ? (
+                <div style={{ textAlign:"center", padding:"24px 0" }}>
+                  <div style={{ fontSize:24, marginBottom:8 }}>🔒</div>
+                  <div style={{ color:th.muted, fontSize:14, marginBottom:8 }}>{t("Messages need a Firebase rule.")}</div>
+                  <div style={{ color:th.dim, fontSize:11, lineHeight:1.6 }}>
+                    <code style={{ background:th.sect, padding:"2px 6px", borderRadius:4, fontSize:10 }}>match /directThreads/&#123;t&#125;/messages/&#123;m&#125; {'{'} allow read, write: if request.auth != null; {'}'}</code>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"34px 12px", color:th.dim, fontSize:14 }}>{t("No messages yet.")}</div>
+              ) : messages.map(msg => {
+                const mine = msg.senderUid === user.id;
+                const starred = msg.reactions && Object.values(msg.reactions).some(v => v === "star");
+                const starredByMe = msg.reactions?.[user.id] === "star";
+                const menuOpen = menuMessageId === msg.id;
+                const menuClosing = closingMenuId === msg.id && !menuOpen;
+                const menuVisible = menuOpen || menuClosing;
+                return (
+                  <div key={msg.id} style={{ display:"flex", justifyContent:mine ? "flex-end" : "flex-start", marginBottom:12, position:"relative", zIndex:menuVisible ? 8 : 1 }}>
+                    <div style={{ position:"relative", maxWidth:"78%" }}>
+                      {menuVisible && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position:"absolute",
+                            right:mine ? 0 : "auto",
+                            left:mine ? "auto" : 0,
+                            top:"calc(100% + 12px)",
+                            zIndex:12,
+                            display:"flex",
+                            gap:6,
+                            padding:"6px",
+                            borderRadius:16,
+                            background:`linear-gradient(135deg, color-mix(in srgb, ${th.card} 66%, transparent) 0%, color-mix(in srgb, ${th.row} 38%, transparent) 100%)`,
+                            border:`1px solid color-mix(in srgb, ${th.border} 74%, rgba(255,255,255,0.22))`,
+                            boxShadow:"0 14px 34px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.08)",
+                            backdropFilter:"blur(26px) saturate(1.75)",
+                            WebkitBackdropFilter:"blur(26px) saturate(1.75)",
+                            pointerEvents:menuClosing ? "none" : "auto",
+                            animation:menuClosing ? "dmBubbleMenuOut .18s ease forwards" : "dmBubbleMenuIn .2s cubic-bezier(0.18,0.9,0.2,1) forwards",
+                            transformOrigin:mine ? "top right" : "top left",
+                          }}
+                        >
+                          <button
+                            onClick={() => toggleStar(msg)}
+                            style={{
+                              ...buttonTexture(th, starredByMe ? "accent" : "neutral"),
+                              borderRadius:12,
+                              width:36,
+                              height:34,
+                              padding:0,
+                              cursor:"pointer",
+                              display:"flex",
+                              alignItems:"center",
+                              justifyContent:"center",
+                              color:starredByMe ? th.accentT : th.accentFg,
+                            }}
+                            title={t("Star")}
+                          >
+                            <svg
+                              width="17"
+                              height="17"
+                              viewBox="0 0 22 22"
+                              fill={starredByMe ? "currentColor" : "none"}
+                              aria-hidden="true"
+                              style={{ display:"block" }}
+                            >
+                              <polygon
+                                points="11,2 13.9,8.3 21,9.3 16,14.1 17.2,21 11,17.8 4.8,21 6,14.1 1,9.3 8.1,8.3"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                          {mine && (
+                            <button
+                              onClick={() => startEdit(msg)}
+                              style={{
+                                ...buttonTexture(th, "neutral"),
+                                borderRadius:12,
+                                width:36,
+                                height:34,
+                                padding:0,
+                                cursor:"pointer",
+                                display:"flex",
+                                alignItems:"center",
+                                justifyContent:"center",
+                                color:th.sub,
+                              }}
+                              title={t("Edit")}
+                            >
+                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display:"block", transform:"rotate(-8deg)" }}>
+                                <path d="M4 16.7V20h3.3L18.6 8.7l-3.3-3.3L4 16.7Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                                <path d="M14.4 6.3 16.2 4.5c.7-.7 1.8-.7 2.5 0l.8.8c.7.7.7 1.8 0 2.5l-1.8 1.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                          )}
+                          {mine && (
+                            <button
+                              onClick={() => deleteMessage(msg)}
+                              style={{
+                                ...buttonTexture(th, "danger"),
+                                borderRadius:12,
+                                width:36,
+                                height:34,
+                                padding:0,
+                                cursor:"pointer",
+                                display:"flex",
+                                alignItems:"center",
+                                justifyContent:"center",
+                                color:"#fff",
+                                fontSize:15,
+                              }}
+                              title={t("Delete")}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display:"block" }}>
+                                <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                <path d="M9 7V5.5C9 4.7 9.7 4 10.5 4h3C14.3 4 15 4.7 15 5.5V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                <path d="M7 7l.8 12.2c.1 1 1 1.8 2 1.8h4.4c1 0 1.9-.8 2-1.8L17 7" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                                <path d="M10.5 11v6M13.5 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (menuOpen) closeMenu();
+                          else {
+                            if (menuCloseTimerRef.current) clearTimeout(menuCloseTimerRef.current);
+                            setClosingMenuId(null);
+                            setMenuMessageId(msg.id);
+                          }
+                        }}
+                        style={{
+                          background:mine ? th.accentBg : th.sect,
+                          color:mine ? th.accentT : th.text,
+                          border:mine ? `1px solid color-mix(in srgb, ${th.accentBg} 75%, transparent)` : `1px solid ${th.border}`,
+                          borderRadius:mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                          padding:"9px 12px",
+                          fontSize:14,
+                          lineHeight:1.42,
+                          wordBreak:"break-word",
+                          boxShadow:mine ? `0 4px 12px color-mix(in srgb, ${th.accentBg} 22%, transparent)` : "none",
+                          cursor:"pointer",
+                          WebkitTapHighlightColor:"transparent",
+                          position:"relative",
+                        }}
+                      >
+                        {msg.text}
+                        {msg.editedAt && (
+                          <span style={{ display:"block", marginTop:3, fontSize:10, opacity:0.68, fontWeight:700 }}>
+                            {t("edited")}
+                          </span>
+                        )}
+                      </div>
+                      {starred && (
+                        <div style={{
+                          position:"absolute",
+                          right:mine ? 6 : "auto",
+                          left:mine ? "auto" : 6,
+                          bottom:-11,
+                          width:22,
+                          height:22,
+                          borderRadius:"50%",
+                          background:th.card,
+                          border:`1px solid ${th.border}`,
+                          display:"flex",
+                          alignItems:"center",
+                          justifyContent:"center",
+                          color:th.accentFg,
+                          fontSize:12,
+                          boxShadow:"0 2px 8px rgba(0,0,0,0.18)",
+                        }}>
+                          ★
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ padding:"10px 16px calc(16px + env(safe-area-inset-bottom,0px))", borderTop:`1px solid ${th.border}`, display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
+              {editingMessage && (
+                <button
+                  onClick={cancelEdit}
+                  style={{
+                    background:"transparent",
+                    border:`1px solid ${th.border}`,
+                    borderRadius:"50%",
+                    width:32,
+                    height:32,
+                    color:th.muted,
+                    cursor:"pointer",
+                    flexShrink:0,
+                    fontSize:17,
+                    lineHeight:1,
+                  }}
+                  title={t("Cancel")}
+                >
+                  ✕
+                </button>
+              )}
+              <input
+                value={text}
+                onChange={e => setText(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && send()}
+                placeholder={editingMessage ? t("Edit message...") : t("Message...")}
+                style={{ flex:1, minWidth:0, background:th.sect, border:`1px solid ${th.border}`, borderRadius:20, padding:"10px 14px", fontSize:14, color:th.text, fontFamily:"'Outfit',sans-serif", outline:"none" }}
+              />
+              <button onClick={send} disabled={!canSend}
+                style={{
+                  WebkitAppearance:"none",
+                  appearance:"none",
+                  background:canSend ? `color-mix(in srgb, ${th.accentBg} 92%, ${th.card})` : `color-mix(in srgb, ${th.inputB} 72%, ${th.card})`,
+                  border:`1px solid ${canSend ? th.accentBg : th.border}`,
+                  borderRadius:"50%", width:40, height:40,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  cursor:canSend ? "pointer" : "default",
+                  flexShrink:0,
+                  color:sendIconColor,
+                  padding:0,
+                  boxShadow:canSend ? `0 0 0 3px color-mix(in srgb, ${th.accentBg} 14%, transparent)` : "none",
+                }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display:"block", color:sendIconColor }}>
                   <path d="M22 2L11 13" stroke={sendIconColor} strokeWidth="2.35" strokeLinecap="round"/>
                   <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke={sendIconColor} strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -11897,8 +13036,11 @@ import "./styles.css";
     const [sharedPrograms, setSharedPrograms] = useState([]); // programs shared with me
     const [sharedByMe, setSharedByMe] = useState([]); // programs I shared
     const [openSharedProg, setOpenSharedProg] = useState(null);
+    const [openSharedSession, setOpenSharedSession] = useState(null);
+    const [openDirectMessageFriend, setOpenDirectMessageFriend] = useState(null);
     const [openComments, setOpenComments] = useState(null); // { postId }
     const [openStarredBy, setOpenStarredBy] = useState(null); // array of reactors
+    const [directThreads, setDirectThreads] = useState([]);
 
     // Consume deep-link from notification tap. Three modes:
     //   • "comments" → open the post's Comments sheet (for comment notifications)
@@ -11906,9 +13048,18 @@ import "./styles.css";
     //   • "pending"  → switch to the Friends tab where pending requests live
     useEffect(() => {
       if (!deepLinkPost) return;
-      const { mode, postId, ownerUid, contextName } = deepLinkPost;
+      const { mode, postId, ownerUid, contextName, friendUid, name, photoURL } = deepLinkPost;
       if (mode === "pending") {
         setSharingTab("friends");
+      } else if (mode === "message") {
+        setSharingTab("friends");
+        const targetFriend =
+          friends.find(f => f.uid === friendUid) ||
+          { uid:friendUid, name:name || "Friend", photoURL:photoURL || null };
+        if (targetFriend?.uid) {
+          setDashFriend(null);
+          setOpenDirectMessageFriend(targetFriend);
+        }
       } else if (mode === "comments") {
         setSharingTab("feed");
         setOpenComments({ postId, ownerUid, contextName });
@@ -11928,7 +13079,7 @@ import "./styles.css";
         }, 120);
       }
       onConsumeDeepLink && onConsumeDeepLink();
-    }, [deepLinkPost?.postId, deepLinkPost?.mode]);
+    }, [deepLinkPost?.postId, deepLinkPost?.mode, deepLinkPost?.friendUid]);
 
 
     const [commentCounts, setCommentCounts] = useState({}); // postId -> count
@@ -11971,6 +13122,12 @@ import "./styles.css";
       const u1 = fsListenSharedWithMe(user.id, items => setSharedPrograms(items.sort((a,b) => b.ts - a.ts)));
       const u2 = fsListenSharedByMe(user.id, items => setSharedByMe(items.sort((a,b) => b.ts - a.ts)));
       return () => { u1(); u2(); };
+    }, [user?.id]);
+
+    useEffect(() => {
+      if (!user?.id) return;
+      const unsub = fsListenDirectThreads(user.id, setDirectThreads);
+      return () => unsub();
     }, [user?.id]);
 
     // Load suggestions from publicProfiles only (invitations collection requires broad access)
@@ -12050,6 +13207,29 @@ import "./styles.css";
     const feedItems = [...sessionFeedItems, ...ownSessionFeedItems, ...sharedProgFeedItems]
       .sort((a, b) => b.ts - a.ts);
 
+    const dmMs = (v) => {
+      if (!v) return 0;
+      if (typeof v === "number") return v;
+      if (typeof v.toMillis === "function") return v.toMillis();
+      if (v.seconds) return v.seconds * 1000;
+      return Number(v) || 0;
+    };
+    const unreadDirectByFriend = directThreads.reduce((acc, thread) => {
+      if (!thread || thread.lastSenderUid === user.id) return acc;
+      const otherUid =
+        thread.lastSenderUid ||
+        (thread.participantUids || []).find(uid => uid !== user.id) ||
+        String(thread.id || "").split("__").find(uid => uid !== user.id);
+      if (!otherUid) return acc;
+      const updatedAt = dmMs(thread.updatedAt);
+      const readAt = dmMs(thread.readBy?.[user.id]);
+      const storedUnread = Math.max(0, Number(thread.unreadCounts?.[user.id] || 0));
+      if (storedUnread > 0) acc[otherUid] = (acc[otherUid] || 0) + storedUnread;
+      else if (updatedAt > readAt) acc[otherUid] = (acc[otherUid] || 0) + 1;
+      return acc;
+    }, {});
+    const unreadDirectFriendCount = Object.keys(unreadDirectByFriend).length;
+
     // Load comment counts for all visible feed items
     useEffect(() => {
       if (!feedItems.length) return;
@@ -12088,6 +13268,56 @@ import "./styles.css";
       setActioning(a => ({ ...a, [id]: false }));
     };
 
+    const feedOpenCardProps = (activate) => {
+      const clear = (el) => el?.classList?.remove("ib-feed-open-pressed");
+      return {
+        onClick: (e) => {
+          addRipple(e, th.accentFg, { wave:true, opacity:0.18 });
+          activate && activate();
+        },
+        onPointerDown: (e) => {
+          if (e.button != null && e.button !== 0) return;
+          if (e.target?.closest?.("button,a,input,textarea,select,[data-no-feed-open]")) return;
+          e.currentTarget.classList.add("ib-feed-open-pressed");
+        },
+        onPointerUp: (e) => clear(e.currentTarget),
+        onPointerLeave: (e) => clear(e.currentTarget),
+        onPointerCancel: (e) => clear(e.currentTarget),
+        onBlur: (e) => clear(e.currentTarget),
+        onKeyDown: (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            addRipple(e, th.accentFg, { wave:true, opacity:0.18 });
+            activate && activate();
+          }
+        },
+      };
+    };
+
+    const FeedOpenBadge = () => (
+      <span style={{
+        flexShrink:0,
+        display:"inline-flex",
+        alignItems:"center",
+        gap:5,
+        padding:"6px 9px",
+        borderRadius:999,
+        background:`color-mix(in srgb, ${th.accentBg} 16%, transparent)`,
+        border:`1.5px solid color-mix(in srgb, ${th.accentBg} 58%, transparent)`,
+        color:th.accentFg,
+        fontSize:10,
+        fontWeight:800,
+        letterSpacing:"0.6px",
+        lineHeight:1,
+        boxShadow:`0 0 14px color-mix(in srgb, ${th.accentBg} 10%, transparent)`,
+      }}>
+        {t("View").toUpperCase()}
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display:"block" }}>
+          <path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </span>
+    );
+
     const fmtTimeAgo = (ts) => {
       if (!ts) return "";
       const diff = Date.now() - ts;
@@ -12119,6 +13349,25 @@ import "./styles.css";
             100% { transform: scale(1) rotate(0deg); opacity: 1; }
           }
           @keyframes notifPop { from{opacity:0;transform:translateY(-8px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+          .ib-feed-open-card {
+            transform-origin:center;
+            will-change:transform, filter, box-shadow, border-color;
+            transition:
+              transform .15s cubic-bezier(0.25,0.46,0.45,0.94),
+              filter .15s ease,
+              border-color .15s ease,
+              box-shadow .15s ease;
+          }
+          .ib-feed-open-card.ib-feed-open-pressed {
+            transform:translateY(2px) scale(.978);
+            filter:brightness(1.03) saturate(1.08);
+            border-color:color-mix(in srgb, ${th.accentBg} 62%, transparent) !important;
+            box-shadow:
+              inset 0 0 0 1px color-mix(in srgb, ${th.accentBg} 42%, transparent),
+              inset 0 0 22px color-mix(in srgb, ${th.accentBg} 16%, transparent),
+              0 8px 18px color-mix(in srgb, ${th.accentBg} 16%, transparent) !important;
+            transition-duration:.055s;
+          }
         `}</style>
 
         {/* ── Sharing onboarding guide ── */}
@@ -12214,12 +13463,12 @@ import "./styles.css";
                         ? t("FEED")
                         : (() => {
                             // Show a (N) counter on the FRIENDS tab when there are any
-                            // pending things to act on: friend invites, coach requests,
-                            // or compete invites received.
+                            // pending things to act on or unread direct-message threads.
                             const pendCount =
                               (pendingInvitations?.length || 0) +
                               ((pendingCoachRequests || []).length) +
-                              competitions.filter(c => c.toUid === user.id && c.status === "pending").length;
+                              competitions.filter(c => c.toUid === user.id && c.status === "pending").length +
+                              unreadDirectFriendCount;
                             return pendCount > 0 ? `${t("FRIENDS")} (${pendCount})` : t("FRIENDS");
                           })()}
                     </span>
@@ -12385,6 +13634,7 @@ import "./styles.css";
               </div>
               {friends.map(f => {
                 const initials = (f.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+                const unreadMessages = unreadDirectByFriend[f.uid] || 0;
                 return (
                   <div key={f.uid} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, flexShrink:0, position:"relative", cursor: editFriends ? "default" : "pointer",
                     animation: editFriends ? "avatarWobble 0.45s ease-in-out infinite alternate" : "none",
@@ -12401,6 +13651,32 @@ import "./styles.css";
                     ) : (
                       <div style={{ width:54, height:54, borderRadius:"50%", background:`color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:th.accentFg, border:`2.5px solid ${th.border}` }}>
                         {initials}
+                      </div>
+                    )}
+                    {unreadMessages > 0 && !editFriends && (
+                      <div style={{
+                        position:"absolute",
+                        top:-5,
+                        right:-5,
+                        minWidth:20,
+                        height:20,
+                        borderRadius:10,
+                        padding:"0 5px",
+                        background:th.accentBg,
+                        border:`2px solid ${th.card}`,
+                        color:th.accentT,
+                        display:"flex",
+                        alignItems:"center",
+                        justifyContent:"center",
+                        fontSize:10,
+                        fontWeight:800,
+                        fontFamily:"'Outfit',sans-serif",
+                        lineHeight:1,
+                        boxShadow:`0 2px 10px color-mix(in srgb, ${th.accentBg} 42%, transparent)`,
+                        animation:"notifPop 0.24s cubic-bezier(0.34,1.4,0.64,1) forwards",
+                        pointerEvents:"none",
+                      }}>
+                        {unreadMessages > 9 ? "9+" : unreadMessages}
                       </div>
                     )}
                     {/* Remove X badge in edit mode — floats above avatar, delete-account style */}
@@ -12448,6 +13724,21 @@ import "./styles.css";
 
 
 
+        {/* ── Direct message sheet opened from notification/deep link ── */}
+        {openDirectMessageFriend && createPortal(
+          <DirectMessageSheet
+            user={user}
+            friend={openDirectMessageFriend}
+            onClose={() => setOpenDirectMessageFriend(null)}
+            onOpenProfile={() => {
+              const f = openDirectMessageFriend;
+              setOpenDirectMessageFriend(null);
+              setTimeout(() => setDashFriend(f), 220);
+            }}
+          />,
+          document.body
+        )}
+
         {/* ── Friend dashboard sheet ── */}
         {dashFriend && createPortal(
           <FriendDashboardSheet
@@ -12464,6 +13755,7 @@ import "./styles.css";
             onGetFriendPrograms={onGetFriendPrograms}
             onSaveCoachPrograms={onSaveCoachPrograms}
             onStopCoaching={onStopCoaching}
+            unreadMessages={unreadDirectByFriend[dashFriend.uid] || 0}
           />,
           document.body
         )}
@@ -12475,6 +13767,19 @@ import "./styles.css";
             user={user}
             friends={friends}
             onClose={() => setOpenSharedProg(null)}
+            onSave={(prog) => {
+              onSaveSharedProgram && onSaveSharedProgram(prog);
+            }}
+          />,
+          document.body
+        )}
+
+        {/* ── Completed workout detail sheet ── */}
+        {openSharedSession && createPortal(
+          <SharedSessionSheet
+            item={openSharedSession}
+            user={user}
+            onClose={() => setOpenSharedSession(null)}
             onSave={(prog) => {
               onSaveSharedProgram && onSaveSharedProgram(prog);
             }}
@@ -12853,22 +14158,40 @@ import "./styles.css";
                       <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(sp.ts)}</div>
                     </div>
                     {/* Program card — tappable to open */}
-                    <button onClick={() => setOpenSharedProg(sp)}
-                      style={{ width:"100%", background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left" }}>
-                      <div style={{ background:th.sect, borderRadius:12, padding:"12px 14px", display:"flex", alignItems:"center", gap:12 }}>
-                        <ProgramIcon name={sp.program?.name || ""} size={40} />
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontWeight:700, fontSize:15, color:th.text, marginBottom:3 }}>{sp.program?.name || t("Program")}</div>
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:4 }}>
-                            {[...new Set((sp.program?.exs||[]).map(e => DB.find(d=>d.id===e?.id)?.group).filter(Boolean))].slice(0,3).map(g => (
-                              <span key={g} style={S.tag(g)}>{g.toUpperCase()}</span>
-                            ))}
-                          </div>
-                          <div style={{ fontSize:12, color:th.dim }}>{(sp.program?.exs||[]).length} {t("exercises")} · {t("tap to view")}</div>
+                    <div
+                      className="ib-feed-open-card"
+                      role="button"
+                      tabIndex={0}
+                      {...feedOpenCardProps(() => setOpenSharedProg(sp))}
+                      style={{
+                        background:th.sect,
+                        borderRadius:12,
+                        padding:"12px 14px",
+                        display:"flex",
+                        alignItems:"center",
+                        gap:12,
+                        cursor:"pointer",
+                        textAlign:"left",
+                        WebkitTapHighlightColor:"transparent",
+                        border:"1.5px solid transparent",
+                        position:"relative",
+                        overflow:"hidden",
+                      }}
+                    >
+                      <ProgramIcon name={sp.program?.name || ""} size={40} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10, marginBottom:3 }}>
+                          <div style={{ fontWeight:700, fontSize:15, color:th.text, minWidth:0, overflow:"hidden", textOverflow:"ellipsis" }}>{sp.program?.name || t("Program")}</div>
+                          <FeedOpenBadge />
                         </div>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke={th.muted} strokeWidth="2" strokeLinecap="round"/></svg>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:4 }}>
+                          {[...new Set((sp.program?.exs||[]).map(e => DB.find(d=>d.id===e?.id)?.group).filter(Boolean))].slice(0,3).map(g => (
+                            <span key={g} style={S.tag(g)}>{g.toUpperCase()}</span>
+                          ))}
+                        </div>
+                        <div style={{ fontSize:12, color:th.dim }}>{(sp.program?.exs||[]).length} {t("exercises")} · {t("tap to view")}</div>
                       </div>
-                    </button>
+                    </div>
                     {/* Interaction row — outside tappable button */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
                       <button
@@ -12980,9 +14303,27 @@ import "./styles.css";
                     <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(s.startTime)}</div>
                   </div>
                   {/* Session card */}
-                  <div style={{ background:th.sect, borderRadius:10, padding:"12px 14px" }}>
+                  <div
+                    className="ib-feed-open-card"
+                    role="button"
+                    tabIndex={0}
+                    {...feedOpenCardProps(() => setOpenSharedSession(item))}
+                    style={{
+                      background:th.sect,
+                      borderRadius:10,
+                      padding:"12px 14px",
+                      cursor:"pointer",
+                      WebkitTapHighlightColor:"transparent",
+                      border:"1.5px solid transparent",
+                      position:"relative",
+                      overflow:"hidden",
+                    }}
+                  >
                     {/* Session name */}
-                    <div style={{ fontWeight:700, fontSize:15, color:th.text, marginBottom:10 }}>{s.name || t("Workout")}</div>
+                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10, marginBottom:10 }}>
+                      <div style={{ fontWeight:700, fontSize:15, color:th.text, minWidth:0, overflow:"hidden", textOverflow:"ellipsis" }}>{s.name || t("Workout")}</div>
+                      <FeedOpenBadge />
+                    </div>
                     {/* Stats grid */}
                     {stats.length > 0 && (
                       <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom: muscles.length > 0 ? 10 : 0 }}>
@@ -13006,7 +14347,7 @@ import "./styles.css";
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10 }}>
                       {/* Comment button — same style as star button. ownerUid is the post owner (the user for own posts). */}
                       <button
-                        onClick={(e) => { addRipple(e, th.accentFg); setOpenComments({ postId: `session_${f.uid}_${sid}`, ownerUid: f.uid, contextName: s.name || "Workout" }); }}
+                        onClick={(e) => { e.stopPropagation(); addRipple(e, th.accentFg); setOpenComments({ postId: `session_${f.uid}_${sid}`, ownerUid: f.uid, contextName: s.name || "Workout" }); }}
                         style={{
                           background:"transparent",
                           border:`1.5px solid ${th.inputB}`,
@@ -13027,7 +14368,8 @@ import "./styles.css";
                       <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                         {starInfo.count > 0 && (
                           <button
-                            onClick={async () => {
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               const rxns = await fsGetReactions(f.uid, sid);
                               setOpenStarredBy(rxns);
                             }}
@@ -13036,7 +14378,7 @@ import "./styles.css";
                           </button>
                         )}
                         <button
-                          onClick={handleStar}
+                          onClick={(e) => { e.stopPropagation(); handleStar(); }}
                           style={{
                             background: starInfo.starred ? `color-mix(in srgb, ${th.accentBg} 22%, transparent)` : "transparent",
                             border: `1.5px solid ${starInfo.starred ? th.accentBg : th.inputB}`,
@@ -14436,11 +15778,12 @@ import "./styles.css";
     // Collapsed exercise cards — tracked by ex.uid so the open/closed state survives
     // reordering. Tapping the header toggles whether the sets list is shown, just
     // like the ExerciseEditCard behaviour in the Workouts tab.
-    const [collapsedSet, setCollapsedSet] = useState(() => new Set());
+    const [collapsedSet, setCollapsedSet] = useState(() => new Set(Array.isArray(session.uiCollapsedExUids) ? session.uiCollapsedExUids : []));
     const toggleCollapse = (uid) => {
       setCollapsedSet(prev => {
         const next = new Set(prev);
         if (next.has(uid)) next.delete(uid); else next.add(uid);
+        onSaveActive({ ...session, exercises, uiCollapsedExUids: [...next] });
         return next;
       });
     };
@@ -14497,7 +15840,7 @@ import "./styles.css";
     const upd = (newExs) => {
       const safeExs = (newExs || []).map(normalizeWorkoutExercise);
       setExercises(safeExs);
-      onSaveActive({ ...session, exercises: safeExs });
+      onSaveActive({ ...session, exercises: safeExs, uiCollapsedExUids: [...collapsedSet] });
     };
     const toggleSet = (eIdx, sIdx) => {
       lastToggledExIdxRef.current = eIdx;
@@ -14571,7 +15914,7 @@ import "./styles.css";
           const next = prev.map((ex, i) =>
             i !== eIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== sIdx) }
           ).map(normalizeWorkoutExercise);
-          onSaveActive({ ...session, exercises: next });
+          onSaveActive({ ...session, exercises: next, uiCollapsedExUids: [...collapsedSet] });
           return next;
         });
         setRemovingSetKey(null);
@@ -14587,7 +15930,11 @@ import "./styles.css";
         // animation are preserved rather than overwritten with stale state.
         setExercises((prev) => {
           const next = prev.filter((_, i) => i !== eIdx).map(normalizeWorkoutExercise);
-          onSaveActive({ ...session, exercises: next });
+          const removedUid = prev[eIdx]?.uid;
+          const nextCollapsed = new Set(collapsedSet);
+          if (removedUid) nextCollapsed.delete(removedUid);
+          setCollapsedSet(nextCollapsed);
+          onSaveActive({ ...session, exercises: next, uiCollapsedExUids: [...nextCollapsed] });
           return next;
         });
         setRemovingExIdx(null);
@@ -14614,7 +15961,7 @@ import "./styles.css";
       setExercises((prev) => {
         if (prev.some((ex) => ex.exId === dbId)) return prev;
         const next = [...prev, newEx].map(normalizeWorkoutExercise);
-        onSaveActive({ ...session, exercises: next });
+        onSaveActive({ ...session, exercises: next, uiCollapsedExUids: [...collapsedSet] });
         return next;
       });
     };
@@ -15368,7 +16715,15 @@ import "./styles.css";
               duration: duration ? parseInt(duration) : Math.round(elapsed / 60),
             })
           }
-          style={{ width: "100%" }}
+          style={{
+            width: "100%",
+            borderRadius: 14,
+            padding: "15px 0",
+            fontFamily: "'Outfit',sans-serif",
+            fontSize: 14,
+            fontWeight: 800,
+            letterSpacing: 0.5,
+          }}
         >
           {t("SAVE SESSION →")}
         </Btn>
@@ -16144,9 +17499,14 @@ import "./styles.css";
                   onChange={(e) => setDateDraft(e.target.value)}
                   style={{
                     ...S.input,
-                    width: "calc(100% - 2px)",
-                    maxWidth: "calc(100% - 2px)",
+                    width: "100%",
+                    maxWidth: "100%",
                     minWidth: 0,
+                    WebkitAppearance: "none",
+                    appearance: "none",
+                    border: "1px solid transparent",
+                    boxShadow: `inset 0 0 0 1px ${th.inputB}`,
+                    backgroundClip: "padding-box",
                   }}
                 />
               </div>
@@ -18323,7 +19683,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.9.0 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.9.1 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             {t("DEVELOPED BY AZAD")}
@@ -18699,6 +20059,7 @@ import "./styles.css";
     const [friends, setFriends]                       = useState([]);
     const [starNotifications, setStarNotifications]   = useState([]); // reactions on own sessions
     const [unreadStars, setUnreadStars]               = useState(0);
+    const [unreadDirectFriendCount, setUnreadDirectFriendCount] = useState(0);
     const [notifOpen, setNotifOpen]                   = useState(false);
     const [bellRipple, setBellRipple]                 = useState(false);
     const [notifClosing, setNotifClosing]             = useState(false);
@@ -18709,6 +20070,37 @@ import "./styles.css";
     // Deep-link payload for opening a specific feed post from a notification tap.
     // Shape: { postId, ownerUid, contextName, mode }. SharingView consumes this on mount and clears it.
     const [deepLinkPost, setDeepLinkPost]             = useState(null);
+
+    useEffect(() => {
+      if (!user?.id || user?.isGuest) {
+        setUnreadDirectFriendCount(0);
+        return;
+      }
+      const dmMs = (v) => {
+        if (!v) return 0;
+        if (typeof v === "number") return v;
+        if (typeof v.toMillis === "function") return v.toMillis();
+        if (v.seconds) return v.seconds * 1000;
+        return Number(v) || 0;
+      };
+      const unsub = fsListenDirectThreads(user.id, (threads) => {
+        const unreadFrom = new Set();
+        (threads || []).forEach(thread => {
+          if (!thread || thread.lastSenderUid === user.id) return;
+          const otherUid =
+            thread.lastSenderUid ||
+            (thread.participantUids || []).find(uid => uid !== user.id) ||
+            String(thread.id || "").split("__").find(uid => uid !== user.id);
+          if (!otherUid) return;
+          const updatedAt = dmMs(thread.updatedAt);
+          const readAt = dmMs(thread.readBy?.[user.id]);
+          const storedUnread = Math.max(0, Number(thread.unreadCounts?.[user.id] || 0));
+          if (storedUnread > 0 || updatedAt > readAt) unreadFrom.add(otherUid);
+        });
+        setUnreadDirectFriendCount(unreadFrom.size);
+      });
+      return () => unsub();
+    }, [user?.id, user?.isGuest]);
     const [, setLastReadNotif]                         = useState(() => parseInt(ls("ib3-lastReadNotif", "0"), 10) || 0);
     const [competitions, setCompetitions]             = useState([]);
     const [pendingCoachRequests, setPendingCoachRequests] = useState([]); // incoming coach requests (user is athlete)
@@ -19351,6 +20743,7 @@ import "./styles.css";
       );
       const activeSession = { ...(active || {}) };
       delete activeSession.timer;
+      delete activeSession.uiCollapsedExUids;
       setFinished({ ...activeSession, exercises: safeExercises, totalSets: total, doneSets: done });
       stopTimer();
       setView("complete");
@@ -19578,11 +20971,11 @@ import "./styles.css";
               <circle cx="9.5" cy="9" r="3.2" stroke={c} strokeWidth="1.6" />
               <path d="M2.5 20c.6-3.4 3.6-6 7-6s6.4 2.6 7 6" stroke={c} strokeWidth="1.6" strokeLinecap="round" />
             </svg>
-            {(pendingInvitations.length > 0 || unreadStars > 0 || competitions.filter(c => c.toUid === user.id && c.status === "pending").length > 0) && (
+            {(pendingInvitations.length > 0 || unreadStars > 0 || unreadDirectFriendCount > 0 || competitions.filter(c => c.toUid === user.id && c.status === "pending").length > 0) && (
               <div style={{
                 position: "absolute", top: -3, right: -3,
                 width: 11, height: 11, borderRadius: "50%",
-                background: unreadStars > 0 ? th.accentFg : "#CC1F42",
+                background: (unreadStars > 0 || unreadDirectFriendCount > 0) ? th.accentFg : "#CC1F42",
                 border: `1.5px solid ${th.nav}`,
                 animation: "pulse 1.5s ease-in-out infinite",
               }} />
@@ -20264,7 +21657,9 @@ import "./styles.css";
               flex: 1,
               overflowY: "auto",
               overflowX: "hidden",
-              padding: "calc(68px + env(safe-area-inset-top, 0px)) 16px 0",
+              padding: view === "workout"
+                ? "9px 16px 0"
+                : "calc(68px + env(safe-area-inset-top, 0px)) 16px 0",
               minHeight: 0,
               animation:
                 view === "workout"  ? "workoutFadeIn 0.45s cubic-bezier(0,0,0.2,1) forwards" :
@@ -20891,6 +22286,8 @@ import "./styles.css";
                     : `${d} ${tLang("days ago")}`;
                   const iconBg = n.type === "award_earned"
                     ? "rgba(212,175,55,0.18)"
+                    : n.type === "direct_message"
+                    ? `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`
                     : n.type === "compete_accepted" || n.type === "compete_invite"
                     ? "rgba(212,175,55,0.18)"
                     : n.type === "coach_request" || n.type === "coach_accepted"
@@ -20898,6 +22295,8 @@ import "./styles.css";
                     : `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`;
                   const icon = n.type === "award_earned"
                     ? <span style={{ fontSize:15 }}>{n.awardIcon || "🏅"}</span>
+                    : n.type === "direct_message"
+                    ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12.2c0 4.3-4 7.8-9 7.8-1.1 0-2.2-.17-3.2-.5L4 21l1.5-3.8C3.9 15.9 3 14.1 3 12.2 3 7.9 7 4.4 12 4.4s9 3.5 9 7.8Z" stroke={th.accentFg} strokeWidth="2" strokeLinejoin="round"/><path d="M8.2 12h.01M12 12h.01M15.8 12h.01" stroke={th.accentFg} strokeWidth="2.4" strokeLinecap="round"/></svg>
                     : n.type === "compete_accepted" || n.type === "compete_invite"
                     ? <span style={{ fontSize:14 }}>🏆</span>
                     : n.type === "coach_request" || n.type === "coach_accepted"
@@ -20936,6 +22335,9 @@ import "./styles.css";
                     if (n.type === "award_earned") {
                       return <><span style={{ fontWeight:700 }}>{tLang("Award unlocked")}</span><span style={{ color:th.muted }}> · </span><span style={{ fontWeight:700, color:th.text }}>{n.awardLabel || n.text}</span></>;
                     }
+                    if (n.type === "direct_message") {
+                      return <><span style={{ fontWeight:700 }}>{who}</span><span style={{ color:th.muted }}> {tLang("sent you a message")}</span></>;
+                    }
                     return n.text || <span style={{ color:th.text }}>{who}</span>;
                   };
                   const text = renderText();
@@ -20953,6 +22355,8 @@ import "./styles.css";
                     linkPayload = { mode:"scroll", postId: `session_${user.id}_${n.sessionId}` };
                   } else if (n.type === "program_star" && n.spId) {
                     linkPayload = { mode:"scroll", postId: n.postId || `program_${n.spId}` };
+                  } else if (n.type === "direct_message" && n.fromUid) {
+                    linkPayload = { mode:"message", friendUid:n.fromUid, name:n.name, photoURL:n.photoURL || null };
                   } else if (
                     n.type === "friend_request" ||
                     n.type === "compete_invite" ||
