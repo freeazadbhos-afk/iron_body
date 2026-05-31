@@ -12188,6 +12188,31 @@ import "./styles.css";
     const listRef = useRef(null);
     const mountedRef = useRef(true);
     const menuCloseTimerRef = useRef(null);
+    const commentStarStorageKey = user?.id ? uKey(user.id, "commentStars") : null;
+    const [localCommentStars, setLocalCommentStars] = useState(() =>
+      commentStarStorageKey ? ls(commentStarStorageKey, {}) : {}
+    );
+    const localCommentStarsRef = useRef(localCommentStars);
+    useEffect(() => {
+      localCommentStarsRef.current = localCommentStars;
+    }, [localCommentStars]);
+    const commentStarKey = useCallback((commentId) => `${postId}::${commentId}`, [postId]);
+    const mergeLocalCommentStars = useCallback((items, overrides = localCommentStarsRef.current) => {
+      if (!user?.id) return items;
+      return (items || []).map((comment) => {
+        const key = commentStarKey(comment.id);
+        if (!(key in (overrides || {}))) return comment;
+        const reactions = { ...(comment.reactions || {}) };
+        if (overrides[key]) reactions[user.id] = "star";
+        else delete reactions[user.id];
+        return { ...comment, reactions };
+      });
+    }, [commentStarKey, user?.id]);
+    const saveLocalCommentStars = useCallback((next) => {
+      localCommentStarsRef.current = next;
+      setLocalCommentStars(next);
+      if (commentStarStorageKey) lsSet(commentStarStorageKey, next);
+    }, [commentStarStorageKey]);
     useEffect(() => () => {
       mountedRef.current = false;
       if (menuCloseTimerRef.current) clearTimeout(menuCloseTimerRef.current);
@@ -12220,7 +12245,7 @@ import "./styles.css";
       try {
         unsub = fsListenComments(postId, (c, err) => {
           if (err) { setPermError(true); return; }
-          setComments(c);
+          setComments(mergeLocalCommentStars(c));
           setPermError(false);
           setTimeout(() => listRef.current?.scrollTo({ top: 99999, behavior:"smooth" }), 80);
         });
@@ -12229,7 +12254,7 @@ import "./styles.css";
         setPermError(true);
       }
       return () => { try { unsub(); } catch {} };
-    }, [postId]);
+    }, [postId, mergeLocalCommentStars]);
 
     const send = async () => {
       const clean = text.trim();
@@ -12256,9 +12281,11 @@ import "./styles.css";
     };
     const toggleCommentStar = async (comment) => {
       if (!comment?.id || !user?.id) return;
-      const previousReactions = comment.reactions || {};
-      const nextReactions = { ...previousReactions };
-      const nextStarred = nextReactions[user.id] !== "star";
+      const key = commentStarKey(comment.id);
+      const nextStarred = comment.reactions?.[user.id] !== "star";
+      const nextOverrides = { ...localCommentStarsRef.current, [key]: nextStarred };
+      saveLocalCommentStars(nextOverrides);
+      const nextReactions = { ...(comment.reactions || {}) };
       if (nextStarred) nextReactions[user.id] = "star";
       else delete nextReactions[user.id];
       setComments(prev => prev.map(c =>
@@ -12266,10 +12293,12 @@ import "./styles.css";
       ));
       closeCommentMenu();
       const result = await fsToggleCommentStar(postId, user.id, comment.id);
-      if (!result?.ok && mountedRef.current) {
-        setComments(prev => prev.map(c =>
-          c.id === comment.id ? { ...c, reactions: previousReactions } : c
-        ));
+      if (result?.ok && mountedRef.current) {
+        const cleared = { ...localCommentStarsRef.current };
+        delete cleared[key];
+        saveLocalCommentStars(cleared);
+      } else if (mountedRef.current) {
+        setComments(prev => mergeLocalCommentStars(prev, localCommentStarsRef.current));
       }
     };
     const deleteComment = async (comment) => {
