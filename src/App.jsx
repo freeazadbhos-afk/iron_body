@@ -1,5 +1,6 @@
 import "./styles.css";
   import bodyMuscleAtlasUrl from "./assets/Body Muscle Atlas.svg";
+  import bodyMuscleAtlasFemaleUrl from "./assets/Body Muscle Atlas Female Front Back.svg";
   import { createPortal } from "react-dom";
   import {
     useState,
@@ -120,6 +121,27 @@ import "./styles.css";
     pause: "#1e1800",
     pauseB: "#E8612C",
   };
+  // ─── Accent themes ──────────────────────────────────────────────────────────
+  // Each accent overrides the theme's accent keys. Every accent defines a separate
+  // light + dark variant so it stays legible against both backgrounds:
+  //   • light → a deeper, saturated tone that carries white text (accentT)
+  //   • dark  → a brighter, lighter tone that carries near-black text (accentT)
+  // accentFg (accent-as-text on cards) mirrors accentBg, matching the base themes.
+  const ACCENTS = {
+    default:   { label: "Default",   light: { bg: "#0D9E8E", t: "#ffffff", fg: "#0D9E8E" }, dark: { bg: "#c8f030", t: "#080809", fg: "#c8f030" } },
+    raspberry: { label: "Raspberry", light: { bg: "#C81E5A", t: "#ffffff", fg: "#C81E5A" }, dark: { bg: "#FF5C8A", t: "#080809", fg: "#FF5C8A" } },
+    tangerine: { label: "Tangerine", light: { bg: "#E2622A", t: "#ffffff", fg: "#E2622A" }, dark: { bg: "#FF9A3D", t: "#080809", fg: "#FF9A3D" } },
+    lavender:  { label: "Lavender",  light: { bg: "#7C4DD1", t: "#ffffff", fg: "#7C4DD1" }, dark: { bg: "#C4A9F5", t: "#080809", fg: "#C4A9F5" } },
+    blueberry: { label: "Blueberry", light: { bg: "#2563EB", t: "#ffffff", fg: "#2563EB" }, dark: { bg: "#6FA8FF", t: "#080809", fg: "#6FA8FF" } },
+    lime:      { label: "Lime",      light: { bg: "#5C8A0E", t: "#ffffff", fg: "#5C8A0E" }, dark: { bg: "#C6E84A", t: "#080809", fg: "#C6E84A" } },
+  };
+  const ACCENT_ORDER = ["default", "raspberry", "tangerine", "lavender", "blueberry", "lime"];
+  // Apply a named accent to a base theme, returning a new theme object.
+  function applyAccent(base, mode, accentKey) {
+    const def = ACCENTS[accentKey] || ACCENTS.default;
+    const v = def[mode] || def.light;
+    return { ...base, accentBg: v.bg, accentT: v.t, accentFg: v.fg };
+  }
   const ThemeCtx = createContext(DARK);
   const useTheme = () => useContext(ThemeCtx);
 
@@ -434,6 +456,14 @@ import "./styles.css";
     "APPEARANCE": "GÖRÜNÜM",
     "Language": "Dil",
     "LANGUAGE": "DİL",
+    "Themes": "Temalar",
+    "Accent color": "Vurgu rengi",
+    "Default": "Varsayılan",
+    "Raspberry": "Ahududu",
+    "Tangerine": "Mandalina",
+    "Lavender": "Lavanta",
+    "Blueberry": "Yaban Mersini",
+    "Lime": "Misket Limonu",
     "Dark mode": "Koyu mod",
     "Auto: dark 19:00-06:00": "Otomatik: koyu 19:00-06:00",
     "RESET TO AUTO (TIME-BASED)": "OTOMATİĞE DÖN (SAATE GÖRE)",
@@ -1078,6 +1108,10 @@ import "./styles.css";
   const LANG_LABELS = { en: "English", tr: "Türkçe" };
   const LangCtx = createContext("en");
   const useLang = () => useContext(LangCtx);
+  // Current user's gender ("male" | "female" | null) — drives which muscle-atlas
+  // illustration the BodyAnatomy diagram renders. Defaults to null (male artwork).
+  const GenderCtx = createContext(null);
+  const useGender = () => useContext(GenderCtx);
   // ── Tap-ripple utility ──────────────────────────────────────────────────────
   // Material-style ripple: a circle originates at the tap point and expands until
   // it covers the entire button, then fades out. The button's own border-radius
@@ -3681,19 +3715,37 @@ import "./styles.css";
     const dark = th.bg === "#080809" || th.card === "#0f0f12";
     const bg = dark ? "#20211f" : "#fbfbfa";
     const label = dark ? "#d2d4ce" : "#747570";
-    const atlasFilter = dark ? "invert(1) brightness(1.16) contrast(1.32)" : "none";
     const activeRegions = highlights || {};
-    const cropY = 70;
-    const cropH = 1430;
-    const imageShift = `${-(cropY / 1536) * 100}%`;
+
+    // ── Atlas source + crop ──────────────────────────────────────────────────
+    // Two illustrations: male (1024×1536) and female (same layout/dimensions).
+    // Female users see the female atlas; everyone else sees the male atlas.
+    // Both share the same crop window and rendering path.
+    const gender = useGender();
+    const isFemale = gender === "female";
+    const atlasUrl = isFemale ? bodyMuscleAtlasFemaleUrl : bodyMuscleAtlasUrl;
+    const NATIVE_W = 1024;
+    const NATIVE_H = 1536;
+    const cropX = 0;
+    // The female figure fills more of the canvas vertically (≈y60–1460) than the
+    // male (≈y100–1340), so it needs its own crop window. Highlight shapes are
+    // measured in the same native coords, so they track either crop.
+    const cropY = isFemale ? 55 : 70;
+    const cropW = 1024;
+    const cropH = isFemale ? 1420 : 1430;
+    // Both atlases: transparent bg + black lines.
+    // Invert in dark mode → white lines on dark canvas. No filter in light → black lines on white.
+    const atlasFilter = dark ? "invert(1) brightness(1.16) contrast(1.32)" : "none";
+    // Generalized 2-D crop: scale the image so cropW native units fill the frame
+    // width, then shift by the crop origin (percent of the image's own box).
     const atlasImageStyle = (opacity) => ({
       position:"absolute",
       left:0,
       top:0,
-      width:"100%",
+      width:`${(NATIVE_W / cropW) * 100}%`,
       height:"auto",
-      transform:`translateY(${imageShift})`,
-      transformOrigin:"top center",
+      transform:`translate(${-(cropX / NATIVE_W) * 100}%, ${-(cropY / NATIVE_H) * 100}%)`,
+      transformOrigin:"top left",
       opacity,
       filter:atlasFilter,
       WebkitFilter:atlasFilter,
@@ -3701,10 +3753,11 @@ import "./styles.css";
       userSelect:"none",
       WebkitUserSelect:"none",
     });
+    // Keep highlight rendering identical for male and female atlas art.
     const regionOpacity = (active) => active.opacity >= 1
       ? (dark ? 0.86 : 0.78)
       : (dark ? 0.52 : 0.4);
-    const atlasShapes = [
+    const atlasShapesMale = [
       { ids:["traps"], d:"M198 263 C220 246 251 248 274 266 C297 248 328 246 352 263 C333 286 304 300 274 300 C244 300 216 286 198 263 Z" },
       { ids:["traps", "upperBack"], d:"M675 287 C700 260 729 253 754 273 C779 253 808 260 834 287 C817 321 786 341 754 341 C722 341 692 321 675 287 Z" },
       { ids:["delFrontL", "delSideL"], d:"M99 337 C118 311 153 300 189 315 C168 346 147 392 111 414 C93 394 90 361 99 337 Z" },
@@ -3724,14 +3777,14 @@ import "./styles.css";
       { ids:["bicepR"], d:"M459 430 C434 408 413 425 412 468 C414 514 433 566 462 592 C478 552 478 462 459 430 Z" },
       { ids:["tricepL"], d:"M580 430 C605 408 626 425 627 468 C624 518 607 568 579 595 C561 553 561 462 580 430 Z" },
       { ids:["tricepR"], d:"M930 430 C905 408 884 425 883 468 C886 518 903 568 931 595 C949 553 949 462 930 430 Z" },
-      { ids:["foreFL"], d:"M63 570 C87 568 96 596 91 640 C85 686 69 736 52 760 C43 706 45 612 63 570 Z" },
-      { ids:["foreFR"], d:"M495 570 C471 568 462 596 467 640 C473 686 489 736 506 760 C515 706 513 612 495 570 Z" },
-      { ids:["foreBL"], d:"M542 570 C566 568 575 596 570 640 C564 686 548 736 531 760 C522 706 524 612 542 570 Z" },
-      { ids:["foreBR"], d:"M968 570 C944 568 935 596 940 640 C946 686 962 736 979 760 C988 706 986 612 968 570 Z" },
-      { ids:["latL"], d:"M642 392 C669 415 690 477 697 548 C703 617 692 690 672 739 C649 701 632 619 627 529 C624 459 629 411 642 392 Z" },
-      { ids:["latR"], d:"M868 392 C841 415 820 477 813 548 C807 617 818 690 838 739 C861 701 878 619 883 529 C886 459 881 411 868 392 Z" },
-      { ids:["midBack"], d:"M712 315 C737 299 773 299 798 315 C804 434 794 581 754 679 C714 581 706 434 712 315 Z" },
-      { ids:["lowerBack"], d:"M700 667 C723 645 784 645 810 667 C807 721 784 768 754 793 C724 768 702 721 700 667 Z" },
+      { ids:["foreFL"], d:"M72 576 C92 574 102 600 98 642 C93 686 82 730 70 752 C60 704 60 616 72 576 Z" },
+      { ids:["foreFR"], d:"M452 576 C432 574 422 600 426 642 C431 686 442 730 454 752 C464 704 464 616 452 576 Z" },
+      { ids:["foreBL"], d:"M566 576 C586 574 596 600 592 642 C587 686 576 730 564 752 C554 704 554 616 566 576 Z" },
+      { ids:["foreBR"], d:"M896 576 C876 574 866 600 870 642 C875 686 886 730 898 752 C908 704 908 616 896 576 Z" },
+      { ids:["latL"], d:"M640 395 C667 414 686 470 692 528 C696 572 690 598 670 606 C650 596 636 556 631 508 C627 460 629 416 640 395 Z" },
+      { ids:["latR"], d:"M820 395 C793 414 774 470 768 528 C764 572 770 598 790 606 C810 596 824 556 829 508 C833 460 831 416 820 395 Z" },
+      { ids:["midBack"], d:"M712 315 C737 299 773 299 798 315 C803 410 796 520 754 590 C714 520 707 410 712 315 Z" },
+      { ids:["lowerBack"], d:"M702 540 C725 520 783 520 806 540 C803 600 784 648 754 668 C724 648 705 600 702 540 Z" },
       { ids:["gluteL"], d:"M652 620 C706 586 756 625 758 706 C754 775 707 804 655 777 C620 737 617 660 652 620 Z" },
       { ids:["gluteR"], d:"M858 620 C804 586 754 625 752 706 C756 775 803 804 855 777 C890 737 893 660 858 620 Z" },
       { ids:["hipFlexorL"], d:"M207 636 C232 648 252 681 250 728 C226 711 210 679 207 636 Z" },
@@ -3744,11 +3797,59 @@ import "./styles.css";
       { ids:["quadR"], d:"M400 670 C359 697 335 803 337 918 C339 990 360 1040 394 1057 C432 1001 439 795 416 715 C412 696 406 680 400 670 Z" },
       { ids:["hamL"], d:"M649 779 C682 795 702 867 700 950 C699 1009 681 1052 651 1067 C619 1014 615 856 649 779 Z" },
       { ids:["hamR"], d:"M861 779 C828 795 808 867 810 950 C811 1009 829 1052 859 1067 C891 1014 895 856 861 779 Z" },
-      { ids:["calfFL"], d:"M151 1052 C178 1082 185 1162 178 1245 C172 1300 156 1338 139 1342 C122 1285 126 1132 151 1052 Z" },
-      { ids:["calfFR"], d:"M407 1052 C380 1082 373 1162 380 1245 C386 1300 402 1338 419 1342 C436 1285 432 1132 407 1052 Z" },
-      { ids:["calfBL"], d:"M650 1057 C681 1088 690 1169 681 1258 C675 1310 658 1343 638 1348 C616 1289 622 1136 650 1057 Z" },
-      { ids:["calfBR"], d:"M860 1057 C829 1088 820 1169 829 1258 C835 1310 852 1343 872 1348 C894 1289 888 1136 860 1057 Z" },
+      { ids:["calfFL"], d:"M193 1028 C214 1045 232 1085 230 1135 C228 1180 214 1210 193 1212 C172 1210 158 1180 156 1135 C154 1085 172 1045 193 1028 Z" },
+      { ids:["calfFR"], d:"M365 1028 C344 1045 326 1085 328 1135 C330 1180 344 1210 365 1212 C386 1210 400 1180 402 1135 C404 1085 386 1045 365 1028 Z" },
+      { ids:["calfBL"], d:"M666 1030 C688 1048 706 1090 704 1142 C702 1188 688 1218 666 1220 C644 1218 630 1188 628 1142 C626 1090 644 1048 666 1030 Z" },
+      { ids:["calfBR"], d:"M826 1030 C848 1048 866 1090 864 1142 C862 1188 848 1218 826 1220 C804 1218 790 1188 788 1142 C786 1090 804 1048 826 1030 Z" },
     ];
+
+    const atlasShapesFemale = [
+      { ids:["traps"], d:"M 228.5 261.1 C 247.2 242.6 273.7 244.8 293.5 264.4 C 313.0 244.8 339.6 242.6 360.2 261.1 C 346.3 286.2 324.0 301.4 293.5 301.4 C 263.0 301.4 241.5 286.2 228.5 261.1 Z" },
+      { ids:["traps","upperBack"], d:"M 657.9 289.7 C 689.2 260.1 714.4 252.4 735.7 274.4 C 756.8 252.4 782.0 260.1 814.6 289.7 C 802.7 327.0 766.4 348.9 735.7 348.9 C 705.1 348.9 669.6 327.0 657.9 289.7 Z" },
+      { ids:["delFrontL","delSideL"], d:"M 124.7 341.7 C 115.7 313.4 170.5 301.4 197.7 317.7 C 193.2 351.5 179.2 401.5 146.7 425.5 C 130.8 403.7 122.8 367.8 124.7 341.7 Z" },
+      { ids:["delFrontR","delSideR"], d:"M 471.4 341.7 C 482.1 313.4 426.7 301.4 399.5 317.7 C 403.2 351.5 417.1 401.5 449.6 425.5 C 465.6 403.7 473.5 367.8 471.4 341.7 Z" },
+      { ids:["delRearL","delSideL"], d:"M 564.9 345.6 C 554.8 316.0 606.1 308.3 654.6 328.0 C 640.4 363.1 623.2 402.6 585.3 425.6 C 570.5 405.8 561.7 370.8 564.9 345.6 Z" },
+      { ids:["delRearR","delSideR"], d:"M 908.3 345.6 C 919.7 316.0 868.7 308.3 818.7 328.0 C 833.4 363.1 851.5 402.6 889.0 425.6 C 904.4 405.8 911.9 370.8 908.3 345.6 Z" },
+      { ids:["chestL"], d:"M 177.1 331.9 C 214.3 321.0 274.1 330.8 290.7 372.1 C 295.6 405.9 291.0 453.8 282.0 482.1 C 242.4 506.0 191.7 481.0 169.6 434.2 C 167.3 391.7 166.3 354.7 177.1 331.9 Z" },
+      { ids:["chestR"], d:"M 418.9 331.9 C 382.4 321.0 321.9 330.8 305.4 372.1 C 301.0 405.9 305.6 453.8 314.2 482.1 C 354.6 506.0 404.6 481.0 426.7 434.2 C 428.4 391.7 430.2 354.7 418.9 331.9 Z" },
+      { ids:["chestUpL"], d:"M 177.7 329.7 C 213.2 318.8 273.7 328.6 290.7 370.0 C 251.0 374.3 209.9 366.7 172.4 351.5 C 173.2 342.8 175.2 336.2 177.7 329.7 Z" },
+      { ids:["chestUpR"], d:"M 418.2 329.7 C 383.7 318.8 322.2 328.6 305.6 370.0 C 345.0 374.3 386.5 366.7 424.0 351.5 C 423.0 342.8 420.8 336.2 418.2 329.7 Z" },
+      { ids:["chestLoL"], d:"M 175.8 403.7 C 205.3 433.1 246.6 455.9 283.8 460.3 C 281.0 471.2 276.6 481.0 270.5 487.5 C 234.3 504.9 189.9 481.0 169.5 436.4 C 171.2 423.3 173.4 412.4 175.8 403.7 Z" },
+      { ids:["chestLoR"], d:"M 420.6 403.7 C 391.1 433.1 349.9 455.9 312.7 460.3 C 315.1 471.2 319.6 481.0 325.9 487.5 C 362.6 504.9 406.4 481.0 427.0 436.4 C 425.0 423.3 423.0 412.4 420.6 403.7 Z" },
+      { ids:["abs"], d:"M 253.5 495.1 C 268.6 483.2 284.8 486.4 294.9 503.8 C 304.5 486.4 320.5 483.2 335.6 495.1 C 346.5 552.8 341.8 672.5 296.3 741.1 C 250.6 672.5 243.5 552.8 253.5 495.1 Z" },
+      { ids:["obliqueL"], d:"M 218.6 484.2 C 236.6 522.3 242.5 624.6 232.8 698.6 C 209.6 675.8 193.5 613.8 192.9 551.7 C 196.4 520.2 204.6 497.3 218.6 484.2 Z" },
+      { ids:["obliqueR"], d:"M 377.7 484.2 C 360.4 522.3 355.0 624.6 364.8 698.6 C 388.4 675.8 404.0 613.8 404.5 551.7 C 400.6 520.2 391.8 497.3 377.7 484.2 Z" },
+      { ids:["bicepL"], d:"M 133.7 442.9 C 159.0 418.9 175.9 437.4 179.2 484.2 C 175.4 534.3 158.6 590.9 132.7 619.2 C 116.7 575.7 119.9 477.7 133.7 442.9 Z" },
+      { ids:["bicepR"], d:"M 463.0 442.9 C 437.3 418.9 420.8 437.4 417.1 484.2 C 421.5 534.3 438.6 590.9 464.8 619.2 C 480.5 575.7 476.3 477.7 463.0 442.9 Z" },
+      { ids:["tricepL"], d:"M 577.1 446.4 C 602.8 422.3 619.1 440.9 622.6 488.0 C 615.8 542.8 603.1 597.6 578.7 627.2 C 559.7 581.1 563.4 481.4 577.1 446.4 Z" },
+      { ids:["tricepR"], d:"M 896.8 446.4 C 871.9 422.3 854.6 440.9 851.5 488.0 C 858.4 542.8 872.0 597.6 896.2 627.2 C 915.2 581.1 910.6 481.4 896.8 446.4 Z" },
+      { ids:["foreFL"], d:"M 110.8 601.8 C 128.9 599.6 138.2 627.9 133.9 673.6 C 127.6 721.5 121.5 769.4 116.2 793.3 C 98.0 741.1 99.9 645.3 110.8 601.8 Z" },
+      { ids:["foreFR"], d:"M 455.6 601.8 C 437.5 599.6 428.6 627.9 433.0 673.6 C 438.9 721.5 446.1 769.4 452.1 793.3 C 468.9 741.1 467.3 645.3 455.6 601.8 Z" },
+      { ids:["foreBL"], d:"M 566.4 606.3 C 584.4 604.2 594.1 632.6 590.0 678.7 C 584.4 726.9 578.4 775.1 574.3 799.2 C 555.1 746.6 556.1 650.2 566.4 606.3 Z" },
+      { ids:["foreBR"], d:"M 865.1 606.3 C 847.2 604.2 837.5 632.6 840.9 678.7 C 846.4 726.9 853.4 775.1 858.7 799.2 C 876.0 746.6 874.7 650.2 865.1 606.3 Z" },
+      { ids:["latL"], d:"M 656.3 408.0 C 679.7 428.8 697.4 490.2 700.7 553.8 C 706.0 602.0 700.8 630.5 682.9 639.2 C 664.7 628.3 650.7 584.4 646.0 531.8 C 644.4 479.2 645.1 431.0 656.3 408.0 Z" },
+      { ids:["latR"], d:"M 817.8 408.0 C 793.3 428.8 776.0 490.2 771.4 553.8 C 767.7 602.0 772.9 630.5 791.0 639.2 C 809.0 628.3 822.6 584.4 826.3 531.8 C 828.8 479.2 827.7 431.0 817.8 408.0 Z" },
+      { ids:["midBack"], d:"M 687.8 320.4 C 717.6 302.8 756.9 302.8 786.1 320.4 C 780.3 424.5 775.2 545.0 736.6 621.7 C 699.1 545.0 694.1 424.5 687.8 320.4 Z" },
+      { ids:["lowerBack"], d:"M 688.6 566.9 C 709.5 545.0 763.3 545.0 784.7 566.9 C 781.5 632.6 763.9 685.2 737.0 707.1 C 709.7 685.2 693.1 632.6 688.6 566.9 Z" },
+      { ids:["gluteL"], d:"M 644.2 654.6 C 693.3 617.3 738.0 660.0 740.0 748.8 C 734.8 824.4 705.3 856.2 674.1 826.6 C 618.6 782.7 612.2 698.4 644.2 654.6 Z" },
+      { ids:["gluteR"], d:"M 829.5 654.6 C 781.8 617.3 736.2 660.0 734.6 748.8 C 736.1 824.4 765.0 856.2 796.0 826.6 C 855.4 782.7 862.3 698.4 829.5 654.6 Z" },
+      { ids:["hipFlexorL"], d:"M 233.3 667.1 C 256.1 680.1 274.0 716.1 272.9 767.2 C 250.8 748.7 235.4 713.9 233.3 667.1 Z" },
+      { ids:["hipFlexorR"], d:"M 364.5 667.1 C 341.9 680.1 323.7 716.1 325.3 767.2 C 347.7 748.7 362.4 713.9 364.5 667.1 Z" },
+      { ids:["outerThighL"], d:"M 158.6 741.1 C 178.0 766.1 195.0 863.0 196.3 987.0 C 187.2 1063.2 183.3 1104.6 172.8 1116.6 C 156.3 1043.6 195.5 828.2 158.6 741.1 Z" },
+      { ids:["outerThighR"], d:"M 439.6 741.1 C 420.3 766.1 402.8 863.0 400.1 987.0 C 410.6 1063.2 414.0 1104.6 423.8 1116.6 C 441.4 1043.6 397.8 828.2 439.6 741.1 Z" },
+      { ids:["innerThighL"], d:"M 266.9 741.1 C 287.4 784.6 294.0 901.1 288.0 1023.0 C 284.8 1078.5 278.8 1114.4 271.3 1124.2 C 257.0 1068.7 264.0 823.8 266.9 741.1 Z" },
+      { ids:["innerThighR"], d:"M 331.2 741.1 C 310.5 784.6 304.3 901.1 309.0 1023.0 C 312.9 1078.5 318.0 1114.4 325.1 1124.2 C 340.8 1068.7 330.2 823.8 331.2 741.1 Z" },
+      { ids:["quadL"], d:"M 187.6 704.1 C 225.3 733.5 263.1 848.8 253.0 974.0 C 248.8 1052.3 234.4 1106.8 210.0 1125.3 C 170.4 1064.3 203.8 840.1 174.4 753.1 C 176.6 732.4 182.0 715.0 187.6 704.1 Z" },
+      { ids:["quadR"], d:"M 409.9 704.1 C 372.5 733.5 330.3 848.8 343.5 974.0 C 348.9 1052.3 362.8 1106.8 386.4 1125.3 C 427.4 1064.3 389.4 840.1 424.3 753.1 C 421.3 732.4 415.8 715.0 409.9 704.1 Z" },
+      { ids:["hamL"], d:"M 672.9 828.8 C 692.1 846.3 693.0 925.2 691.7 1016.1 C 690.3 1080.8 679.7 1127.9 658.9 1144.3 C 621.6 1086.2 617.0 913.1 672.9 828.8 Z" },
+      { ids:["hamR"], d:"M 796.8 828.8 C 777.7 846.3 782.6 925.2 784.5 1016.1 C 788.6 1080.8 798.0 1127.9 818.7 1144.3 C 857.5 1086.2 858.7 913.1 796.8 828.8 Z" },
+      { ids:["calfFL"], d:"M236 1120 C256 1138 272 1180 270 1232 C268 1280 255 1312 236 1314 C217 1312 204 1280 202 1232 C200 1180 216 1138 236 1120 Z" },
+      { ids:["calfFR"], d:"M360 1120 C340 1138 324 1180 326 1232 C328 1280 341 1312 360 1314 C379 1312 392 1280 394 1232 C396 1180 380 1138 360 1120 Z" },
+      { ids:["calfBL"], d:"M690 1128 C710 1146 726 1188 724 1242 C722 1290 709 1322 690 1324 C671 1322 658 1290 656 1242 C654 1188 670 1146 690 1128 Z" },
+      { ids:["calfBR"], d:"M788 1128 C808 1146 824 1188 822 1242 C820 1290 807 1322 788 1324 C769 1322 756 1290 754 1242 C752 1188 768 1146 788 1128 Z" },
+    ];
+
+    const atlasShapes = isFemale ? atlasShapesFemale : atlasShapesMale;
 
     const activeShape = (ids) => {
       const activeIds = (Array.isArray(ids) ? ids : [ids]).filter(id => activeRegions[id]);
@@ -3777,75 +3878,75 @@ import "./styles.css";
           style={{
             position:"relative",
             width:"100%",
-            aspectRatio:`1024 / ${cropH}`,
+            aspectRatio:`${cropW} / ${cropH}`,
             overflow:"hidden",
             borderRadius:14,
+            // Both atlases are transparent (black lines only), so the card's
+            // grayish bg shows through identically for male and female.
+            background:"transparent",
           }}
         >
-          <img
-            src={bodyMuscleAtlasUrl}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            style={atlasImageStyle(dark ? 0.8 : 0.28)}
-          />
-          <svg
-            viewBox={`0 ${cropY} 1024 ${cropH}`}
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="xMidYMid meet"
-            style={{
-              position:"absolute",
-              inset:0,
-              display:"block",
-              width:"100%",
-              height:"100%",
-              pointerEvents:"none",
-              mixBlendMode:"normal",
-            }}
-          >
-            {atlasShapes.map((shape, i) => {
-              const active = activeShape(shape.ids);
-              if (!active) return null;
-      return (
-                <path
-                  key={`atlas-highlight-${i}`}
-                  d={shape.d}
-                  fill={active.fill || "#f4511e"}
-                  opacity={regionOpacity(active)}
-                  stroke={bg}
-                  strokeWidth="5"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              );
-            })}
-          </svg>
-          <img
-            src={bodyMuscleAtlasUrl}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            style={atlasImageStyle(dark ? 0.98 : 0.72)}
-          />
+          <>
+            {/* Same base → highlight stack as the muscle-map picker. */}
+            <img
+              src={atlasUrl}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              style={atlasImageStyle(dark ? 0.98 : 0.74)}
+            />
+            <svg
+              viewBox={`${cropX} ${cropY} ${cropW} ${cropH}`}
+              xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="xMidYMid meet"
+              style={{
+                position:"absolute",
+                inset:0,
+                display:"block",
+                width:"100%",
+                height:"100%",
+                pointerEvents:"none",
+                mixBlendMode:"normal",
+              }}
+            >
+              {atlasShapes.map((shape, i) => {
+                const active = activeShape(shape.ids);
+                if (!active) return null;
+                return (
+                  <path
+                    key={`atlas-highlight-${i}`}
+                    d={shape.d}
+                    fill={active.fill || "#f4511e"}
+                    opacity={regionOpacity(active)}
+                    stroke={active.fill || "#f4511e"}
+                    strokeWidth="10"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </svg>
+          </>
         </div>
-        <div style={{
-          position:"absolute",
-          left:4,
-          right:4,
-          bottom:3,
-          display:"grid",
-          gridTemplateColumns:"1fr 1fr",
-          color:label,
-          fontFamily:"Outfit, sans-serif",
-          fontSize:9.5,
-          fontWeight:800,
-          letterSpacing:1.2,
-          textAlign:"center",
-          pointerEvents:"none",
-        }}>
-          <span>FRONT</span>
-          <span>BACK</span>
-        </div>
+	        <div style={{
+	          position:"absolute",
+	          left:4,
+	          right:4,
+	          bottom:3,
+	          ...(isFemale
+	            ? { height:12 }
+	            : { display:"grid", gridTemplateColumns:"1fr 1fr" }),
+	          color:label,
+	          fontFamily:"Outfit, sans-serif",
+	          fontSize:9.5,
+	          fontWeight:800,
+	          letterSpacing:1.2,
+	          textAlign:"center",
+	          pointerEvents:"none",
+	        }}>
+	          <span style={isFemale ? { position:"absolute", left:"29%", transform:"translateX(-50%)" } : undefined}>FRONT</span>
+	          <span style={isFemale ? { position:"absolute", left:"72%", transform:"translateX(-50%)" } : undefined}>BACK</span>
+	        </div>
       </div>
     );
   }
@@ -4049,14 +4150,14 @@ import "./styles.css";
 	    { label: "Biceps", group: "Arms", d: "M459 430 C434 408 413 425 412 468 C414 514 433 566 462 592 C478 552 478 462 459 430 Z" },
 	    { label: "Triceps", group: "Arms", d: "M580 430 C605 408 626 425 627 468 C624 518 607 568 579 595 C561 553 561 462 580 430 Z" },
 	    { label: "Triceps", group: "Arms", d: "M930 430 C905 408 884 425 883 468 C886 518 903 568 931 595 C949 553 949 462 930 430 Z" },
-	    { label: "Forearms", group: "Arms", d: "M63 570 C87 568 96 596 91 640 C85 686 69 736 52 760 C43 706 45 612 63 570 Z" },
-	    { label: "Forearms", group: "Arms", d: "M495 570 C471 568 462 596 467 640 C473 686 489 736 506 760 C515 706 513 612 495 570 Z" },
-	    { label: "Forearms", group: "Arms", d: "M542 570 C566 568 575 596 570 640 C564 686 548 736 531 760 C522 706 524 612 542 570 Z" },
-	    { label: "Forearms", group: "Arms", d: "M968 570 C944 568 935 596 940 640 C946 686 962 736 979 760 C988 706 986 612 968 570 Z" },
-	    { label: "Lats", group: "Back", d: "M642 392 C669 415 690 477 697 548 C703 617 692 690 672 739 C649 701 632 619 627 529 C624 459 629 411 642 392 Z" },
-	    { label: "Lats", group: "Back", d: "M868 392 C841 415 820 477 813 548 C807 617 818 690 838 739 C861 701 878 619 883 529 C886 459 881 411 868 392 Z" },
-	    { label: "Mid Back", group: "Back", d: "M712 315 C737 299 773 299 798 315 C804 434 794 581 754 679 C714 581 706 434 712 315 Z" },
-	    { label: "Lower Back", group: "Back", d: "M700 667 C723 645 784 645 810 667 C807 721 784 768 754 793 C724 768 702 721 700 667 Z" },
+	    { label: "Forearms", group: "Arms", d: "M72 576 C92 574 102 600 98 642 C93 686 82 730 70 752 C60 704 60 616 72 576 Z" },
+	    { label: "Forearms", group: "Arms", d: "M452 576 C432 574 422 600 426 642 C431 686 442 730 454 752 C464 704 464 616 452 576 Z" },
+	    { label: "Forearms", group: "Arms", d: "M566 576 C586 574 596 600 592 642 C587 686 576 730 564 752 C554 704 554 616 566 576 Z" },
+	    { label: "Forearms", group: "Arms", d: "M896 576 C876 574 866 600 870 642 C875 686 886 730 898 752 C908 704 908 616 896 576 Z" },
+	    { label: "Lats", group: "Back", d: "M640 395 C667 414 686 470 692 528 C696 572 690 598 670 606 C650 596 636 556 631 508 C627 460 629 416 640 395 Z" },
+	    { label: "Lats", group: "Back", d: "M820 395 C793 414 774 470 768 528 C764 572 770 598 790 606 C810 596 824 556 829 508 C833 460 831 416 820 395 Z" },
+	    { label: "Mid Back", group: "Back", d: "M712 315 C737 299 773 299 798 315 C803 410 796 520 754 590 C714 520 707 410 712 315 Z" },
+	    { label: "Lower Back", group: "Back", d: "M702 540 C725 520 783 520 806 540 C803 600 784 648 754 668 C724 648 705 600 702 540 Z" },
 	    { label: "Glutes", group: "Legs", d: "M652 620 C706 586 756 625 758 706 C754 775 707 804 655 777 C620 737 617 660 652 620 Z" },
 	    { label: "Glutes", group: "Legs", d: "M858 620 C804 586 754 625 752 706 C756 775 803 804 855 777 C890 737 893 660 858 620 Z" },
 	    { label: "Hip Flexors", group: "Legs", d: "M207 636 C232 648 252 681 250 728 C226 711 210 679 207 636 Z" },
@@ -4069,11 +4170,62 @@ import "./styles.css";
 	    { label: "Quads", group: "Legs", d: "M400 670 C359 697 335 803 337 918 C339 990 360 1040 394 1057 C432 1001 439 795 416 715 C412 696 406 680 400 670 Z" },
 	    { label: "Hamstrings", group: "Legs", d: "M649 779 C682 795 702 867 700 950 C699 1009 681 1052 651 1067 C619 1014 615 856 649 779 Z" },
 	    { label: "Hamstrings", group: "Legs", d: "M861 779 C828 795 808 867 810 950 C811 1009 829 1052 859 1067 C891 1014 895 856 861 779 Z" },
-	    { label: "Calves", group: "Legs", d: "M151 1052 C178 1082 185 1162 178 1245 C172 1300 156 1338 139 1342 C122 1285 126 1132 151 1052 Z" },
-	    { label: "Calves", group: "Legs", d: "M407 1052 C380 1082 373 1162 380 1245 C386 1300 402 1338 419 1342 C436 1285 432 1132 407 1052 Z" },
-	    { label: "Calves", group: "Legs", d: "M650 1057 C681 1088 690 1169 681 1258 C675 1310 658 1343 638 1348 C616 1289 622 1136 650 1057 Z" },
-	    { label: "Calves", group: "Legs", d: "M860 1057 C829 1088 820 1169 829 1258 C835 1310 852 1343 872 1348 C894 1289 888 1136 860 1057 Z" },
+	    { label: "Calves", group: "Legs", d: "M193 1028 C214 1045 232 1085 230 1135 C228 1180 214 1210 193 1212 C172 1210 158 1180 156 1135 C154 1085 172 1045 193 1028 Z" },
+	    { label: "Calves", group: "Legs", d: "M365 1028 C344 1045 326 1085 328 1135 C330 1180 344 1210 365 1212 C386 1210 400 1180 402 1135 C404 1085 386 1045 365 1028 Z" },
+	    { label: "Calves", group: "Legs", d: "M666 1030 C688 1048 706 1090 704 1142 C702 1188 688 1218 666 1220 C644 1218 630 1188 628 1142 C626 1090 644 1048 666 1030 Z" },
+	    { label: "Calves", group: "Legs", d: "M826 1030 C848 1048 866 1090 864 1142 C862 1188 848 1218 826 1220 C804 1218 790 1188 788 1142 C786 1090 804 1048 826 1030 Z" },
 	  ];
+
+  // Female-figure tap regions for the MUSCLE MAP. Generated by warping each male
+  // region into the female silhouette: for every point we measure its position
+  // relative to the male body (vertical fraction + horizontal fraction across the
+  // body edges at that scanline) and place it at the same relative spot on the
+  // female body. This keeps every region truly connected to the female drawing.
+  const ATLAS_PICKER_SHAPES_FEMALE = [
+    { label: "Traps", group: "Back", d: "M 228.5 261.1 C 247.2 242.6 273.7 244.8 293.5 264.4 C 313.0 244.8 339.6 242.6 360.2 261.1 C 346.3 286.2 324.0 301.4 293.5 301.4 C 263.0 301.4 241.5 286.2 228.5 261.1 Z" },
+    { label: "Upper Back", group: "Back", d: "M 657.9 289.7 C 689.2 260.1 714.4 252.4 735.7 274.4 C 756.8 252.4 782.0 260.1 814.6 289.7 C 802.7 327.0 766.4 348.9 735.7 348.9 C 705.1 348.9 669.6 327.0 657.9 289.7 Z" },
+    { label: "Shoulders", group: "Shoulders", d: "M 124.7 341.7 C 115.7 313.4 170.5 301.4 197.7 317.7 C 193.2 351.5 179.2 401.5 146.7 425.5 C 130.8 403.7 122.8 367.8 124.7 341.7 Z" },
+    { label: "Shoulders", group: "Shoulders", d: "M 471.4 341.7 C 482.1 313.4 426.7 301.4 399.5 317.7 C 403.2 351.5 417.1 401.5 449.6 425.5 C 465.6 403.7 473.5 367.8 471.4 341.7 Z" },
+    { label: "Shoulders", group: "Shoulders", d: "M 564.9 345.6 C 554.8 316.0 606.1 308.3 654.6 328.0 C 640.4 363.1 623.2 402.6 585.3 425.6 C 570.5 405.8 561.7 370.8 564.9 345.6 Z" },
+    { label: "Shoulders", group: "Shoulders", d: "M 908.3 345.6 C 919.7 316.0 868.7 308.3 818.7 328.0 C 833.4 363.1 851.5 402.6 889.0 425.6 C 904.4 405.8 911.9 370.8 908.3 345.6 Z" },
+    { label: "Chest", group: "Chest", d: "M 177.1 331.9 C 214.3 321.0 274.1 330.8 290.7 372.1 C 295.6 405.9 291.0 453.8 282.0 482.1 C 242.4 506.0 191.7 481.0 169.6 434.2 C 167.3 391.7 166.3 354.7 177.1 331.9 Z" },
+    { label: "Chest", group: "Chest", d: "M 418.9 331.9 C 382.4 321.0 321.9 330.8 305.4 372.1 C 301.0 405.9 305.6 453.8 314.2 482.1 C 354.6 506.0 404.6 481.0 426.7 434.2 C 428.4 391.7 430.2 354.7 418.9 331.9 Z" },
+    { label: "Upper Chest", group: "Chest", d: "M 177.7 329.7 C 213.2 318.8 273.7 328.6 290.7 370.0 C 251.0 374.3 209.9 366.7 172.4 351.5 C 173.2 342.8 175.2 336.2 177.7 329.7 Z" },
+    { label: "Upper Chest", group: "Chest", d: "M 418.2 329.7 C 383.7 318.8 322.2 328.6 305.6 370.0 C 345.0 374.3 386.5 366.7 424.0 351.5 C 423.0 342.8 420.8 336.2 418.2 329.7 Z" },
+    { label: "Lower Chest", group: "Chest", d: "M 175.8 403.7 C 205.3 433.1 246.6 455.9 283.8 460.3 C 281.0 471.2 276.6 481.0 270.5 487.5 C 234.3 504.9 189.9 481.0 169.5 436.4 C 171.2 423.3 173.4 412.4 175.8 403.7 Z" },
+    { label: "Lower Chest", group: "Chest", d: "M 420.6 403.7 C 391.1 433.1 349.9 455.9 312.7 460.3 C 315.1 471.2 319.6 481.0 325.9 487.5 C 362.6 504.9 406.4 481.0 427.0 436.4 C 425.0 423.3 423.0 412.4 420.6 403.7 Z" },
+    { label: "Abs", group: "Core", d: "M 253.5 495.1 C 268.6 483.2 284.8 486.4 294.9 503.8 C 304.5 486.4 320.5 483.2 335.6 495.1 C 346.5 552.8 341.8 672.5 296.3 741.1 C 250.6 672.5 243.5 552.8 253.5 495.1 Z" },
+    { label: "Obliques", group: "Core", d: "M 218.6 484.2 C 236.6 522.3 242.5 624.6 232.8 698.6 C 209.6 675.8 193.5 613.8 192.9 551.7 C 196.4 520.2 204.6 497.3 218.6 484.2 Z" },
+    { label: "Obliques", group: "Core", d: "M 377.7 484.2 C 360.4 522.3 355.0 624.6 364.8 698.6 C 388.4 675.8 404.0 613.8 404.5 551.7 C 400.6 520.2 391.8 497.3 377.7 484.2 Z" },
+    { label: "Biceps", group: "Arms", d: "M 133.7 442.9 C 159.0 418.9 175.9 437.4 179.2 484.2 C 175.4 534.3 158.6 590.9 132.7 619.2 C 116.7 575.7 119.9 477.7 133.7 442.9 Z" },
+    { label: "Biceps", group: "Arms", d: "M 463.0 442.9 C 437.3 418.9 420.8 437.4 417.1 484.2 C 421.5 534.3 438.6 590.9 464.8 619.2 C 480.5 575.7 476.3 477.7 463.0 442.9 Z" },
+    { label: "Triceps", group: "Arms", d: "M 577.1 446.4 C 602.8 422.3 619.1 440.9 622.6 488.0 C 615.8 542.8 603.1 597.6 578.7 627.2 C 559.7 581.1 563.4 481.4 577.1 446.4 Z" },
+    { label: "Triceps", group: "Arms", d: "M 896.8 446.4 C 871.9 422.3 854.6 440.9 851.5 488.0 C 858.4 542.8 872.0 597.6 896.2 627.2 C 915.2 581.1 910.6 481.4 896.8 446.4 Z" },
+    { label: "Forearms", group: "Arms", d: "M 110.8 601.8 C 128.9 599.6 138.2 627.9 133.9 673.6 C 127.6 721.5 121.5 769.4 116.2 793.3 C 98.0 741.1 99.9 645.3 110.8 601.8 Z" },
+    { label: "Forearms", group: "Arms", d: "M 455.6 601.8 C 437.5 599.6 428.6 627.9 433.0 673.6 C 438.9 721.5 446.1 769.4 452.1 793.3 C 468.9 741.1 467.3 645.3 455.6 601.8 Z" },
+    { label: "Forearms", group: "Arms", d: "M 566.4 606.3 C 584.4 604.2 594.1 632.6 590.0 678.7 C 584.4 726.9 578.4 775.1 574.3 799.2 C 555.1 746.6 556.1 650.2 566.4 606.3 Z" },
+    { label: "Forearms", group: "Arms", d: "M 865.1 606.3 C 847.2 604.2 837.5 632.6 840.9 678.7 C 846.4 726.9 853.4 775.1 858.7 799.2 C 876.0 746.6 874.7 650.2 865.1 606.3 Z" },
+    { label: "Lats", group: "Back", d: "M 656.3 408.0 C 679.7 428.8 697.4 490.2 700.7 553.8 C 706.0 602.0 700.8 630.5 682.9 639.2 C 664.7 628.3 650.7 584.4 646.0 531.8 C 644.4 479.2 645.1 431.0 656.3 408.0 Z" },
+    { label: "Lats", group: "Back", d: "M 817.8 408.0 C 793.3 428.8 776.0 490.2 771.4 553.8 C 767.7 602.0 772.9 630.5 791.0 639.2 C 809.0 628.3 822.6 584.4 826.3 531.8 C 828.8 479.2 827.7 431.0 817.8 408.0 Z" },
+    { label: "Mid Back", group: "Back", d: "M 687.8 320.4 C 717.6 302.8 756.9 302.8 786.1 320.4 C 780.3 424.5 775.2 545.0 736.6 621.7 C 699.1 545.0 694.1 424.5 687.8 320.4 Z" },
+    { label: "Lower Back", group: "Back", d: "M 688.6 566.9 C 709.5 545.0 763.3 545.0 784.7 566.9 C 781.5 632.6 763.9 685.2 737.0 707.1 C 709.7 685.2 693.1 632.6 688.6 566.9 Z" },
+    { label: "Glutes", group: "Legs", d: "M 644.2 654.6 C 693.3 617.3 738.0 660.0 740.0 748.8 C 734.8 824.4 705.3 856.2 674.1 826.6 C 618.6 782.7 612.2 698.4 644.2 654.6 Z" },
+    { label: "Glutes", group: "Legs", d: "M 829.5 654.6 C 781.8 617.3 736.2 660.0 734.6 748.8 C 736.1 824.4 765.0 856.2 796.0 826.6 C 855.4 782.7 862.3 698.4 829.5 654.6 Z" },
+    { label: "Hip Flexors", group: "Legs", d: "M 233.3 667.1 C 256.1 680.1 274.0 716.1 272.9 767.2 C 250.8 748.7 235.4 713.9 233.3 667.1 Z" },
+    { label: "Hip Flexors", group: "Legs", d: "M 364.5 667.1 C 341.9 680.1 323.7 716.1 325.3 767.2 C 347.7 748.7 362.4 713.9 364.5 667.1 Z" },
+    { label: "Outer Thigh", group: "Legs", d: "M 158.6 741.1 C 178.0 766.1 195.0 863.0 196.3 987.0 C 187.2 1063.2 183.3 1104.6 172.8 1116.6 C 156.3 1043.6 195.5 828.2 158.6 741.1 Z" },
+    { label: "Outer Thigh", group: "Legs", d: "M 439.6 741.1 C 420.3 766.1 402.8 863.0 400.1 987.0 C 410.6 1063.2 414.0 1104.6 423.8 1116.6 C 441.4 1043.6 397.8 828.2 439.6 741.1 Z" },
+    { label: "Inner Thigh", group: "Legs", d: "M 266.9 741.1 C 287.4 784.6 294.0 901.1 288.0 1023.0 C 284.8 1078.5 278.8 1114.4 271.3 1124.2 C 257.0 1068.7 264.0 823.8 266.9 741.1 Z" },
+    { label: "Inner Thigh", group: "Legs", d: "M 331.2 741.1 C 310.5 784.6 304.3 901.1 309.0 1023.0 C 312.9 1078.5 318.0 1114.4 325.1 1124.2 C 340.8 1068.7 330.2 823.8 331.2 741.1 Z" },
+    { label: "Quads", group: "Legs", d: "M 187.6 704.1 C 225.3 733.5 263.1 848.8 253.0 974.0 C 248.8 1052.3 234.4 1106.8 210.0 1125.3 C 170.4 1064.3 203.8 840.1 174.4 753.1 C 176.6 732.4 182.0 715.0 187.6 704.1 Z" },
+    { label: "Quads", group: "Legs", d: "M 409.9 704.1 C 372.5 733.5 330.3 848.8 343.5 974.0 C 348.9 1052.3 362.8 1106.8 386.4 1125.3 C 427.4 1064.3 389.4 840.1 424.3 753.1 C 421.3 732.4 415.8 715.0 409.9 704.1 Z" },
+    { label: "Hamstrings", group: "Legs", d: "M 672.9 828.8 C 692.1 846.3 693.0 925.2 691.7 1016.1 C 690.3 1080.8 679.7 1127.9 658.9 1144.3 C 621.6 1086.2 617.0 913.1 672.9 828.8 Z" },
+    { label: "Hamstrings", group: "Legs", d: "M 796.8 828.8 C 777.7 846.3 782.6 925.2 784.5 1016.1 C 788.6 1080.8 798.0 1127.9 818.7 1144.3 C 857.5 1086.2 858.7 913.1 796.8 828.8 Z" },
+    { label: "Calves", group: "Legs", d: "M236 1120 C256 1138 272 1180 270 1232 C268 1280 255 1312 236 1314 C217 1312 204 1280 202 1232 C200 1180 216 1138 236 1120 Z" },
+    { label: "Calves", group: "Legs", d: "M360 1120 C340 1138 324 1180 326 1232 C328 1280 341 1312 360 1314 C379 1312 392 1280 394 1232 C396 1180 380 1138 360 1120 Z" },
+    { label: "Calves", group: "Legs", d: "M690 1128 C710 1146 726 1188 724 1242 C722 1290 709 1322 690 1324 C671 1322 658 1290 656 1242 C654 1188 670 1146 690 1128 Z" },
+    { label: "Calves", group: "Legs", d: "M788 1128 C808 1146 824 1188 822 1242 C820 1290 807 1322 788 1324 C769 1322 756 1290 754 1242 C752 1188 768 1146 788 1128 Z" },
+  ];
 
   /* ─── Suggested program templates ──────────────────────────────────────────── */
   const SUGGESTED = [
@@ -6497,12 +6649,25 @@ import "./styles.css";
 	  function InteractiveExerciseAtlas({ selectedMuscle, onSelect }) {
 	    const th = useTheme();
 	    const dark = th.bg === "#080809" || th.card === "#0f0f12";
+	    // Female users get the female artwork + female-warped tap regions (each
+	    // region warped into the female silhouette so taps land on the right
+	    // muscle of the female drawing). Everyone else gets the male set.
+	    const gender = useGender();
+	    const isFemale = gender === "female";
+	    const atlasUrl = isFemale ? bodyMuscleAtlasFemaleUrl : bodyMuscleAtlasUrl;
+	    const pickerShapes = isFemale ? ATLAS_PICKER_SHAPES_FEMALE : ATLAS_PICKER_SHAPES;
+	    const NATIVE_W = 1024;
+	    const NATIVE_H = 1536;
+	    const cropX = 0;
+	    // Female figure is taller in-canvas, so include through the native SVG bottom.
+	    const cropY = isFemale ? 55 : 70;
+	    const cropW = 1024;
+	    const cropH = isFemale ? (NATIVE_H - cropY) : 1340;
+	    // Both atlases: transparent bg + black lines.
+	    // Invert in dark mode → white lines on dark canvas. No filter in light → black lines on white.
 	    const atlasFilter = dark ? "invert(1) brightness(1.16) contrast(1.32)" : "none";
-	    const selectedGroup = (ATLAS_PICKER_SHAPES.find((s) => s.label === selectedMuscle) || {}).group;
+	    const selectedGroup = (pickerShapes.find((s) => s.label === selectedMuscle) || {}).group;
 	    const selectedAccent = selectedMuscle ? muscleAccent(selectedMuscle, selectedGroup, dark) : th.accentBg;
-	    const cropY = 70;
-	    const cropH = 1340;
-	    const imageShift = `${-(cropY / 1536) * 100}%`;
 	    return (
 	      <div style={{
 	        position:"relative",
@@ -6511,76 +6676,81 @@ import "./styles.css";
 	        margin:"0 auto",
 	        borderRadius:18,
 	        overflow:"hidden",
+	        isolation:"isolate",
 	        background:dark ? "#20211f" : "#fbfbfa",
 	        padding:"3px 4px",
 	      }}>
 	        <div style={{
 	          position:"relative",
 	          width:"100%",
-	          aspectRatio:`1024 / ${cropH}`,
+	          aspectRatio:`${cropW} / ${cropH}`,
 	          overflow:"hidden",
 	          borderRadius:14,
+	          // Both atlases transparent → outer card bg shows through identically.
+	          background:"transparent",
 	        }}>
-	          <img
-	            src={bodyMuscleAtlasUrl}
-	            alt=""
-	            aria-hidden="true"
-	            draggable={false}
-	            style={{
-	              position:"absolute",
-	              left:0,
-	              top:0,
-	              width:"100%",
-	              height:"auto",
-	              transform:`translateY(${imageShift})`,
-	              transformOrigin:"top center",
-	              opacity:dark ? 0.98 : 0.74,
-	              filter:atlasFilter,
-	              WebkitFilter:atlasFilter,
-	              pointerEvents:"none",
-	              userSelect:"none",
-	              WebkitUserSelect:"none",
-	            }}
-	          />
-	          <svg
-	            viewBox={`0 ${cropY} 1024 ${cropH}`}
-	            xmlns="http://www.w3.org/2000/svg"
-	            preserveAspectRatio="xMidYMid meet"
-	            style={{ position:"absolute", inset:0, display:"block", width:"100%", height:"100%" }}
-	          >
-	            {ATLAS_PICKER_SHAPES.map((shape, i) => {
-	              const active = selectedMuscle === shape.label;
-	              const accent = active ? muscleAccent(shape.label, shape.group, dark) : selectedAccent;
-	              return (
-	                <path
-	                  key={`${shape.label}-${i}`}
-	                  d={shape.d}
-	                  role="button"
-	                  tabIndex={0}
-	                  aria-label={shape.label}
-	                  onClick={() => onSelect(shape.label)}
-	                  onKeyDown={(e) => {
-	                    if (e.key === "Enter" || e.key === " ") {
-	                      e.preventDefault();
-	                      onSelect(shape.label);
-	                    }
-	                  }}
-	                  fill={active ? accent : "rgba(255,255,255,0.001)"}
-	                  opacity={active ? (dark ? 0.86 : 0.78) : 0.001}
-	                  stroke={active ? accent : "transparent"}
-	                  strokeWidth={active ? 10 : 0}
-	                  strokeLinejoin="round"
-	                  strokeLinecap="round"
-	                  style={{
-	                    cursor:"pointer",
-	                    outline:"none",
-	                    pointerEvents:"all",
-	                    transition:"opacity .16s, fill .16s, stroke .16s",
-	                  }}
-	                />
-	              );
-	            })}
-	          </svg>
+	          <>
+	            <img
+	              src={atlasUrl}
+	              alt=""
+	              aria-hidden="true"
+	              draggable={false}
+	              style={{
+	                position:"absolute",
+	                left:0,
+	                top:0,
+	                width:`${(NATIVE_W / cropW) * 100}%`,
+	                height:"auto",
+	                transform:`translate(${-(cropX / NATIVE_W) * 100}%, ${-(cropY / NATIVE_H) * 100}%)`,
+	                transformOrigin:"top left",
+	                opacity: dark ? 0.98 : 0.74,
+	                filter:atlasFilter,
+	                WebkitFilter:atlasFilter,
+	                pointerEvents:"none",
+	                userSelect:"none",
+	                WebkitUserSelect:"none",
+	              }}
+	            />
+	            <svg
+	              viewBox={`${cropX} ${cropY} ${cropW} ${cropH}`}
+	              xmlns="http://www.w3.org/2000/svg"
+	              preserveAspectRatio="xMidYMid meet"
+	              style={{ position:"absolute", inset:0, display:"block", width:"100%", height:"100%" }}
+	            >
+	              {pickerShapes.map((shape, i) => {
+	                const active = selectedMuscle === shape.label;
+	                const accent = active ? muscleAccent(shape.label, shape.group, dark) : selectedAccent;
+	                return (
+	                  <path
+	                    key={`${shape.label}-${i}`}
+	                    d={shape.d}
+	                    role="button"
+	                    tabIndex={0}
+	                    aria-label={shape.label}
+	                    onClick={() => onSelect(shape.label)}
+	                    onKeyDown={(e) => {
+	                      if (e.key === "Enter" || e.key === " ") {
+	                        e.preventDefault();
+	                        onSelect(shape.label);
+	                      }
+	                    }}
+	                    fill={active ? accent : "rgba(255,255,255,0.001)"}
+	                    opacity={active ? (dark ? 0.86 : 0.78) : 0.001}
+	                    stroke={active ? accent : "transparent"}
+	                    strokeWidth={active ? 10 : 0}
+	                    strokeLinejoin="round"
+	                    strokeLinecap="round"
+	                    style={{
+	                      cursor:"pointer",
+	                      outline:"none",
+	                      pointerEvents:"all",
+	                      transition:"opacity .16s, fill .16s, stroke .16s",
+	                    }}
+	                  />
+	                );
+	              })}
+	            </svg>
+	          </>
 	        </div>
 	      </div>
 	    );
@@ -7090,6 +7260,7 @@ import "./styles.css";
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [pw, setPw] = useState("");
+    const [signupGender, setSignupGender] = useState(""); // "Male" | "Female" | "Other"
     const [showPw, setShowPw] = useState(false);
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(false);
@@ -7148,7 +7319,7 @@ import "./styles.css";
     };
 
     const handleSignup = async () => {
-      if (!name.trim() || !email.trim() || !pw) {
+      if (!name.trim() || !email.trim() || !pw || !signupGender) {
         setErr("All fields required.");
         return;
       }
@@ -7161,10 +7332,10 @@ import "./styles.css";
       try {
         const trimmedName = name.trim();
         const lowerEmail = email.trim().toLowerCase();
-        // Stash a pending-signup name keyed by email BEFORE Firebase creates the user.
-        // onAuthStateChanged may fire before fbUpdateProfile/saveLocalProfile complete,
-        // so this is a guaranteed fallback for the very first user object built.
-        lsSet("ib3-pending-signup", { email: lowerEmail, name: trimmedName });
+        // Stash a pending-signup name+gender keyed by email BEFORE Firebase creates
+        // the user. onAuthStateChanged may fire before fbUpdateProfile/saveLocalProfile
+        // complete, so this is a guaranteed fallback for the first user object built.
+        lsSet("ib3-pending-signup", { email: lowerEmail, name: trimmedName, gender: signupGender });
         const cred = await createUserWithEmailAndPassword(
           fbAuth,
           email.trim(),
@@ -7172,16 +7343,23 @@ import "./styles.css";
         );
         // 1. Set displayName on Firebase user
         await fbUpdateProfile(cred.user, { displayName: trimmedName });
-        // 2. Write to local cache IMMEDIATELY — guarantees onAuthStateChanged finds the name
+        // 2. Write to local cache IMMEDIATELY — guarantees onAuthStateChanged finds
+        //    name + gender (which drives the muscle-atlas model)
         saveLocalProfile(cred.user.uid, {
           name: trimmedName,
           email: lowerEmail,
+          gender: signupGender,
         });
         // Pending stash no longer needed once the proper profile cache is in place
         lsDel("ib3-pending-signup");
-        // 3. Seed default programs, but keep shortcuts empty so home tab is clean
-        lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
+        // 3. Start with an EMPTY Workouts tab — new users build their own programs.
+        //    (We write [] explicitly, and also flag this account as freshly created
+        //    so the App() loader doesn't backfill DEFAULT_PROGRAMS over the empty list.)
+        lsSet(uKey(cred.user.uid, "programs"), []);
+        lsSet("ib3-fresh-signup-" + cred.user.uid, true);
         lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false });
+        // Persist gender to Firestore settings so it survives across devices/installs.
+        fsSaveSettings(cred.user.uid, { name: trimmedName, gender: signupGender });
         // 4. Register public profile immediately so this user appears in others' suggestions
         fsRegisterPublicProfile(cred.user.uid, trimmedName, null, email.trim().toLowerCase());
         // 4. Reload Firebase user so displayName is fresh on next auth state change
@@ -7326,6 +7504,34 @@ import "./styles.css";
                 marginBottom: 12,
               }}
             />
+          )}
+          {/* Gender picker (signup only) — required so the muscle-atlas model can be
+              chosen at signup. Three options as discrete chips, matching profile editor. */}
+          {tab === "signup" && (
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              {["Male","Female","Other"].map(g => (
+                <button key={g}
+                  onClick={() => setSignupGender(prev => prev === g ? "" : g)}
+                  style={{
+                    flex:1,
+                    background: signupGender === g
+                      ? "rgba(200,240,48,0.85)"
+                      : "rgba(255,255,255,0.09)",
+                    backdropFilter:"blur(10px)",
+                    border:`1px solid ${signupGender === g ? "rgba(200,240,48,0.95)" : "rgba(255,255,255,0.15)"}`,
+                    borderRadius:12,
+                    padding:"12px 0",
+                    color: signupGender === g ? "#080809" : "rgba(240,240,240,0.85)",
+                    fontSize:14,
+                    fontWeight:700,
+                    cursor:"pointer",
+                    fontFamily:"'Outfit',sans-serif",
+                    transition:"background .15s, color .15s, border-color .15s",
+                  }}>
+                  {t(g)}
+                </button>
+              ))}
+            </div>
           )}
           <input
             type="email"
@@ -7539,7 +7745,9 @@ import "./styles.css";
     const cutoff = range === "7d"
       ? now - 7 * 24 * 60 * 60 * 1000
       : range === "month"
-      ? now - 30 * 24 * 60 * 60 * 1000
+      // Current calendar month (from the 1st), not a rolling 30-day window.
+      ? new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
+      // Current calendar year (from Jan 1).
       : new Date(new Date().getFullYear(), 0, 1).getTime();
     const ws = sessions.filter(s => (s.startTime || 0) >= cutoff);
     const resistSess = ws.filter(s => (s.exercises||[]).some(e => e.type !== "cardio"));
@@ -7742,8 +7950,8 @@ import "./styles.css";
                 </div>
               </div>
             ) : (
-              /* Invisible placeholder row — mirrors the real row structure so the
-                  card stays at the max grid size regardless of how many PRs exist. */
+              // Invisible placeholder row — mirrors the real row structure so the
+              // card stays at the max grid size regardless of how many PRs exist.
               <div key={`ph-${i}`} style={{
                 display:"flex", alignItems:"center", gap:10,
                 padding:"8px 0",
@@ -9012,7 +9220,7 @@ import "./styles.css";
                       const barBg = hasData
                         ? (hasResist && hasCardio ? "#E8612C" : hasCardio ? "#5B9CF6" : th.accentBg)
                         : th.inputB;
-                      const col = hasData ? (hasCardio && !hasResist ? "#5B9CF6" : th.accentFg) : th.inputB;
+                      const col = hasData ? (hasResist && hasCardio ? "#E8612C" : hasCardio ? "#5B9CF6" : th.accentFg) : th.inputB;
                       const dateLabel = d.toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
@@ -9142,7 +9350,7 @@ import "./styles.css";
                       const barBg = hasData
                         ? (hasResist && hasCardio ? "#E8612C" : hasCardio ? "#5B9CF6" : th.accentBg)
                         : th.inputB;
-                      const col = hasData ? (hasCardio && !hasResist ? "#5B9CF6" : th.accentFg) : th.inputB;
+                      const col = hasData ? (hasResist && hasCardio ? "#E8612C" : hasCardio ? "#5B9CF6" : th.accentFg) : th.inputB;
                       const dateLabel = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                       return (
                         <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
@@ -10234,14 +10442,17 @@ import "./styles.css";
         (sessions || []).filter(s => (s.startTime||0) >= weekStart.getTime())
           .map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); })
       ).size;
+      // Same catalogue order as the user's own awards (perfect week → monthly →
+      // streaks), then earned-first. Competition Win is omitted here since a
+      // friend's competition history isn't available to the viewer.
       return [
+        { id:"weekly",   icon:"🗓️", label:t("Perfect Week"), earned: daysThisWeek >= 5 },
+        { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), earned: daysThisMonth >= 20 },
         { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),   earned: bestStreak >= 7 },
         { id:"streak14", icon:"⚡", label:t("14-Day Streak"),  earned: bestStreak >= 14 },
         { id:"streak21", icon:"💎", label:t("21-Day Streak"),  earned: bestStreak >= 21 },
         { id:"streak30", icon:"👑", label:t("1-Month Streak"), earned: bestStreak >= 30 },
-        { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), earned: daysThisMonth >= 20 },
-        { id:"weekly",   icon:"🗓️", label:t("Perfect Week"), earned: daysThisWeek >= 5 },
-      ];
+      ].sort((a, b) => (b.earned ? 1 : 0) - (a.earned ? 1 : 0));
     })() : [];
 
     const friendAwardsJSX = friendAwards.length ? (
@@ -17724,7 +17935,7 @@ import "./styles.css";
     );
   }
 
-  function AwardsDashboard({ sessions, user, settings, onUpdateSettings }) {
+  function AwardsDashboard({ sessions, user, settings, onUpdateSettings, awardPopupRequest, onConsumeAwardPopup }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
@@ -17795,21 +18006,42 @@ import "./styles.css";
     const notifiedAwards = Array.isArray(settings?.notifiedAwards) ? settings.notifiedAwards : [];
     const isPersisted = (id) => persistedEarned.includes(id);
 
+    // Fixed catalogue order: perfect week → monthly → competition → streaks (7→30).
     const awards = [
+      { id:"weekly",   icon:"🗓️", label:weekLabel,          desc:t("5 workouts this week"),           earned: daysThisWeek >= 5 },
+      { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), desc:t("20 workouts in {month}", { month: t(monthName) }), earned: daysThisMonth >= 20 },
+      { id:"comp",     icon:"🏆", label:t("Competition Win"), desc:t("Win a 7-day challenge"),          earned: (user._awardsWon || 0) >= 1 },
       { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),    desc:t("Train 7 days in a row"),          earned: streak >= 7  || bestStreak >= 7  || isPersisted("streak7"),  persistable:true },
       { id:"streak14", icon:"⚡", label:t("14-Day Streak"),   desc:t("Train 14 days in a row"),         earned: streak >= 14 || bestStreak >= 14 || isPersisted("streak14"), persistable:true },
       { id:"streak21", icon:"💎", label:t("21-Day Streak"),   desc:t("Train 21 days in a row"),         earned: streak >= 21 || bestStreak >= 21 || isPersisted("streak21"), persistable:true },
       { id:"streak30", icon:"👑", label:t("1-Month Streak"),  desc:t("Train 30 days in a row"),         earned: streak >= 30 || bestStreak >= 30 || isPersisted("streak30"), persistable:true },
-      { id:"comp",     icon:"🏆", label:t("Competition Win"), desc:t("Win a 7-day challenge"),          earned: (user._awardsWon || 0) >= 1 },
-      { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), desc:t("20 workouts in {month}", { month: t(monthName) }), earned: daysThisMonth >= 20 },
-      { id:"weekly",   icon:"🗓️", label:weekLabel,          desc:t("5 workouts this week"),           earned: daysThisWeek >= 5 },
-    ];
+    ]
+      // Earned awards float to the front; within each group the catalogue order
+      // above is preserved (Array.sort is stable). Drives display + pagination.
+      .sort((a, b) => (b.earned ? 1 : 0) - (a.earned ? 1 : 0));
 
     const earnedAwardIds = awards.filter(a => a.earned).map(a => a.id).join(",");
     const closeAwardPopup = () => {
       const next = pendingAwardPopupsRef.current.shift();
       setAwardPopup(next || null);
     };
+
+    // Re-open the achievement popup when the user taps its notification. The
+    // request carries { id, label, icon } from the stored notification; we
+    // resolve the matching award for its description, but prefer the notified
+    // label/icon so the popup matches exactly what was unlocked.
+    useEffect(() => {
+      if (!awardPopupRequest) return;
+      const found = awards.find(a => a.id === awardPopupRequest.id);
+      setAwardPopup({
+        id: awardPopupRequest.id,
+        icon: awardPopupRequest.icon || found?.icon || "🏆",
+        label: awardPopupRequest.label || found?.label || t("Award unlocked"),
+        desc: found?.desc || "",
+      });
+      onConsumeAwardPopup && onConsumeAwardPopup();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [awardPopupRequest]);
 
     // Persist any newly-earned persistable awards so they survive a broken streak,
     // and notify the user exactly once when any award is first achieved.
@@ -17935,13 +18167,13 @@ import "./styles.css";
               {awardPopup.label}
             </div>
             <div style={{ fontSize:13, color:th.muted, lineHeight:1.5, marginBottom:18 }}>
-              {awardPopup.desc}<br />{t("Nice work. This award has been added to your profile.")}
+              {awardPopup.desc ? <>{awardPopup.desc}<br /></> : null}{t("Nice work. This award has been added to your profile.")}
             </div>
             <button
               onClick={closeAwardPopup}
               style={{ width:"100%", ...buttonTexture(th, "accent"), borderRadius:13, padding:"13px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:800, fontSize:13, letterSpacing:0.6 }}
             >
-              {t("NICE WORK")}
+              {t("DONE")}
             </button>
           </div>
         </>,
@@ -17958,8 +18190,12 @@ import "./styles.css";
     onSaveMeasurement,
     settings,
     onUpdateSettings,
+    awardPopupRequest,
+    onConsumeAwardPopup,
     theme,
     themeAuto,
+    accent,
+    onAccentChange,
     lang,
     onLangChange,
     onLogout,
@@ -18308,12 +18544,8 @@ import "./styles.css";
               <button
                 onClick={() => setShowUpgrade(true)}
                 style={{
-                  background: `color-mix(in srgb, ${th.accentBg} 80%, transparent)`,
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                  border: "none",
+                  ...buttonTexture(th, "accent"),
                   borderRadius: 10,
-                  color: th.accentT,
                   padding: "10px 18px",
                   cursor: "pointer",
                   fontWeight: 700,
@@ -18681,7 +18913,7 @@ import "./styles.css";
         </div>{/* end profile card */}
 
         {/* ── Awards card — separate from profile info ── */}
-        <AwardsDashboard sessions={sessions} user={user} settings={settings} onUpdateSettings={onUpdateSettings} />
+        <AwardsDashboard sessions={sessions} user={user} settings={settings} onUpdateSettings={onUpdateSettings} awardPopupRequest={awardPopupRequest} onConsumeAwardPopup={onConsumeAwardPopup} />
 
         {/* Body measurements card */}
         <div
@@ -18714,12 +18946,8 @@ import "./styles.css";
                     setEditingMeasureIdx(null);
                   }}
                   style={{
-                    background: "rgba(220, 50, 50, 0.15)",
-                    backdropFilter: "blur(10px)",
-                    WebkitBackdropFilter: "blur(10px)",
-                    border: "1px solid rgba(220, 50, 50, 0.3)",
+                    ...buttonTexture(th, "danger"),
                     borderRadius: 9,
-                    color: th.delText,
                     padding: "7px 12px",
                     cursor: "pointer",
                     fontSize: 12,
@@ -18727,7 +18955,7 @@ import "./styles.css";
                     fontWeight: 700,
                   }}
                 >
-                  Delete
+                  {t("Delete")}
                 </button>
               )}
               <button
@@ -18738,12 +18966,8 @@ import "./styles.css";
                   } else openMeasureForm(null);
                 }}
                 style={{
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                  background: showMeasure ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
-                  border: `1px solid ${showMeasure ? th.accentBg : th.inputB}`,
+                  ...buttonTexture(th, showMeasure ? "accent" : "neutral"),
                   borderRadius: 9,
-                  color: showMeasure ? th.accentT : th.muted,
                   padding: "7px 14px",
                   cursor: "pointer",
                   fontSize: 12,
@@ -18751,7 +18975,7 @@ import "./styles.css";
                   fontWeight: 700,
                 }}
               >
-                {showMeasure ? "Cancel" : "Edit"}
+                {showMeasure ? t("Cancel") : t("Edit")}
               </button>
             </div>
           </div>
@@ -19098,6 +19322,70 @@ import "./styles.css";
                   {theme === "dark" ? t("dark until 06:00") : t("light until 19:00")}
                 </div>
               )}
+
+              {/* Themes — accent colour picker */}
+              <div
+                style={{
+                  borderTop: `1px solid ${th.border}`,
+                  marginTop: 16,
+                  paddingTop: 16,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: th.text,
+                    textAlign: "left",
+                    marginBottom: 2,
+                  }}
+                >
+                  {t("Themes")}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: th.muted,
+                    marginTop: 2,
+                    marginBottom: 14,
+                    textAlign: "left",
+                  }}
+                >
+                  {t("Accent color")}
+                </div>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  {ACCENT_ORDER.map((key) => {
+                    const def = ACCENTS[key];
+                    const swatch = def[theme === "dark" ? "dark" : "light"].bg;
+                    const isActive = (accent || "default") === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => onAccentChange && onAccentChange(key)}
+                        aria-label={t(def.label)}
+                        title={t(def.label)}
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          background: swatch,
+                          border: isActive
+                            ? `3px solid ${th.text}`
+                            : `2px solid ${th.inputB}`,
+                          boxShadow: isActive
+                            ? `0 0 0 2px ${th.card}, 0 4px 12px color-mix(in srgb, ${swatch} 55%, transparent)`
+                            : "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          flexShrink: 0,
+                          transition: "border .15s, box-shadow .15s, transform .15s",
+                          transform: isActive ? "scale(1.06)" : "scale(1)",
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Language card — mirrors Appearance card */}
@@ -19162,12 +19450,8 @@ import "./styles.css";
                 if (isAdmin && !showFeedback) handleLoadFeedbacks();
               }}
               style={{
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-                background: showFeedback ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
-                border: `1px solid ${showFeedback ? th.accentBg : th.inputB}`,
+                ...buttonTexture(th, showFeedback ? "accent" : "neutral"),
                 borderRadius: 9,
-                color: showFeedback ? th.accentT : th.muted,
                 padding: "7px 14px",
                 cursor: "pointer",
                 fontSize: 12,
@@ -19369,12 +19653,8 @@ import "./styles.css";
                 setChangelogSent(false);
               }}
               style={{
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-                background: showChangelog ? `color-mix(in srgb, ${th.accentBg} 85%, transparent)` : "transparent",
-                border: `1px solid ${showChangelog ? th.accentBg : th.inputB}`,
+                ...buttonTexture(th, showChangelog ? "accent" : "neutral"),
                 borderRadius: 9,
-                color: showChangelog ? th.accentT : th.muted,
                 padding: "7px 14px",
                 cursor: "pointer",
                 fontSize: 12,
@@ -19540,15 +19820,13 @@ import "./styles.css";
                                   }
                                 }}
                                 style={{
-                                  background: "none",
-                                  border: "1px solid #CC1F42",
+                                  ...buttonTexture(th, "danger"),
                                   borderRadius: 7,
-                                  color: "#CC1F42",
                                   fontSize: 11,
                                   padding: "3px 10px",
                                   cursor: "pointer",
                                   fontFamily: "'Outfit',sans-serif",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                 }}
                               >
                                 {t("Delete")}
@@ -19683,7 +19961,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.9.1 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.9.2 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             {t("DEVELOPED BY AZAD")}
@@ -19909,8 +20187,9 @@ import "./styles.css";
   export default function App() {
     const [theme, setTheme] = useState(getAutoTheme);
     const [themeAuto, setThemeAuto] = useState(true);
+    const [accent, setAccent] = useState("default");
     const [lang, setLang] = useState("en");
-    const th = theme === "dark" ? DARK : LIGHT;
+    const th = applyAccent(theme === "dark" ? DARK : LIGHT, theme === "dark" ? "dark" : "light", accent);
 
     // Re-evaluate auto theme every minute if in auto mode
     useEffect(() => {
@@ -19932,10 +20211,15 @@ import "./styles.css";
 
     // Edge-to-edge: extend content under iOS status bar
     useEffect(() => {
-      // 1. viewport-fit=cover — lets the layout fill the full screen incl. safe areas
+      // 1. viewport-fit=cover — lets the layout fill the full screen incl. safe areas.
+      //    maximum-scale=1 + user-scalable=no stops iOS Safari from auto-zooming
+      //    when a small-font input is focused and the keyboard opens.
       const vp = document.querySelector("meta[name=viewport]");
-      if (vp && !vp.getAttribute("content").includes("viewport-fit")) {
-        vp.setAttribute("content", vp.getAttribute("content") + ", viewport-fit=cover");
+      if (vp) {
+        vp.setAttribute(
+          "content",
+          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+        );
       }
 
       // 2. Transparent status bar — CRITICAL for removing the black bar in PWA mode
@@ -19981,15 +20265,22 @@ import "./styles.css";
           // Priority: 1) local cache (written at signup before this fires)
           // 2) Firebase displayName  3) pending-signup stash (email-matched)  4) email prefix
           let resolvedName = local.name || fbUser.displayName || "";
-          if (!resolvedName) {
+          let resolvedGender = local.gender || null;
+          if (!resolvedName || !resolvedGender) {
             const pending = ls("ib3-pending-signup", null);
-            if (pending && pending.email === (fbUser.email || "").toLowerCase() && pending.name) {
-              resolvedName = pending.name;
-              // Persist the name to the proper profile cache now that the uid is known
-              saveLocalProfile(fbUser.uid, { name: pending.name, email: fbUser.email || "" });
+            if (pending && pending.email === (fbUser.email || "").toLowerCase()) {
+              if (!resolvedName && pending.name) resolvedName = pending.name;
+              if (!resolvedGender && pending.gender) resolvedGender = pending.gender;
+              // Persist name + gender to the proper profile cache now that the uid is known
+              saveLocalProfile(fbUser.uid, {
+                ...local,
+                name: resolvedName || local.name || "",
+                email: fbUser.email || "",
+                gender: resolvedGender || local.gender || null,
+              });
               lsDel("ib3-pending-signup");
               // And push displayName to Firebase so subsequent sessions don't need this fallback
-              fbUpdateProfile(fbUser, { displayName: pending.name }).catch(() => {});
+              if (resolvedName) fbUpdateProfile(fbUser, { displayName: resolvedName }).catch(() => {});
             }
           }
           const resolvedPhoto = local.photoURL || null;
@@ -19998,6 +20289,12 @@ import "./styles.css";
             name: resolvedName || (isGuest ? "Guest" : ""),
             email: fbUser.email || local.email || "",
             photoURL: resolvedPhoto,
+            // Read age + gender from the local profile cache (or pending-signup
+            // stash) so they're available immediately on load. Gender drives the
+            // muscle-atlas model. Firestore settings sync below can still fill
+            // these in if the cache lacks them.
+            age: local.age || null,
+            gender: resolvedGender || null,
             isGuest,
           });
           // If name is blank after all fallbacks — keep polling until displayName propagates
@@ -20070,6 +20367,10 @@ import "./styles.css";
     // Deep-link payload for opening a specific feed post from a notification tap.
     // Shape: { postId, ownerUid, contextName, mode }. SharingView consumes this on mount and clears it.
     const [deepLinkPost, setDeepLinkPost]             = useState(null);
+    // Request to re-open the "Achievement unlocked" popup from a notification tap.
+    // Shape: { id, label, icon }. AwardsDashboard (inside the Profile sheet) consumes
+    // it on mount and clears it via onConsumeAwardPopup.
+    const [awardPopupRequest, setAwardPopupRequest]   = useState(null);
 
     useEffect(() => {
       if (!user?.id || user?.isGuest) {
@@ -20140,14 +20441,20 @@ import "./styles.css";
 
       // ── Step 1: Show local cache immediately (instant UI) ──────────────────────
       const localProgs = ls(uKey(user.id, "programs"), null);
+      // Freshly signed-up accounts intentionally start with no programs. Only fall
+      // back to DEFAULT_PROGRAMS when there's no cache at all (null) AND this isn't
+      // a fresh signup — an empty array is a valid, respected state.
+      const isFreshSignup = ls("ib3-fresh-signup-" + user.id, false);
       setPrograms(
-        localProgs && localProgs.length > 0 ? localProgs : DEFAULT_PROGRAMS
+        Array.isArray(localProgs) ? localProgs : (isFreshSignup ? [] : DEFAULT_PROGRAMS)
       );
       setSessions(ls(uKey(user.id, "sessions"), []));
       setSettings(ls(uKey(user.id, "settings"), DEFAULT_SETTINGS));
       setMeasurements(getMeasurements(user.id));
       const savedLang = ls(uKey(user.id, "lang"), "en");
       if (LANGS.includes(savedLang)) setLang(savedLang);
+      const savedAccent = ls(uKey(user.id, "accent"), "default");
+      if (ACCENT_ORDER.includes(savedAccent)) setAccent(savedAccent);
 
       // ── Step 2: Sync Firestore in background (no spinner) ──────────────────────
       const loadFromFirestore = async () => {
@@ -20157,8 +20464,14 @@ import "./styles.css";
           if (fsProgs && fsProgs.length > 0) {
             setPrograms(fsProgs);
             lsSet(uKey(user.id, "programs"), fsProgs);
+            // Established account synced — clear any stale fresh-signup flag.
+            lsDel("ib3-fresh-signup-" + user.id);
+          } else if (isFreshSignup) {
+            // Brand-new signup with nothing in Firestore — keep the Workouts tab
+            // empty (do NOT seed defaults) and push the empty list up.
+            await fsSavePrograms(user.id, []);
           } else if (!localProgs || localProgs.length === 0) {
-            // Truly new account — seed defaults to Firestore
+            // Older account with no programs anywhere — seed defaults to Firestore
             await fsSavePrograms(user.id, DEFAULT_PROGRAMS);
           } else {
             // Local has data but Firestore doesn't — push local up
@@ -20306,6 +20619,8 @@ import "./styles.css";
         const p = typeof pOrFn === "function" ? pOrFn(prev) : pOrFn;
         lsSet(uKey(user.id, "programs"), p);
         fsSavePrograms(user.id, p);
+        // Once the user has created a program, they're no longer "fresh".
+        if (p && p.length > 0) lsDel("ib3-fresh-signup-" + user.id);
         return p;
       });
     };
@@ -20971,11 +21286,14 @@ import "./styles.css";
               <circle cx="9.5" cy="9" r="3.2" stroke={c} strokeWidth="1.6" />
               <path d="M2.5 20c.6-3.4 3.6-6 7-6s6.4 2.6 7 6" stroke={c} strokeWidth="1.6" strokeLinecap="round" />
             </svg>
-            {(pendingInvitations.length > 0 || unreadStars > 0 || unreadDirectFriendCount > 0 || competitions.filter(c => c.toUid === user.id && c.status === "pending").length > 0) && (
+            {/* Sharing dot flags only ACTIONABLE items: incoming friend requests,
+                incoming compete requests, and unread DMs. Stars/comments are
+                informational and surface on the notification bell instead. */}
+            {(pendingInvitations.length > 0 || unreadDirectFriendCount > 0 || competitions.filter(c => c.toUid === user.id && c.status === "pending").length > 0) && (
               <div style={{
                 position: "absolute", top: -3, right: -3,
                 width: 11, height: 11, borderRadius: "50%",
-                background: (unreadStars > 0 || unreadDirectFriendCount > 0) ? th.accentFg : "#CC1F42",
+                background: unreadDirectFriendCount > 0 ? th.accentFg : "#CC1F42",
                 border: `1.5px solid ${th.nav}`,
                 animation: "pulse 1.5s ease-in-out infinite",
               }} />
@@ -21010,6 +21328,7 @@ import "./styles.css";
     return (
       <ThemeCtx.Provider value={th}>
        <LangCtx.Provider value={lang}>
+        <GenderCtx.Provider value={(user?.gender || "").toLowerCase() || null}>
         {/* Background layers — fixed, never affect layout */}
         <div
           style={{
@@ -22366,8 +22685,18 @@ import "./styles.css";
                     n.type === "coach_accepted"
                   ) {
                     linkPayload = { mode:"pending" };
+                  } else if (n.type === "award_earned" && n.awardId) {
+                    // Re-open the achievement popup. Handled separately below since it
+                    // opens the Profile sheet (where AwardsDashboard lives) rather than Sharing.
+                    linkPayload = { mode:"award", awardId:n.awardId, awardLabel:n.awardLabel, awardIcon:n.awardIcon };
                   }
                   const handleClick = linkPayload ? () => {
+                    if (linkPayload.mode === "award") {
+                      setAwardPopupRequest({ id: linkPayload.awardId, label: linkPayload.awardLabel, icon: linkPayload.awardIcon });
+                      setProfileOpen(true);
+                      closeNotif();
+                      return;
+                    }
                     setDeepLinkPost(linkPayload);
                     setView("sharing");
                     closeNotif();
@@ -22490,8 +22819,16 @@ import "./styles.css";
                   onSaveMeasurement={saveMeasurements}
                   settings={settings}
                   onUpdateSettings={saveSettings}
+                  awardPopupRequest={awardPopupRequest}
+                  onConsumeAwardPopup={() => setAwardPopupRequest(null)}
                   theme={theme}
                   themeAuto={themeAuto}
+                  accent={accent}
+                  onAccentChange={(a) => {
+                    if (!ACCENT_ORDER.includes(a)) return;
+                    setAccent(a);
+                    if (user?.id) lsSet(uKey(user.id, "accent"), a);
+                  }}
                   lang={lang}
                   onLangChange={(l) => {
                     if (!LANGS.includes(l)) return;
@@ -22622,6 +22959,7 @@ import "./styles.css";
         </>
       )}
 
+        </GenderCtx.Provider>
        </LangCtx.Provider>
       </ThemeCtx.Provider>
     );
