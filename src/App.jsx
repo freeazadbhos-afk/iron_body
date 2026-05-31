@@ -21072,7 +21072,7 @@ import "./styles.css";
                 fontSize:11,
                 letterSpacing:"1.5px",
                 fontFamily:"'Outfit',sans-serif",
-                animation:"wordFadeUp 0.45s cubic-bezier(0.22,1,0.36,1) 1.6s both",
+                animation:"ironBodyReveal 0.9s cubic-bezier(0.22,1,0.36,1) 0.1s both",
               }}>
                 DEVELOPED BY AZAD
               </div>
