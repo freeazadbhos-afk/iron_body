@@ -133,7 +133,7 @@ import "./styles.css";
     tangerine: { label: "Tangerine", light: { bg: "#E2622A", t: "#ffffff", fg: "#E2622A" }, dark: { bg: "#FF9A3D", t: "#080809", fg: "#FF9A3D" } },
     lavender:  { label: "Lavender",  light: { bg: "#7C4DD1", t: "#ffffff", fg: "#7C4DD1" }, dark: { bg: "#C4A9F5", t: "#080809", fg: "#C4A9F5" } },
     blueberry: { label: "Blueberry", light: { bg: "#2563EB", t: "#ffffff", fg: "#2563EB" }, dark: { bg: "#6FA8FF", t: "#080809", fg: "#6FA8FF" } },
-    lime:      { label: "Lime",      light: { bg: "#5C8A0E", t: "#ffffff", fg: "#5C8A0E" }, dark: { bg: "#C6E84A", t: "#080809", fg: "#C6E84A" } },
+    lime:      { label: "Lime",      light: { bg: "#5C8A0E", t: "#ffffff", fg: "#5C8A0E" }, dark: { bg: "#F5D84A", t: "#080809", fg: "#F5D84A" } },
   };
   const ACCENT_ORDER = ["default", "raspberry", "tangerine", "lavender", "blueberry", "lime"];
   // Apply a named accent to a base theme, returning a new theme object.
