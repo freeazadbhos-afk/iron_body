@@ -5199,14 +5199,12 @@ import "./styles.css";
     try {
       const snap = await getDoc(ref);
       const reactions = snap.exists() ? (snap.data().reactions || {}) : {};
-      const nextReactions = { ...reactions };
+      const field = `reactions.${uid}`;
       if (reactions?.[uid] === "star") {
-        delete nextReactions[uid];
-        await updateDoc(ref, { reactions: nextReactions });
+        await updateDoc(ref, { [field]: deleteField() });
         return { ok:true, starred:false };
       }
-      nextReactions[uid] = "star";
-      await updateDoc(ref, { reactions: nextReactions });
+      await updateDoc(ref, { [field]: "star" });
       return { ok:true, starred:true };
     } catch (e) {
       console.warn("fsToggleCommentStar:", e.code, e.message);
@@ -12257,8 +12255,22 @@ import "./styles.css";
       setText("");
     };
     const toggleCommentStar = async (comment) => {
+      if (!comment?.id || !user?.id) return;
+      const previousReactions = comment.reactions || {};
+      const nextReactions = { ...previousReactions };
+      const nextStarred = nextReactions[user.id] !== "star";
+      if (nextStarred) nextReactions[user.id] = "star";
+      else delete nextReactions[user.id];
+      setComments(prev => prev.map(c =>
+        c.id === comment.id ? { ...c, reactions: nextReactions } : c
+      ));
       closeCommentMenu();
-      await fsToggleCommentStar(postId, user.id, comment.id);
+      const result = await fsToggleCommentStar(postId, user.id, comment.id);
+      if (!result?.ok && mountedRef.current) {
+        setComments(prev => prev.map(c =>
+          c.id === comment.id ? { ...c, reactions: previousReactions } : c
+        ));
+      }
     };
     const deleteComment = async (comment) => {
       if (!comment || comment.authorUid !== user.id) return;
