@@ -12260,11 +12260,24 @@ import "./styles.css";
       const clean = text.trim();
       if (!clean || sending) return;
       setSending(true);
-      setText("");
       if (editingComment) {
-        await fsEditComment(postId, editingComment.id, clean);
-        setEditingComment(null);
+        const editedAt = Date.now();
+        const originalComment = editingComment;
+        setComments(prev => prev.map(c =>
+          c.id === editingComment.id ? { ...c, text: clean, editedAt } : c
+        ));
+        const result = await fsEditComment(postId, editingComment.id, clean);
+        if (result?.ok) {
+          setEditingComment(null);
+          setText("");
+        } else if (mountedRef.current) {
+          setComments(prev => prev.map(c =>
+            c.id === originalComment.id ? { ...c, text: originalComment.text, editedAt: originalComment.editedAt } : c
+          ));
+          setText(clean);
+        }
       } else {
+        setText("");
         await fsPostComment(postId, user.id, user.name, user.photoURL, clean, ownerUid, contextName);
       }
       // Sheet may have been closed during the await — don't setState on unmount.
@@ -12554,11 +12567,19 @@ import "./styles.css";
                     borderRadius:"50%",
                     width:32,
                     height:32,
+                    minWidth:32,
+                    maxWidth:32,
+                    aspectRatio:"1 / 1",
                     color:th.muted,
                     cursor:"pointer",
                     flexShrink:0,
+                    display:"flex",
+                    alignItems:"center",
+                    justifyContent:"center",
                     fontSize:17,
                     lineHeight:1,
+                    padding:0,
+                    boxSizing:"border-box",
                   }}
                   title={tr("Cancel")}
                   aria-label={tr("Cancel")}
@@ -21043,6 +21064,17 @@ import "./styles.css";
                     animation: `wordFadeUp 0.45s cubic-bezier(0.22,1,0.36,1) ${0.65 + i * 0.18}s both`,
                   }}>{word}{i < 4 ? "\u00A0" : ""}</span>
                 ))}
+              </div>
+              <div style={{
+                marginTop:48,
+                textAlign:"center",
+                color:"#c8f030",
+                fontSize:11,
+                letterSpacing:"1.5px",
+                fontFamily:"'Outfit',sans-serif",
+                animation:"wordFadeUp 0.45s cubic-bezier(0.22,1,0.36,1) 1.6s both",
+              }}>
+                DEVELOPED BY AZAD
               </div>
             </div>
           </div>
