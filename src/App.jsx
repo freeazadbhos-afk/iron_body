@@ -16751,6 +16751,7 @@ import "./styles.css";
         ? String(cardioTotals.dur)
         : String(Math.round(elapsed / 60))
     );
+    const celebrationMsgRef = useRef("");
     return (
       <div className="slide-up" style={{ paddingBottom: 32 }}>
         {/* ── Celebration banner ── */}
@@ -16856,7 +16857,11 @@ import "./styles.css";
           };
 
           const tier_ = tiers[tier];
-          const msg = t(tier_.msgs[Math.floor((finished.doneSets + elapsed + intensity) % tier_.msgs.length)]);
+          if (!celebrationMsgRef.current) {
+            const seed = Math.abs(Math.round((finished.startTime || 0) + (finished.doneSets || 0) + (elapsed || 0)));
+            celebrationMsgRef.current = t(tier_.msgs[seed % tier_.msgs.length]);
+          }
+          const msg = celebrationMsgRef.current;
 
           return (
             <div style={{
@@ -16985,7 +16990,7 @@ import "./styles.css";
           )}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-              const col = n <= 3 ? "#CC1F42" : n <= 6 ? "#E8612C" : th.accentFg;
+              const col = intColor(n, th);
               return (
                 <button
                   key={n}
@@ -21010,8 +21015,6 @@ import "./styles.css";
       return clearWorkoutInterval;
     }, [activeWorkoutId, clearWorkoutInterval, paused, syncElapsedFromClock]);
 
-    const stopTimer = clearWorkoutInterval;
-
     if (authLoading || !splashDone)
       return (
         <ThemeCtx.Provider value={th}>
@@ -21196,11 +21199,26 @@ import "./styles.css";
         (a, ex) => a + ex.sets.filter((s) => s.done).length,
         0
       );
+      const finalElapsed = readElapsedSeconds();
+      clearWorkoutInterval();
+      elapsedBeforeRunRef.current = finalElapsed;
+      runStartedAtRef.current = null;
+      pausedRef.current = true;
+      elRef.current = finalElapsed;
+      setElapsed(finalElapsed);
+      setPaused(true);
+      if (active && userId) {
+        const frozenActive = {
+          ...active,
+          timer: { paused: true, elapsedSeconds: finalElapsed, runStartedAt: null },
+        };
+        setActive(frozenActive);
+        lsSet(uKey(userId, "active"), frozenActive);
+      }
       const activeSession = { ...(active || {}) };
       delete activeSession.timer;
       delete activeSession.uiCollapsedExUids;
       setFinished({ ...activeSession, exercises: safeExercises, totalSets: total, doneSets: done });
-      stopTimer();
       setView("complete");
     };
     const handleDeleteSession = async (sessionId) => {
