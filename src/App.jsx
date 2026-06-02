@@ -1,6 +1,8 @@
 import "./styles.css";
   import bodyMuscleAtlasUrl from "./assets/Body Muscle Atlas.svg";
   import bodyMuscleAtlasFemaleUrl from "./assets/Body Muscle Atlas Female Front Back.svg";
+  import stravaLogoIconUrl from "./assets/Strava Logo Icon.svg";
+  import stravaLogoWordmarkUrl from "./assets/Strava Logo.png";
   import { createPortal } from "react-dom";
   import {
     useState,
@@ -47,6 +49,10 @@ import "./styles.css";
     increment,
     arrayUnion,
   } from "firebase/firestore";
+  import {
+    getFunctions,
+    httpsCallable,
+  } from "firebase/functions";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAYl7kGDqnHVdDU0bxtaFdqto_7KdeN_SE",
@@ -60,6 +66,9 @@ import "./styles.css";
   const fbApp = initializeApp(firebaseConfig);
   const fbAuth = getAuth(fbApp);
   const fbDb = getFirestore(fbApp);
+  const fbFunctions = getFunctions(fbApp);
+  const STRAVA_CLIENT_ID = "254370";
+  const STRAVA_SCOPE = "activity:write";
 
   /* ─── Auto-Theme ─────────────────────────────────────────────────────────────── */
   function getAutoTheme() {
@@ -208,6 +217,7 @@ import "./styles.css";
     "Name": "İsim",
     "Full name": "Tam isim",
     "Age": "Yaş",
+    "Birth date": "Doğum tarihi",
     "Gender": "Cinsiyet",
     "Male": "Erkek",
     "Female": "Kadın",
@@ -381,6 +391,25 @@ import "./styles.css";
     "SESSION": "ANTRENMAN",
     "COMPLETE": "TAMAMLANDI",
     "SAVE SESSION →": "ANTRENMANI KAYDET →",
+    "STRAVA": "STRAVA",
+    "Connect": "Bağla",
+    "Disconnect": "Bağlantıyı kes",
+    "Connected": "Bağlı",
+    "Connect Strava": "Strava'yı bağla",
+    "Disconnect Strava": "Strava bağlantısını kes",
+    "Connected to Strava": "Strava'ya bağlı",
+    "Not connected": "Bağlı değil",
+    "Post to Strava": "Strava'da paylaş",
+    "Connect in Profile first": "Önce profilden bağla",
+    "Turn this on to post after saving.": "Kaydettikten sonra paylaşmak için bunu aç.",
+    "This session will be posted after saving.": "Bu antrenman kaydedildikten sonra paylaşılacak.",
+    "Connect Strava to post this session.": "Bu antrenmanı paylaşmak için Strava'yı bağla.",
+    "Strava connected.": "Strava bağlandı.",
+    "Strava disconnected.": "Strava bağlantısı kesildi.",
+    "Strava sync requested.": "Strava senkronizasyonu istendi.",
+    "Could not connect Strava.": "Strava bağlanamadı.",
+    "Could not post to Strava.": "Strava'ya gönderilemedi.",
+    "Open Strava": "Strava'yı aç",
     "SETS DONE": "SET YAPILDI",
     "EXERCISES": "EGZERSİZ",
     "DURATION": "SÜRE",
@@ -490,6 +519,7 @@ import "./styles.css";
     "DISPLAY NAME": "GÖRÜNEN AD",
     "EMAIL": "E-POSTA",
     "AGE": "YAŞ",
+    "BIRTH DATE": "DOĞUM TARİHİ",
     "GENDER": "CİNSİYET",
     "PROFILE PHOTO": "PROFİL FOTOĞRAFI",
     "(optional)": "(isteğe bağlı)",
@@ -510,6 +540,8 @@ import "./styles.css";
     "Body Measurements": "Vücut Ölçüleri",
     "Last Record:": "Son Kayıt:",
     "years": "yaş",
+    "Birth date required.": "Doğum tarihi zorunlu.",
+    "Enter a valid birth date.": "Geçerli bir doğum tarihi gir.",
     "e.g. 28": "ör. 28",
     "All fields required.": "Tüm alanlar zorunlu.",
     "Password must be 6+ characters.": "Parola en az 6 karakter olmalı.",
@@ -2072,92 +2104,92 @@ import "./styles.css";
     {
       id: "c1",
       name: "Running (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c2",
       name: "Running (Treadmill)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c3",
       name: "Walking (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c4",
       name: "Walking (Treadmill)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c5",
       name: "Cycling (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c6",
       name: "Cycling (Stationary)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c7",
       name: "Elliptical",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c8",
       name: "Swimming (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Lats",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c9",
       name: "Swimming (Pool)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Lats",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c10",
       name: "Rowing Machine",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Mid Back",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c11",
       name: "Stair Climber",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Glutes",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c12",
       name: "Jump Rope",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Calves",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c13",
       name: "HIIT",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
 
@@ -2401,6 +2433,20 @@ import "./styles.css";
     core1:"Hip Flexors", core2:"Hip Flexors", core3:"Abs · Hip Flexors",
     core4:"Lower Back", core5:"Hip Flexors", core6:"Shoulders · Lats",
     core7:"Forearms · Traps",
+    // Cardio — keep cardio entries anatomy-aware without changing their cardio logging flow
+    c1:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c2:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c3:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c4:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c5:"Glutes · Hamstrings · Calves",
+    c6:"Glutes · Hamstrings · Calves",
+    c7:"Glutes · Hamstrings · Calves",
+    c8:"Shoulders · Chest · Triceps · Core",
+    c9:"Shoulders · Chest · Triceps · Core",
+    c10:"Lats · Quads · Glutes · Hamstrings · Biceps · Core",
+    c11:"Quads · Hamstrings · Calves",
+    c12:"Quads · Hamstrings · Shoulders · Forearms · Core",
+    c13:"Glutes · Hamstrings · Calves · Chest · Shoulders · Core",
   };
 
   // ── Difficulty badge helper ──────────────────────────────────────────────────
@@ -4104,7 +4150,7 @@ import "./styles.css";
     { label: "Abs",         fn: (e) => e.muscle === "Abs" },
     { label: "Obliques",    fn: (e) => e.muscle === "Obliques" },
     { label: "Core",        fn: (e) => e.group === "Core" || e.muscle === "Abs" || e.muscle === "Obliques" },
-    { label: "Cardio",      fn: (e) => e.group === "Cardio" },
+    { label: "Cardio",      fn: (e) => e.type === "cardio" || e.group === "Cardio" },
   ];
 
   /* ─── All muscles for "Muscles Trained" display ───────────────────────────────── */
@@ -4536,6 +4582,38 @@ import "./styles.css";
     if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date();
     const [y, m, d] = value.split("-").map(Number);
     return new Date(y, m - 1, d, 12, 0, 0, 0);
+  }
+  function normalizeBirthDateInput(value) {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+    const [y, m, d] = value.split("-").map(Number);
+    const parsed = new Date(y, m - 1, d, 12, 0, 0, 0);
+    const today = new Date();
+    const todayNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0, 0);
+    if (
+      y < 1900 ||
+      parsed.getFullYear() !== y ||
+      parsed.getMonth() !== m - 1 ||
+      parsed.getDate() !== d ||
+      parsed > todayNoon
+    ) {
+      return "";
+    }
+    return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  function calculateAgeFromBirthDate(value, now = new Date()) {
+    const normalized = normalizeBirthDateInput(value);
+    if (!normalized) return null;
+    const [y, m, d] = normalized.split("-").map(Number);
+    let age = now.getFullYear() - y;
+    const monthDiff = now.getMonth() - (m - 1);
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d)) age -= 1;
+    return age >= 0 ? age : null;
+  }
+  function profileAge(profile) {
+    const computed = calculateAgeFromBirthDate(profile?.birthDate);
+    if (computed != null) return computed;
+    const legacyAge = Number(profile?.age);
+    return Number.isFinite(legacyAge) && legacyAge > 0 ? legacyAge : null;
   }
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -5639,6 +5717,109 @@ import "./styles.css";
     }
   }
 
+  function stravaRedirectUri() {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}${window.location.pathname}`;
+  }
+  function stravaStateKey(uid) {
+    return uKey(uid, "stravaOAuthState");
+  }
+  function stravaConnectionKey(uid) {
+    return uKey(uid, "stravaConnection");
+  }
+  function stravaRandomState() {
+    const arr = new Uint32Array(2);
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      crypto.getRandomValues(arr);
+      return `${arr[0].toString(36)}${arr[1].toString(36)}`;
+    }
+    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  }
+  function stravaAuthorizeUrl(uid) {
+    const state = `${uid}.${stravaRandomState()}`;
+    lsSet(stravaStateKey(uid), state);
+    const params = new URLSearchParams({
+      client_id: STRAVA_CLIENT_ID,
+      redirect_uri: stravaRedirectUri(),
+      response_type: "code",
+      approval_prompt: "auto",
+      scope: STRAVA_SCOPE,
+      state,
+    });
+    return `https://www.strava.com/oauth/authorize?${params.toString()}`;
+  }
+  async function callStravaFunction(name, payload = {}) {
+    const callable = httpsCallable(fbFunctions, name);
+    const result = await callable(payload);
+    return result?.data || {};
+  }
+  async function fsStravaExchangeCode(code) {
+    return callStravaFunction("stravaExchangeCode", {
+      code,
+      redirectUri: stravaRedirectUri(),
+    });
+  }
+  async function fsStravaGetConnection() {
+    return callStravaFunction("stravaGetConnection");
+  }
+  async function fsStravaDisconnect() {
+    return callStravaFunction("stravaDisconnect");
+  }
+  async function fsStravaSyncSession(session) {
+    return callStravaFunction("stravaSyncSession", { session });
+  }
+  function stravaSportTypeForSession(session) {
+    const name = String(session?.name || "").toLowerCase();
+    const exercises = Array.isArray(session?.exercises) ? session.exercises : [];
+    const cardioNames = exercises
+      .filter((e) => e?.type === "cardio")
+      .map((e) => String(e?.name || e?.muscle || "").toLowerCase())
+      .join(" ");
+    const haystack = `${name} ${cardioNames}`;
+    if (/walk|walking/.test(haystack)) return "Walk";
+    if (/run|running|jog/.test(haystack)) return "Run";
+    if (/bike|bicycle|cycling|cycle/.test(haystack)) return "Ride";
+    if (/row|rowing/.test(haystack)) return "Rowing";
+    if (/elliptical/.test(haystack)) return "Elliptical";
+    if (/stair/.test(haystack)) return "StairStepper";
+    if (exercises.length && exercises.every((e) => e?.type === "cardio")) return "Workout";
+    return "WeightTraining";
+  }
+  function buildStravaSessionPayload(session) {
+    const exercises = (session?.exercises || []).map((ex) => ({
+      id: ex.exId || ex.id || null,
+      name: ex.name || "Exercise",
+      type: ex.type || "strength",
+      muscle: ex.muscle || null,
+      group: ex.group || null,
+      sets: (ex.sets || [])
+        .filter((s) => s.done)
+        .map((s) => ({
+          reps: s.reps || 0,
+          weight: s.weight || 0,
+          duration: s.duration || 0,
+          distance: s.distance || 0,
+          calories: s.calories || 0,
+          intensity: s.intensity || null,
+        })),
+    }));
+    return {
+      id: session?.id,
+      name: session?.name || "Iron Body Workout",
+      sportType: stravaSportTypeForSession(session),
+      startTime: session?.startTime || Date.now(),
+      endTime: session?.endTime || Date.now(),
+      duration: Math.max(1, Math.round(Number(session?.duration || 0))),
+      elapsedSeconds: Math.max(60, Math.round(Number(session?.duration || 0) * 60)),
+      calories: session?.calories || null,
+      intensity: session?.intensity || null,
+      doneSets: session?.doneSets || 0,
+      totalSets: session?.totalSets || 0,
+      volume: sessionVol(session),
+      exercises,
+    };
+  }
+
   async function fsRegisterPublicProfile(uid, name, photoURL, email) {
     return setDoc(doc(fbDb, "publicProfiles", uid), {
       uid, name: name || "", photoURL: photoURL || null, email: email || "",
@@ -5773,6 +5954,39 @@ import "./styles.css";
   }
 
   /* ─── Shared UI ─────────────────────────────────────────────────────────────── */
+  function StravaWordmark({ height = 18, style }) {
+    return (
+      <img
+        src={stravaLogoWordmarkUrl}
+        alt="Strava"
+        style={{
+          height,
+          width: "auto",
+          display: "block",
+          objectFit: "contain",
+          ...style,
+        }}
+      />
+    );
+  }
+
+  function StravaIcon({ size = 34, style }) {
+    return (
+      <img
+        src={stravaLogoIconUrl}
+        alt=""
+        aria-hidden="true"
+        style={{
+          width: size,
+          height: size,
+          display: "block",
+          objectFit: "contain",
+          ...style,
+        }}
+      />
+    );
+  }
+
   function buttonTexture(th, variant = "accent", disabled = false) {
     const palettes = {
       accent: {
@@ -5792,6 +6006,15 @@ import "./styles.css";
         glow: "rgba(91,156,246,0.38)",
         color: "#fff",
         disabledColor: "rgba(91,156,246,0.35)",
+      },
+      strava: {
+        bg: "linear-gradient(135deg, rgba(252,82,0,0.82) 0%, rgba(219,67,0,0.92) 100%)",
+        disabledBg: "rgba(252,82,0,0.10)",
+        border: "rgba(252,82,0,0.62)",
+        disabledBorder: "rgba(252,82,0,0.22)",
+        glow: "rgba(252,82,0,0.34)",
+        color: "#fff",
+        disabledColor: "rgba(255,255,255,0.45)",
       },
       accentSoft: {
         bg: `linear-gradient(135deg, color-mix(in srgb, ${th.accentBg} 14%, ${th.card}) 0%, color-mix(in srgb, ${th.accentBg} 24%, ${th.card}) 100%)`,
@@ -7314,6 +7537,7 @@ import "./styles.css";
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [pw, setPw] = useState("");
+    const [signupBirthDate, setSignupBirthDate] = useState("");
     const [signupGender, setSignupGender] = useState(""); // "Male" | "Female" | "Other"
     const [showPw, setShowPw] = useState(false);
     const [err, setErr] = useState("");
@@ -7373,8 +7597,13 @@ import "./styles.css";
     };
 
     const handleSignup = async () => {
-      if (!name.trim() || !email.trim() || !pw || !signupGender) {
+      const normalizedBirthDate = normalizeBirthDateInput(signupBirthDate);
+      if (!name.trim() || !email.trim() || !pw || !signupGender || !signupBirthDate) {
         setErr("All fields required.");
+        return;
+      }
+      if (!normalizedBirthDate) {
+        setErr("Enter a valid birth date.");
         return;
       }
       if (pw.length < 6) {
@@ -7386,10 +7615,11 @@ import "./styles.css";
       try {
         const trimmedName = name.trim();
         const lowerEmail = email.trim().toLowerCase();
-        // Stash a pending-signup name+gender keyed by email BEFORE Firebase creates
+        const calculatedAge = calculateAgeFromBirthDate(normalizedBirthDate);
+        // Stash pending signup profile data keyed by email BEFORE Firebase creates
         // the user. onAuthStateChanged may fire before fbUpdateProfile/saveLocalProfile
         // complete, so this is a guaranteed fallback for the first user object built.
-        lsSet("ib3-pending-signup", { email: lowerEmail, name: trimmedName, gender: signupGender });
+        lsSet("ib3-pending-signup", { email: lowerEmail, name: trimmedName, birthDate: normalizedBirthDate, age: calculatedAge, gender: signupGender });
         const cred = await createUserWithEmailAndPassword(
           fbAuth,
           email.trim(),
@@ -7402,6 +7632,8 @@ import "./styles.css";
         saveLocalProfile(cred.user.uid, {
           name: trimmedName,
           email: lowerEmail,
+          birthDate: normalizedBirthDate,
+          age: calculatedAge,
           gender: signupGender,
         });
         // Pending stash no longer needed once the proper profile cache is in place
@@ -7412,8 +7644,8 @@ import "./styles.css";
         lsSet(uKey(cred.user.uid, "programs"), []);
         lsSet("ib3-fresh-signup-" + cred.user.uid, true);
         lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false });
-        // Persist gender to Firestore settings so it survives across devices/installs.
-        fsSaveSettings(cred.user.uid, { name: trimmedName, gender: signupGender });
+        // Persist birth date + gender to Firestore settings so they survive across devices/installs.
+        fsSaveSettings(cred.user.uid, { name: trimmedName, birthDate: normalizedBirthDate, age: calculatedAge, gender: signupGender });
         // 4. Register public profile immediately so this user appears in others' suggestions
         fsRegisterPublicProfile(cred.user.uid, trimmedName, null, email.trim().toLowerCase());
         // 4. Reload Firebase user so displayName is fresh on next auth state change
@@ -7538,26 +7770,54 @@ import "./styles.css";
             ))}
           </div>
           {tab === "signup" && (
-            <input
-              type="text"
-              placeholder={t("First name")}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{
-                width: "100%",
-                background: "rgba(255,255,255,0.09)",
-                backdropFilter: "blur(10px)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: 12,
-                padding: "14px 16px",
-                color: "#f0f0f0",
-                fontSize: 16,
-                fontWeight: 500,
-                outline: "none",
-                fontFamily: "'Outfit',sans-serif",
-                marginBottom: 12,
-              }}
-            />
+            <>
+              <input
+                type="text"
+                placeholder={t("First name")}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.09)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  color: "#f0f0f0",
+                  fontSize: 16,
+                  fontWeight: 500,
+                  outline: "none",
+                  fontFamily: "'Outfit',sans-serif",
+                  marginBottom: 12,
+                }}
+              />
+              <div style={{ marginBottom:12 }}>
+                <div style={{ color:"rgba(255,255,255,0.62)", fontSize:11, fontWeight:800, letterSpacing:1.4, textTransform:"uppercase", margin:"0 0 6px 2px" }}>
+                  {t("Birth date")}
+                </div>
+                <input
+                  type="date"
+                  value={signupBirthDate}
+                  max={dateInputValue()}
+                  onChange={(e) => setSignupBirthDate(e.target.value)}
+                  aria-label={t("Birth date")}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.09)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    color: "#f0f0f0",
+                    colorScheme: "dark",
+                    fontSize: 16,
+                    fontWeight: 500,
+                    outline: "none",
+                    fontFamily: "'Outfit',sans-serif",
+                  }}
+                />
+              </div>
+            </>
           )}
           {/* Gender picker (signup only) — required so the muscle-atlas model can be
               chosen at signup. Three options as discrete chips, matching profile editor. */}
@@ -13345,6 +13605,26 @@ import "./styles.css";
     const [inviteError, setInviteError] = useState("");
     const [showInvitePanel, setShowInvitePanel] = useState(false);
     const [sharingTab, setSharingTab] = useState("feed"); // "feed" | "friends"
+    const sharingSwipeRef = useRef(null);
+    const handleSharingTouchStart = (e) => {
+      if (e.target?.closest?.("button,a,input,textarea,select,[data-no-share-swipe]")) {
+        sharingSwipeRef.current = null;
+        return;
+      }
+      const touch = e.touches?.[0];
+      sharingSwipeRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+    };
+    const handleSharingTouchEnd = (e) => {
+      const start = sharingSwipeRef.current;
+      sharingSwipeRef.current = null;
+      const end = e.changedTouches?.[0];
+      if (!start || !end) return;
+      const dx = end.clientX - start.x;
+      const dy = end.clientY - start.y;
+      if (Math.abs(dx) < 52 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      if (dx < 0 && sharingTab === "feed") setSharingTab("friends");
+      if (dx > 0 && sharingTab === "friends") setSharingTab("feed");
+    };
     const [boardScores, setBoardScores] = useState({}); // { uid: score }
     const [inviteClosing, setInviteClosing] = useState(false);
     const closeInvitePanel = () => {
@@ -13661,7 +13941,12 @@ import "./styles.css";
     };
 
     return (
-      <div className="slide-up" style={{ paddingBottom: 90 }}>
+      <div
+        className="slide-up"
+        onTouchStart={handleSharingTouchStart}
+        onTouchEnd={handleSharingTouchEnd}
+        style={{ paddingBottom: 90 }}
+      >
         <style>{`
           @keyframes sharingFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
           @keyframes invitePop   { from{opacity:0;transform:scale(0.96) translateY(-8px)} to{opacity:1;transform:scale(1) translateY(0)} }
@@ -16730,12 +17015,13 @@ import "./styles.css";
   /* ═══════════════════════════════════════════════════════════════════════════════
     COMPLETE VIEW
   ═══════════════════════════════════════════════════════════════════════════════ */
-  function CompleteView({ finished, elapsed, onSave }) {
+  function CompleteView({ finished, elapsed, onSave, stravaConnection }) {
     const th = useTheme();
     const S = useS();
     const t = useT();
     const vol = sessionVol(finished);
     const finishedExercises = finished.exercises || [];
+    const stravaConnected = Boolean(stravaConnection?.connected);
 
     // Pre-fill from cardio sets if session contains cardio exercises
     const cardioTotals = (() => {
@@ -16800,6 +17086,7 @@ import "./styles.css";
         ? String(cardioTotals.dur)
         : String(Math.round(elapsed / 60))
     );
+    const [postToStrava, setPostToStrava] = useState(false);
     const celebrationMsgRef = useRef("");
     return (
       <div className="slide-up" style={{ paddingBottom: 32 }}>
@@ -17101,12 +17388,82 @@ import "./styles.css";
             </div>
           </div>
         ) : null}
+        <div style={{ ...S.card, padding: 15, marginBottom: 20 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+            <div style={{ minWidth:0 }}>
+              <div
+                aria-label={t("Post to Strava")}
+                style={{ display:"flex", alignItems:"center", gap:7, marginBottom:6 }}
+              >
+                <span style={{ ...S.label, marginBottom:0 }}>POST TO</span>
+                <StravaWordmark height={13} />
+              </div>
+              <div style={{ fontSize:12, color:th.muted, lineHeight:1.35 }}>
+                {stravaConnected
+                  ? (postToStrava ? t("This session will be posted after saving.") : t("Turn this on to post after saving."))
+                  : t("Connect Strava to post this session.")}
+              </div>
+            </div>
+            {stravaConnected ? (
+              <button
+                type="button"
+                onClick={() => setPostToStrava(v => !v)}
+                aria-pressed={postToStrava}
+                style={{
+                  width:54,
+                  minWidth:54,
+                  height:30,
+                  borderRadius:999,
+                  border:`1.5px solid ${postToStrava ? "#FC5200" : th.border}`,
+                  background:postToStrava
+                    ? "linear-gradient(135deg, rgba(252,82,0,0.82), rgba(219,67,0,0.92))"
+                    : th.row,
+                  boxShadow:postToStrava ? "0 1px 10px rgba(252,82,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
+                  padding:3,
+                  display:"flex",
+                  alignItems:"center",
+                  justifyContent:postToStrava ? "flex-end" : "flex-start",
+                  cursor:"pointer",
+                  transition:"background .16s, border-color .16s, justify-content .16s, box-shadow .16s",
+                }}
+              >
+                <span style={{
+                  width:22,
+                  height:22,
+                  borderRadius:"50%",
+                  background:postToStrava ? "#fff" : th.inputB,
+                  display:"block",
+                  boxShadow:"0 1px 4px rgba(0,0,0,0.22)",
+                }} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  ...buttonTexture(th, "neutral", true),
+                  borderRadius:10,
+                  padding:"9px 11px",
+                  cursor:"not-allowed",
+                  fontFamily:"'Outfit',sans-serif",
+                  fontSize:11,
+                  fontWeight:800,
+                  letterSpacing:.4,
+                  whiteSpace:"nowrap",
+                }}
+              >
+                {t("Connect in Profile first")}
+              </button>
+            )}
+          </div>
+        </div>
         <Btn
           onClick={() =>
             onSave({
               intensity,
               calories: calories ? parseInt(calories) : null,
               duration: duration ? parseInt(duration) : Math.round(elapsed / 60),
+              postToStrava,
             })
           }
           style={{
@@ -18387,6 +18744,11 @@ import "./styles.css";
     onThemeAutoToggle,
     onClearUnread,
     onPhotoUpdate,
+    stravaConnection,
+    stravaBusy,
+    stravaStatus,
+    onConnectStrava,
+    onDisconnectStrava,
   }) {
     const th = useTheme();
     const S = useS();
@@ -18396,7 +18758,7 @@ import "./styles.css";
     const [eEmail, setEEmail] = useState(user.email);
     const [ePhoto, setEPhoto] = useState(user.photoURL || "");
     const profilePhotoInputRef = useRef(null);
-    const [eAge, setEAge] = useState(user.age || "");
+    const [eBirthDate, setEBirthDate] = useState(user.birthDate || "");
     const [eGender, setEGender] = useState(user.gender || "");
     const [ePw, setEPw] = useState("");
     const [eConfirm, setEConfirm] = useState("");
@@ -18438,6 +18800,7 @@ import "./styles.css";
     const [feedbackSending, setFeedbackSending] = useState(false);
     const [adminFeedbacks, setAdminFeedbacks] = useState([]);
     const isAdmin = user.email === "freeazadbhos@gmail.com";
+    const visibleAge = profileAge(user);
     const handleSendFeedback = async () => {
       if (!feedbackText.trim()) return;
       setFeedbackSending(true);
@@ -18596,6 +18959,15 @@ import "./styles.css";
         setEditErr("New password must be 6+ characters.");
         return;
       }
+      const normalizedBirthDate = normalizeBirthDateInput(eBirthDate);
+      if (!eBirthDate) {
+        setEditErr("Birth date required.");
+        return;
+      }
+      if (!normalizedBirthDate) {
+        setEditErr("Enter a valid birth date.");
+        return;
+      }
       const fbUser = fbAuth.currentUser;
       if (!fbUser) {
         setEditErr("Not authenticated.");
@@ -18626,18 +18998,23 @@ import "./styles.css";
         if (photoData && photoData.startsWith("data:")) {
           photoData = await resizeImage(photoData, 120);
         }
+        const calculatedAge = calculateAgeFromBirthDate(normalizedBirthDate);
+        const existingProfile = getLocalProfile(fbUser.uid) || {};
         saveLocalProfile(fbUser.uid, {
+          ...existingProfile,
           name: eName.trim(),
           email: eEmail.trim().toLowerCase(),
           photoURL: photoData,
-          age: eAge ? parseInt(eAge) : null,
+          birthDate: normalizedBirthDate,
+          age: calculatedAge,
           gender: eGender || null,
         });
-        // Push ALL profile fields to Firestore settings (name, photo, age, gender)
+        // Push ALL profile fields to Firestore settings (name, photo, birth date, age, gender)
         fsSaveSettings(fbUser.uid, {
           name: eName.trim(),
           photoURL: photoData || null,
-          age: eAge ? parseInt(eAge) : null,
+          birthDate: normalizedBirthDate,
+          age: calculatedAge,
           gender: eGender || null,
         });
         // Keep public profile in sync for user discovery
@@ -18649,7 +19026,8 @@ import "./styles.css";
           name: eName.trim(),
           email: eEmail.trim().toLowerCase(),
           photoURL: photoData,
-          age: eAge ? parseInt(eAge) : null,
+          birthDate: normalizedBirthDate,
+          age: calculatedAge,
           gender: eGender || null,
         });
         setEPw("");
@@ -18883,9 +19261,9 @@ import "./styles.css";
                 {user.name}
               </div>
               <div style={{ fontSize: 14, color: th.muted, textAlign: "left" }}>{user.email}</div>
-              {(user.age || user.gender) && (
+              {(visibleAge != null || user.gender) && (
                 <div style={{ fontSize: 13, color: th.dim, textAlign: "left", marginTop: 3 }}>
-                  {[user.gender ? t(user.gender) : null, user.age ? `${user.age} ${t("years")}` : null].filter(Boolean).join(" · ")}
+                  {[user.gender ? t(user.gender) : null, visibleAge != null ? `${visibleAge} ${t("years")}` : null].filter(Boolean).join(" · ")}
                 </div>
               )}
             </div>
@@ -18897,7 +19275,7 @@ import "./styles.css";
                 setEName(user.name);
                 setEEmail(user.email);
                 setEPhoto(user.photoURL || "");
-                setEAge(user.age ? String(user.age) : "");
+                setEBirthDate(user.birthDate || "");
                 setEGender(user.gender || "");
               }}
               style={{
@@ -18915,6 +19293,54 @@ import "./styles.css";
           </div>
           {/* name/email/edit row ends above */}
 
+          <div style={{ ...S.card, padding: 14, marginBottom: 14 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+                <StravaIcon
+                  size={34}
+                  style={{
+                    borderRadius:10,
+                    boxShadow:"0 1px 10px rgba(252,82,0,0.22)",
+                    flexShrink:0,
+                  }}
+                />
+                <div style={{ minWidth:0 }}>
+                  <div style={{ marginBottom:6 }}>
+                    <StravaWordmark height={13} />
+                  </div>
+                  <div style={{ fontSize:12, color:stravaConnection?.connected ? th.accentFg : th.muted, fontWeight:700 }}>
+                    {stravaConnection?.connected ? t("Connected") : t("Not connected")}
+                  </div>
+                  {stravaStatus && !stravaConnection?.connected ? (
+                    <div style={{ fontSize:11, color:th.dim, marginTop:3, lineHeight:1.3 }}>{t(stravaStatus)}</div>
+                  ) : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={stravaConnection?.connected ? onDisconnectStrava : onConnectStrava}
+                disabled={stravaBusy}
+                style={{
+                  ...buttonTexture(th, stravaConnection?.connected ? "neutral" : "strava", stravaBusy),
+                  borderRadius:10,
+                  padding:"9px 11px",
+                  cursor:stravaBusy ? "not-allowed" : "pointer",
+                  fontFamily:"'Outfit',sans-serif",
+                  fontSize:11,
+                  fontWeight:800,
+                  letterSpacing:.4,
+                  whiteSpace:"nowrap",
+                  display:"inline-flex",
+                  alignItems:"center",
+                  gap:6,
+                }}
+              >
+                {!stravaConnection?.connected && <StravaIcon size={16} />}
+                {stravaConnection?.connected ? t("Disconnect") : t("Connect")}
+              </button>
+            </div>
+          </div>
+
           <ProfileSection open={editMode}>
             <div style={{ borderTop: `1px solid ${th.border}`, paddingTop: 14 }}>
               <div style={{ ...S.label, marginBottom: 6, textAlign: "left", }}>{t("DISPLAY NAME")}</div>
@@ -18931,29 +19357,55 @@ import "./styles.css";
                 onChange={(e) => setEEmail(e.target.value)}
                 style={{ ...S.input, marginBottom: 12 }}
               />
-              {/* Age & Gender side by side */}
-              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("AGE")}</div>
-                  <input
-                    type="number"
-                    min="1"
-                    max="120"
-                    placeholder={t("e.g. 28")}
-                    value={eAge}
-                    onChange={(e) => setEAge(e.target.value)}
-                    style={{ ...S.input }}
-                  />
+              {/* Birth date & gender side by side */}
+              <div style={{ display:"flex", gap:10, marginBottom:12, flexWrap:"wrap", alignItems:"flex-start" }}>
+                <div style={{ flex:"1 1 180px", minWidth:0 }}>
+                  <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("BIRTH DATE")}</div>
+                  <div style={{
+                    ...S.input,
+                    width:"100%",
+                    minWidth:0,
+                    boxSizing:"border-box",
+                    padding:0,
+                    overflow:"hidden",
+                    display:"flex",
+                    alignItems:"center",
+                  }}>
+                    <input
+                      type="date"
+                      max={dateInputValue()}
+                      value={eBirthDate}
+                      onChange={(e) => setEBirthDate(e.target.value)}
+                      style={{
+                        width:"100%",
+                        minWidth:0,
+                        boxSizing:"border-box",
+                        padding:"13px 10px",
+                        border:"none",
+                        outline:"none",
+                        background:"transparent",
+                        color:th.text,
+                        fontSize:14,
+                        fontFamily:"'Outfit',sans-serif",
+                        fontWeight:700,
+                        textAlign:"center",
+                        colorScheme: th.bg === "#080809" ? "dark" : "light",
+                        WebkitAppearance:"none",
+                        appearance:"none",
+                      }}
+                    />
+                  </div>
                 </div>
-                <div style={{ flex:1 }}>
+                <div style={{ flex:"1 1 210px", minWidth:0 }}>
                   <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("GENDER")}</div>
-                  <div style={{ display:"flex", gap:6 }}>
+                  <div style={{ display:"flex", gap:6, minWidth:0 }}>
                     {["Male","Female","Other"].map(g => (
                       <button
                         key={g}
                         onClick={() => setEGender(eGender === g ? "" : g)}
                         style={{
-                          flex:1,
+                          flex:"1 1 0",
+                          minWidth:0,
                           background: eGender === g
                             ? `color-mix(in srgb, ${th.accentBg} 80%, transparent)`
                             : th.inputB,
@@ -18962,7 +19414,7 @@ import "./styles.css";
                           border: `1px solid ${eGender === g ? th.accentBg : th.border}`,
                           borderRadius: 9,
                           color: eGender === g ? th.accentT : th.muted,
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: 700,
                           fontFamily: "'Outfit',sans-serif",
                           padding: "8px 4px",
@@ -20144,7 +20596,7 @@ import "./styles.css";
             }}
           >
             IRON BODY{" "}
-            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.9.2 </span>
+            <span style={{ color: th.accentFg, fontWeight: 700 }}>v1.9.3 </span>
           </div>
           <div style={{ color: th.dim, fontSize: 11, letterSpacing: "2px" }}>
             {t("DEVELOPED BY AZAD")}
@@ -20423,6 +20875,9 @@ import "./styles.css";
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [splashDone, setSplashDone]   = useState(false); // true after animation minimum elapsed
+    const [stravaConnection, setStravaConnection] = useState(null);
+    const [stravaBusy, setStravaBusy] = useState(false);
+    const [stravaStatus, setStravaStatus] = useState("");
 
     // Unread feedback count (admin only)
     const [unreadFeedback, setUnreadFeedback] = useState(0);
@@ -20437,8 +20892,8 @@ import "./styles.css";
     }, [user]);
 
     // Listen to Firebase auth state — single source of truth
-    useEffect(() => {
-      const unsub = onAuthStateChanged(fbAuth, (fbUser) => {
+	    useEffect(() => {
+	      const unsub = onAuthStateChanged(fbAuth, (fbUser) => {
         if (fbUser) {
           // Build user object from Firebase + local profile cache
           const local = getLocalProfile(fbUser.uid) || {};
@@ -20448,17 +20903,21 @@ import "./styles.css";
           // Priority: 1) local cache (written at signup before this fires)
           // 2) Firebase displayName  3) pending-signup stash (email-matched)  4) email prefix
           let resolvedName = local.name || fbUser.displayName || "";
+          let resolvedBirthDate = normalizeBirthDateInput(local.birthDate) || null;
           let resolvedGender = local.gender || null;
-          if (!resolvedName || !resolvedGender) {
+          if (!resolvedName || !resolvedBirthDate || !resolvedGender) {
             const pending = ls("ib3-pending-signup", null);
             if (pending && pending.email === (fbUser.email || "").toLowerCase()) {
               if (!resolvedName && pending.name) resolvedName = pending.name;
+              if (!resolvedBirthDate && pending.birthDate) resolvedBirthDate = normalizeBirthDateInput(pending.birthDate) || null;
               if (!resolvedGender && pending.gender) resolvedGender = pending.gender;
-              // Persist name + gender to the proper profile cache now that the uid is known
+              // Persist profile details to the proper profile cache now that the uid is known
               saveLocalProfile(fbUser.uid, {
                 ...local,
                 name: resolvedName || local.name || "",
                 email: fbUser.email || "",
+                birthDate: resolvedBirthDate || local.birthDate || null,
+                age: profileAge({ birthDate: resolvedBirthDate, age: pending.age ?? local.age }),
                 gender: resolvedGender || local.gender || null,
               });
               lsDel("ib3-pending-signup");
@@ -20472,11 +20931,12 @@ import "./styles.css";
             name: resolvedName || (isGuest ? "Guest" : ""),
             email: fbUser.email || local.email || "",
             photoURL: resolvedPhoto,
-            // Read age + gender from the local profile cache (or pending-signup
+            // Read birth date + gender from the local profile cache (or pending-signup
             // stash) so they're available immediately on load. Gender drives the
             // muscle-atlas model. Firestore settings sync below can still fill
             // these in if the cache lacks them.
-            age: local.age || null,
+            birthDate: resolvedBirthDate,
+            age: profileAge({ birthDate: resolvedBirthDate, age: local.age }),
             gender: resolvedGender || null,
             isGuest,
           });
@@ -20488,7 +20948,9 @@ import "./styles.css";
               .then(() => {
                 const fresh = fbAuth.currentUser;
                 if (fresh?.displayName) {
+                  const latestLocal = getLocalProfile(fbUser.uid) || local;
                   saveLocalProfile(fbUser.uid, {
+                    ...latestLocal,
                     name: fresh.displayName,
                     email: fbUser.email || "",
                   });
@@ -20506,10 +20968,112 @@ import "./styles.css";
           setUser(null);
         }
         setAuthLoading(false);
-      });
-      return unsub;
-    }, []);
-    const [view, setView] = useState("home");
+	      });
+	      return unsub;
+	    }, []);
+
+    useEffect(() => {
+      if (!user?.id || user?.isGuest) {
+        setStravaConnection(null);
+        setStravaStatus("");
+        return;
+      }
+      const cached = ls(stravaConnectionKey(user.id), null);
+      if (cached) setStravaConnection(cached);
+      fsStravaGetConnection()
+        .then((data) => {
+          const next = data?.connected ? data : null;
+          setStravaConnection(next);
+          if (next) lsSet(stravaConnectionKey(user.id), next);
+          else lsDel(stravaConnectionKey(user.id));
+        })
+        .catch(() => {
+          // Backend may not be deployed yet; keep cached state if present.
+        });
+    }, [user?.id, user?.isGuest]);
+
+    useEffect(() => {
+      if (!user?.id || user?.isGuest || typeof window === "undefined") return;
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const error = url.searchParams.get("error");
+      const state = url.searchParams.get("state");
+      const scope = url.searchParams.get("scope") || "";
+      if (!code && !error) return;
+      const cleanUrl = () => {
+        url.searchParams.delete("code");
+        url.searchParams.delete("scope");
+        url.searchParams.delete("state");
+        url.searchParams.delete("error");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      };
+      if (error) {
+        setStravaStatus("Could not connect Strava.");
+        cleanUrl();
+        return;
+      }
+      const expectedState = ls(stravaStateKey(user.id), "");
+      const stateUid = String(state || "").split(".")[0];
+      const grantedScopes = scope.split(/[,\s]+/).filter(Boolean);
+      const validState = Boolean(state && stateUid === user.id);
+      const hasRequiredScope = !scope || grantedScopes.includes(STRAVA_SCOPE);
+      if (!validState || !hasRequiredScope) {
+        console.warn("Strava OAuth callback rejected:", {
+          validState,
+          expectedStatePresent: Boolean(expectedState),
+          hasActivityWrite: hasRequiredScope,
+          grantedScopes,
+        });
+        setStravaStatus("Could not connect Strava.");
+        cleanUrl();
+        return;
+      }
+      setStravaBusy(true);
+      fsStravaExchangeCode(code)
+        .then((data) => {
+          const next = { connected:true, ...(data || {}) };
+          setStravaConnection(next);
+          lsSet(stravaConnectionKey(user.id), next);
+          setStravaStatus("Strava connected.");
+        })
+        .catch((e) => {
+          console.warn("Strava OAuth exchange failed:", e?.code || e?.message || e);
+          setStravaStatus("Could not connect Strava.");
+        })
+        .finally(() => {
+          setStravaBusy(false);
+          lsDel(stravaStateKey(user.id));
+          cleanUrl();
+        });
+    }, [user?.id, user?.isGuest]);
+
+    const handleConnectStrava = useCallback(() => {
+      if (!user?.id || user?.isGuest) return;
+      const authUrl = stravaAuthorizeUrl(user.id);
+      if (window.top && window.top !== window.self) {
+        const opened = window.open(authUrl, "_blank", "noopener,noreferrer");
+        if (!opened) window.location.assign(authUrl);
+        return;
+      }
+      window.location.assign(authUrl);
+    }, [user?.id, user?.isGuest]);
+
+    const handleDisconnectStrava = useCallback(async () => {
+      if (!user?.id) return;
+      setStravaBusy(true);
+      try {
+        await fsStravaDisconnect();
+        setStravaConnection(null);
+        lsDel(stravaConnectionKey(user.id));
+        setStravaStatus("Strava disconnected.");
+      } catch (e) {
+        console.warn("Strava disconnect failed:", e?.code || e?.message || e);
+        setStravaStatus("Could not connect Strava.");
+      } finally {
+        setStravaBusy(false);
+      }
+    }, [user?.id]);
+	    const [view, setView] = useState("home");
     const [profileOpen, setProfileOpen] = useState(false);
     const [profileClosing, setProfileClosing] = useState(false);
     const [shareProgOpen, setShareProgOpen] = useState(false);
@@ -20705,21 +21269,24 @@ import "./styles.css";
               setUser((u) => (u ? { ...u, photoURL: fsSet.photoURL } : u));
             }
           }
-          // Restore name, age & gender from Firestore settings
-          if (fsSet?.age != null || fsSet?.gender != null || fsSet?.name) {
+          // Restore name, birth date, age & gender from Firestore settings
+          const remoteBirthDate = normalizeBirthDateInput(fsSet?.birthDate) || null;
+          if (fsSet?.age != null || remoteBirthDate || fsSet?.gender != null || fsSet?.name) {
             const localProf = getLocalProfile(user.id) || {};
-            if (!localProf.age && !localProf.gender) {
+            if ((remoteBirthDate && !localProf.birthDate) || (fsSet.age != null && !localProf.age) || (fsSet.gender != null && !localProf.gender) || (fsSet.name && !localProf.name)) {
               saveLocalProfile(user.id, {
                 ...localProf,
                 name: fsSet.name || localProf.name,
-                age: fsSet.age || null,
+                birthDate: remoteBirthDate || null,
+                age: profileAge({ birthDate: remoteBirthDate, age: fsSet.age }),
                 gender: fsSet.gender || null,
               });
             }
             setUser(u => u ? {
               ...u,
               name: u.name || fsSet.name || u.name,
-              age: u.age || fsSet.age || null,
+              birthDate: u.birthDate || remoteBirthDate || null,
+              age: profileAge({ birthDate: u.birthDate || remoteBirthDate, age: u.age || fsSet.age }),
               gender: u.gender || fsSet.gender || null,
             } : u);
           }
@@ -20958,6 +21525,30 @@ import "./styles.css";
             // Backfill public profile with Firestore data — fires for every existing user on every app open
             if (remote.name || user.name) {
               fsRegisterPublicProfile(user.id, remote.name || user.name, remote.photoURL || user.photoURL || null, user.email || "");
+            }
+            const remoteBirthDate = normalizeBirthDateInput(remote.birthDate) || null;
+            if (remote.name || remote.photoURL !== undefined || remoteBirthDate || remote.age != null || remote.gender != null) {
+              setUser(u => {
+                if (!u) return u;
+                const next = {
+                  ...u,
+                  name: remote.name || u.name,
+                  photoURL: remote.photoURL !== undefined ? remote.photoURL : u.photoURL,
+                  birthDate: remoteBirthDate || u.birthDate || null,
+                  age: profileAge({ birthDate: remoteBirthDate || u.birthDate, age: remote.age ?? u.age }),
+                  gender: remote.gender || u.gender || null,
+                };
+                saveLocalProfile(user.id, {
+                  ...(getLocalProfile(user.id) || {}),
+                  name: next.name,
+                  email: next.email,
+                  photoURL: next.photoURL || null,
+                  birthDate: next.birthDate || null,
+                  age: next.age,
+                  gender: next.gender,
+                });
+                return next;
+              });
             }
             setSettings(prev => {
               // Merge remote into defaults; never overwrite a valid array with null
@@ -21422,7 +22013,7 @@ import "./styles.css";
       await fsUpdateSession(user.id, normalized);
     };
 
-    const handleSaveSession = async ({ intensity, calories, duration }) => {
+    const handleSaveSession = async ({ intensity, calories, duration, postToStrava }) => {
       const normalizedFinished = {
         ...finished,
         exercises: (finished?.exercises || []).map(normalizeWorkoutExercise),
@@ -21434,6 +22025,26 @@ import "./styles.css";
         calories,
         duration,
       };
+      if (postToStrava) {
+        try {
+          const result = await fsStravaSyncSession(buildStravaSessionPayload(s));
+          s.strava = {
+            status: "requested",
+            uploadId: result?.uploadId || result?.id || null,
+            activityId: result?.activityId || result?.activity_id || null,
+            syncedAt: Date.now(),
+          };
+          setStravaStatus("Strava sync requested.");
+        } catch (e) {
+          console.warn("Strava session sync failed:", e?.code || e?.message || e);
+          s.strava = {
+            status: "failed",
+            error: e?.message || "Could not post to Strava.",
+            syncedAt: Date.now(),
+          };
+          setStravaStatus("Could not post to Strava.");
+        }
+      }
       const next = [s, ...sessions];
       saveSessions(next);
       // Sync last-session weights/reps/sets back to the source program
@@ -22348,11 +22959,14 @@ import "./styles.css";
               />
             )}
             {view === "complete" && finished && (
-              <CompleteView
-                finished={finished}
-                elapsed={elapsed}
-                onSave={handleSaveSession}
-              />
+	                <CompleteView
+	                  finished={finished}
+	                  elapsed={elapsed}
+	                  onSave={handleSaveSession}
+                  stravaConnection={stravaConnection}
+                  onConnectStrava={handleConnectStrava}
+                  stravaBusy={stravaBusy}
+	                />
             )}
             {view === "missedCardio" && missedCardioDraft && (
               <MissedCardioResultView
@@ -23067,7 +23681,7 @@ import "./styles.css";
       {competitionResultPopup && createPortal(
         <>
           <style>{`
-            @keyframes compResultIn{from{opacity:0;transform:translateY(calc(-50% + 18px)) scale(0.94)}to{opacity:1;transform:translateY(-50%) scale(1)}}
+            @keyframes compResultIn{from{opacity:0;transform:translate(-50%, calc(-50% + 18px)) scale(0.94)}to{opacity:1;transform:translate(-50%, -50%) scale(1)}}
             @keyframes compResultBackdrop{from{opacity:0}to{opacity:1}}
           `}</style>
           <div onClick={closeCompetitionResultPopup} style={{ position:"fixed", inset:0, zIndex:94, background:"rgba(0,0,0,0.58)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", animation:"compResultBackdrop 0.22s ease forwards" }} />
@@ -23263,13 +23877,18 @@ import "./styles.css";
                   onLogout={handleLogout}
                   onUpdateUser={(u) => setUser(u)}
                   onThemeChange={(t) => setTheme(t)}
-                  onThemeAutoToggle={(auto) => {
-                    setThemeAuto(auto);
-                    if (auto) setTheme(getAutoTheme());
-                  }}
-                  onClearUnread={() => setUnreadFeedback(0)}
-                  onPhotoUpdate={(updates) => fsPushProfileToFriends(user.id, updates, friends.map(f => f.uid))}
-                />
+	                  onThemeAutoToggle={(auto) => {
+	                    setThemeAuto(auto);
+	                    if (auto) setTheme(getAutoTheme());
+	                  }}
+	                  onClearUnread={() => setUnreadFeedback(0)}
+	                  onPhotoUpdate={(updates) => fsPushProfileToFriends(user.id, updates, friends.map(f => f.uid))}
+                  stravaConnection={stravaConnection}
+                  stravaBusy={stravaBusy}
+                  stravaStatus={stravaStatus}
+                  onConnectStrava={handleConnectStrava}
+                  onDisconnectStrava={handleDisconnectStrava}
+	                />
               </div>
             </div>
           </div>
