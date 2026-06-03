@@ -47,6 +47,7 @@ import "./styles.css";
     serverTimestamp,
     deleteField,
     increment,
+    arrayUnion,
   } from "firebase/firestore";
   import {
     getFunctions,
@@ -391,6 +392,9 @@ import "./styles.css";
     "COMPLETE": "TAMAMLANDI",
     "SAVE SESSION →": "ANTRENMANI KAYDET →",
     "STRAVA": "STRAVA",
+    "Connect": "Bağla",
+    "Disconnect": "Bağlantıyı kes",
+    "Connected": "Bağlı",
     "Connect Strava": "Strava'yı bağla",
     "Disconnect Strava": "Strava bağlantısını kes",
     "Connected to Strava": "Strava'ya bağlı",
@@ -906,6 +910,7 @@ import "./styles.css";
     "Competition starts immediately after they accept.": "Yarışma kabul ettiklerinde hemen başlar.",
     "WITHDRAW INVITATION": "DAVETİ GERİ ÇEK",
     "COMPETITION ENDED": "YARIŞMA BİTTİ",
+    "COMPETITION COMPLETE": "YARIŞMA TAMAMLANDI",
     "LIVE": "CANLI",
     "day remaining": "gün kaldı",
     "days remaining": "gün kaldı",
@@ -917,8 +922,13 @@ import "./styles.css";
     "SINCE START": "BAŞLANGIÇTAN BERİ",
     "AVG INTENSITY": "ORT YOĞUNLUK",
     "🎉 YOU WIN! CONGRATULATIONS!": "🎉 KAZANDIN! TEBRİKLER!",
+    "YOU WON!": "KAZANDIN!",
     "WINS!": "KAZANDI!",
     "IT'S A TIE!": "BERABERE!",
+    "The 7-day competition ended even.": "7 günlük yarışma berabere bitti.",
+    "You won the 7-day competition.": "7 günlük yarışmayı kazandın.",
+    "won the 7-day competition.": "7 günlük yarışmayı kazandı.",
+    "has been added to your awards.": "başarılarına eklendi.",
     "YOU'RE WINNING!": "KAZANIYORSUN!",
     "IS AHEAD": "ÖNDE",
     "ALL TIED UP": "BERABERE",
@@ -2094,92 +2104,92 @@ import "./styles.css";
     {
       id: "c1",
       name: "Running (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c2",
       name: "Running (Treadmill)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c3",
       name: "Walking (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c4",
       name: "Walking (Treadmill)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c5",
       name: "Cycling (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c6",
       name: "Cycling (Stationary)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c7",
       name: "Elliptical",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c8",
       name: "Swimming (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Lats",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c9",
       name: "Swimming (Pool)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Lats",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c10",
       name: "Rowing Machine",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Mid Back",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c11",
       name: "Stair Climber",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Glutes",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c12",
       name: "Jump Rope",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Calves",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c13",
       name: "HIIT",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
 
@@ -2423,6 +2433,20 @@ import "./styles.css";
     core1:"Hip Flexors", core2:"Hip Flexors", core3:"Abs · Hip Flexors",
     core4:"Lower Back", core5:"Hip Flexors", core6:"Shoulders · Lats",
     core7:"Forearms · Traps",
+    // Cardio — keep cardio entries anatomy-aware without changing their cardio logging flow
+    c1:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c2:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c3:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c4:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c5:"Glutes · Hamstrings · Calves",
+    c6:"Glutes · Hamstrings · Calves",
+    c7:"Glutes · Hamstrings · Calves",
+    c8:"Shoulders · Chest · Triceps · Core",
+    c9:"Shoulders · Chest · Triceps · Core",
+    c10:"Lats · Quads · Glutes · Hamstrings · Biceps · Core",
+    c11:"Quads · Hamstrings · Calves",
+    c12:"Quads · Hamstrings · Shoulders · Forearms · Core",
+    c13:"Glutes · Hamstrings · Calves · Chest · Shoulders · Core",
   };
 
   // ── Difficulty badge helper ──────────────────────────────────────────────────
@@ -4126,7 +4150,7 @@ import "./styles.css";
     { label: "Abs",         fn: (e) => e.muscle === "Abs" },
     { label: "Obliques",    fn: (e) => e.muscle === "Obliques" },
     { label: "Core",        fn: (e) => e.group === "Core" || e.muscle === "Abs" || e.muscle === "Obliques" },
-    { label: "Cardio",      fn: (e) => e.group === "Cardio" },
+    { label: "Cardio",      fn: (e) => e.type === "cardio" || e.group === "Cardio" },
   ];
 
   /* ─── All muscles for "Muscles Trained" display ───────────────────────────────── */
@@ -4618,48 +4642,6 @@ import "./styles.css";
               .reduce((b, st) => b + (st.weight || 0) * (st.reps || 0), 0),
       0
     );
-  }
-  function msValue(v) {
-    if (!v) return 0;
-    if (typeof v === "number") return v;
-    if (typeof v?.toMillis === "function") return v.toMillis();
-    if (v?.seconds) return v.seconds * 1000;
-    return Number(v) || 0;
-  }
-  function competitionSessionMins(s) {
-    if (s?.duration && s.duration > 0) return s.duration;
-    return (s?.exercises || []).reduce((b, ex) =>
-      b + (ex.sets || []).filter(st => st.done !== false).reduce((c, st) => c + (st.duration || 0), 0), 0);
-  }
-  function competitionSessionScore(s) {
-    let pts = 5;
-    pts += s?.intensity || 0;
-    pts += (s?.calories || 0) / 50;
-    pts += competitionSessionMins(s) / 10;
-    pts += sessionVol(s) / 1000;
-    return pts;
-  }
-  function competitionWindowFilter(comp) {
-    const startAt = msValue(comp?.startAt);
-    const endAt = msValue(comp?.endAt) || Infinity;
-    return (s) => {
-      const t = msValue(s?.endTime) || msValue(s?.startTime);
-      return t >= startAt && t <= endAt;
-    };
-  }
-  function competitionScore(sessions, comp) {
-    const relevant = (sessions || []).filter(competitionWindowFilter(comp));
-    if (!relevant.length) return 0;
-    return Math.round(relevant.reduce((sum, s) => sum + competitionSessionScore(s), 0));
-  }
-  function competitionWinnerUid(comp, fromScore, toScore) {
-    const storedWinner = comp?.winnerUid || comp?.result?.winnerUid || null;
-    if (storedWinner) return storedWinner;
-    if (fromScore == null || toScore == null || fromScore === toScore) return null;
-    return fromScore > toScore ? comp?.fromUid : comp?.toUid;
-  }
-  function competitionResultTs(comp) {
-    return msValue(comp?.resultPostedAt) || msValue(comp?.finalizedAt) || msValue(comp?.endAt) || msValue(comp?.createdAt);
   }
   function sessionCardioDistance(s) {
     return s?.distance ?? (s?.exercises || []).reduce(
@@ -5196,67 +5178,6 @@ import "./styles.css";
       return false;
     }
   }
-  async function fsFinalizeCompetitionResult(comp, fromSessions, toSessions, finalizerUid) {
-    if (!comp?.id || !comp?.fromUid || !comp?.toUid) return { ok:false };
-    try {
-      const fromScore = competitionScore(fromSessions, comp);
-      const toScore = competitionScore(toSessions, comp);
-      const winnerUid = competitionWinnerUid(comp, fromScore, toScore);
-      const isTie = !winnerUid;
-      const now = Date.now();
-      const winnerName = winnerUid === comp.fromUid
-        ? (comp.fromName || "User")
-        : winnerUid === comp.toUid
-        ? (comp.toName || "Friend")
-        : "";
-      const payload = {
-        status: "finished",
-        finalizedAt: msValue(comp.finalizedAt) || now,
-        resultPostedAt: msValue(comp.resultPostedAt) || now,
-        finalizedBy: finalizerUid || null,
-        fromScore,
-        toScore,
-        winnerUid: winnerUid || null,
-        winnerName,
-        isTie,
-        result: {
-          fromUid: comp.fromUid,
-          toUid: comp.toUid,
-          fromName: comp.fromName || "User",
-          toName: comp.toName || "Friend",
-          fromScore,
-          toScore,
-          winnerUid: winnerUid || null,
-          winnerName,
-          isTie,
-        },
-      };
-      await setDoc(doc(fbDb, "competitions", comp.id), strip(payload), { merge:true });
-      if (!comp.resultNotifiedAt) {
-        const base = {
-          type: "competition_result",
-          compId: comp.id,
-          fromUid: finalizerUid || winnerUid || comp.fromUid,
-          name: winnerName || "Competition",
-          winnerUid: winnerUid || null,
-          winnerName,
-          fromScore,
-          toScore,
-          isTie,
-          text: isTie
-            ? "Your 7-day competition ended in a tie"
-            : `${winnerName} won the 7-day competition`,
-        };
-        fsPushNotification(comp.fromUid, base);
-        fsPushNotification(comp.toUid, base);
-        setDoc(doc(fbDb, "competitions", comp.id), { resultNotifiedAt: now }, { merge:true }).catch(() => {});
-      }
-      return { ok:true, ...payload };
-    } catch (e) {
-      console.error("fsFinalizeCompetitionResult:", e?.code, e?.message || e);
-      return { ok:false, error:e };
-    }
-  }
   async function fsDeclineCompeteInvite(compId) {
     try {
       await updateDoc(doc(fbDb, "competitions", compId), { status: "declined" });
@@ -5284,6 +5205,48 @@ import "./styles.css";
     const unsub2 = onSnapshot(q2, s => { data2 = s.docs.map(d=>({id:d.id,...d.data()})); merge(); });
     return () => { unsub1(); unsub2(); };
   }
+
+  const COMPETITION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+  const asMillis = (v) => {
+    if (!v) return 0;
+    if (typeof v === "number") return v;
+    if (v?.toMillis) return v.toMillis();
+    if (v?.seconds) return v.seconds * 1000;
+    return Number(v) || 0;
+  };
+  const competitionWindow = (comp) => {
+    const startAt = asMillis(comp?.startAt) || asMillis(comp?.acceptedAt) || asMillis(comp?.createdAt);
+    const endAt = asMillis(comp?.endAt) || (startAt ? startAt + COMPETITION_WINDOW_MS : 0);
+    return { startAt, endAt };
+  };
+  const competitionSessionMinutes = (s) => {
+    if (s?.duration && s.duration > 0) return s.duration;
+    return (s?.exercises || []).reduce((b, ex) =>
+      b + (ex.sets || []).filter(st => st.done !== false).reduce((c, st) => c + (st.duration || 0), 0), 0);
+  };
+  const competitionSessionScore = (s) => {
+    let pts = 5;
+    pts += s?.intensity || 0;
+    pts += (s?.calories || 0) / 50;
+    pts += competitionSessionMinutes(s) / 10;
+    pts += sessionVol(s) / 1000;
+    return pts;
+  };
+  const competitionScore = (sessions, comp) => {
+    const { startAt, endAt } = competitionWindow(comp);
+    if (!startAt || !endAt || !Array.isArray(sessions)) return 0;
+    const relevant = sessions.filter(s => {
+      const t = asMillis(s?.endTime) || asMillis(s?.startTime);
+      return t >= startAt && t <= endAt;
+    });
+    if (!relevant.length) return 0;
+    return Math.round(relevant.reduce((sum, s) => sum + competitionSessionScore(s), 0));
+  };
+  const competitionWinnerUid = (comp, fromScore, toScore) => {
+    if (fromScore > toScore) return comp?.fromUid || null;
+    if (toScore > fromScore) return comp?.toUid || null;
+    return null;
+  };
 
   /* ─── Session reactions (stars) ─────────────────────────────────────────────── */
   // Stored at: users/{ownerUid}/sessions/{sessionId}/reactions/{reactorUid}
@@ -10789,28 +10752,26 @@ import "./styles.css";
       ).size;
       const dayOfWeek = (now3.getDay() + 6) % 7;
       const weekStart = new Date(now3); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - dayOfWeek);
-	      const daysThisWeek = new Set(
-	        (sessions || []).filter(s => (s.startTime||0) >= weekStart.getTime())
-	          .map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); })
-	      ).size;
-	      const friendHasCompetitionWin = (competitions || []).some(c => {
-	        if (c?.status !== "finished") return false;
-	        if (![c.fromUid, c.toUid].includes(friend.uid)) return false;
-	        const storedWinner = competitionWinnerUid(c, c.fromScore ?? c.result?.fromScore, c.toScore ?? c.result?.toScore);
-	        if (storedWinner) return storedWinner === friend.uid;
-	        const fromSessions = c.fromUid === friend.uid ? sessions : mySessions;
-	        const toSessions = c.toUid === friend.uid ? sessions : mySessions;
-	        const fromScore = competitionScore(fromSessions, c);
-	        const toScore = competitionScore(toSessions, c);
-	        return competitionWinnerUid(c, fromScore, toScore) === friend.uid;
-	      });
-	      // Same catalogue order as the user's own awards (perfect week → monthly →
-	      // competition → streaks), then earned-first.
-	      return [
-	        { id:"weekly",   icon:"🗓️", label:t("Perfect Week"), earned: daysThisWeek >= 5 },
-	        { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), earned: daysThisMonth >= 20 },
-	        { id:"comp",     icon:"🏆", label:t("Competition Win"), earned: friendHasCompetitionWin },
-	        { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),   earned: bestStreak >= 7 },
+      const daysThisWeek = new Set(
+        (sessions || []).filter(s => (s.startTime||0) >= weekStart.getTime())
+          .map(s => { const d = new Date(s.startTime||0); d.setHours(0,0,0,0); return d.getTime(); })
+      ).size;
+      const friendHasCompetitionWin = (competitions || []).some(c => {
+        if (c?.status !== "finished") return false;
+        if (![c.fromUid, c.toUid].includes(friend.uid)) return false;
+        const storedWinner = c.result?.winnerUid ?? c.winnerUid;
+        if (storedWinner !== undefined) return storedWinner === friend.uid;
+        const fromSessions = c.fromUid === friend.uid ? sessions : mySessions;
+        const toSessions = c.toUid === friend.uid ? sessions : mySessions;
+        return competitionWinnerUid(c, competitionScore(fromSessions, c), competitionScore(toSessions, c)) === friend.uid;
+      });
+      // Same catalogue order as the user's own awards (perfect week → monthly →
+      // competition → streaks), then earned-first.
+      return [
+        { id:"weekly",   icon:"🗓️", label:t("Perfect Week"), earned: daysThisWeek >= 5 },
+        { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), earned: daysThisMonth >= 20 },
+        { id:"comp",     icon:"🏆", label:t("Competition Win"), earned: friendHasCompetitionWin },
+        { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),   earned: bestStreak >= 7 },
         { id:"streak14", icon:"⚡", label:t("14-Day Streak"),  earned: bestStreak >= 14 },
         { id:"streak21", icon:"💎", label:t("21-Day Streak"),  earned: bestStreak >= 21 },
         { id:"streak30", icon:"👑", label:t("1-Month Streak"), earned: bestStreak >= 30 },
@@ -11711,14 +11672,12 @@ import "./styles.css";
     const isExpired = isActive && endAt !== Infinity && now > endAt;
     const daysLeft = isActive && !isExpired ? Math.max(0, Math.ceil((endAt - now) / 86400000)) : 0;
 
-    // Auto-finalize expired competitions with scores so awards/feed posts have a
-    // durable result instead of only a status flip.
+    // Auto-mark expired competitions as finished
     useEffect(() => {
-      if (!isExpired || !comp?.id || friendSessions === null) return;
-      const fromSessions = comp.fromUid === user.id ? mySessions : friendSessions;
-      const toSessions = comp.toUid === user.id ? mySessions : friendSessions;
-      fsFinalizeCompetitionResult(comp, fromSessions, toSessions, user.id).catch(() => {});
-    }, [isExpired, comp?.id, friendSessions]);
+      if (isExpired && comp?.id) {
+        updateDoc(doc(fbDb, "competitions", comp.id), { status: "finished" }).catch(() => {});
+      }
+    }, [isExpired, comp?.id]);
 
     const compFilter = (s) => {
       // Use endTime (when the workout was saved/completed) — this is what matters.
@@ -13655,6 +13614,26 @@ import "./styles.css";
     const [inviteError, setInviteError] = useState("");
     const [showInvitePanel, setShowInvitePanel] = useState(false);
     const [sharingTab, setSharingTab] = useState("feed"); // "feed" | "friends"
+    const sharingSwipeRef = useRef(null);
+    const handleSharingTouchStart = (e) => {
+      if (e.target?.closest?.("button,a,input,textarea,select,[data-no-share-swipe]")) {
+        sharingSwipeRef.current = null;
+        return;
+      }
+      const touch = e.touches?.[0];
+      sharingSwipeRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+    };
+    const handleSharingTouchEnd = (e) => {
+      const start = sharingSwipeRef.current;
+      sharingSwipeRef.current = null;
+      const end = e.changedTouches?.[0];
+      if (!start || !end) return;
+      const dx = end.clientX - start.x;
+      const dy = end.clientY - start.y;
+      if (Math.abs(dx) < 52 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      if (dx < 0 && sharingTab === "feed") setSharingTab("friends");
+      if (dx > 0 && sharingTab === "friends") setSharingTab("feed");
+    };
     const [boardScores, setBoardScores] = useState({}); // { uid: score }
     const [inviteClosing, setInviteClosing] = useState(false);
     const closeInvitePanel = () => {
@@ -13827,9 +13806,9 @@ import "./styles.css";
       });
     }, [user.id, ownSessionFeedItems.map(i => i.session?.id || i.session?.startTime).join(",")]);
     // Shared programs in feed: programs shared TO me (from friends) + programs I shared (to show in my feed)
-	    const sharedProgFeedItems = [
-	      ...sharedPrograms.filter(sp => sp.ts >= W7).map(sp => ({
-	        type: "sharedProg",
+    const sharedProgFeedItems = [
+      ...sharedPrograms.filter(sp => sp.ts >= W7).map(sp => ({
+        type: "sharedProg",
         direction: "received",
         sp,
         ts: sp.ts,
@@ -13840,25 +13819,25 @@ import "./styles.css";
         direction: "sent",
         sp,
         ts: sp.ts,
-	        friend: friends.find(f => f.uid === sp.toUid) || { uid: sp.toUid, name: "Friend" },
-	      })),
-	    ];
-	    const competitionFeedItems = (competitions || [])
-	      .filter(c => c?.status === "finished" && c.fromUid && c.toUid)
-	      .map(c => {
-	        const otherUid = c.fromUid === user.id ? c.toUid : c.fromUid;
-	        const otherName = c.fromUid === user.id ? c.toName : c.fromName;
-	        const friend = friends.find(f => f.uid === otherUid) || { uid: otherUid, name: otherName || t("Friend"), photoURL: null };
-	        return {
-	          type: "competitionResult",
-	          comp: c,
-	          friend,
-	          ts: competitionResultTs(c),
-	        };
-	      })
-	      .filter(item => item.ts >= W7);
-	    const feedItems = [...sessionFeedItems, ...ownSessionFeedItems, ...sharedProgFeedItems, ...competitionFeedItems]
-	      .sort((a, b) => b.ts - a.ts);
+        friend: friends.find(f => f.uid === sp.toUid) || { uid: sp.toUid, name: "Friend" },
+      })),
+    ];
+    const competitionFeedItems = (competitions || [])
+      .filter(c => c?.status === "finished" && c.fromUid && c.toUid)
+      .map(c => {
+        const otherUid = c.fromUid === user.id ? c.toUid : c.fromUid;
+        const otherName = c.fromUid === user.id ? c.toName : c.fromName;
+        const friend = friends.find(f => f.uid === otherUid) || { uid: otherUid, name: otherName || t("Friend"), photoURL: null };
+        return {
+          type: "competitionResult",
+          comp: c,
+          friend,
+          ts: asMillis(c.resultPostedAt) || asMillis(c.finishedAt) || asMillis(c.result?.computedAt) || asMillis(c.endAt) || asMillis(c.createdAt),
+        };
+      })
+      .filter(item => item.ts >= W7);
+    const feedItems = [...sessionFeedItems, ...ownSessionFeedItems, ...sharedProgFeedItems, ...competitionFeedItems]
+      .sort((a, b) => b.ts - a.ts);
 
     const dmMs = (v) => {
       if (!v) return 0;
@@ -13884,21 +13863,21 @@ import "./styles.css";
     const unreadDirectFriendCount = Object.keys(unreadDirectByFriend).length;
 
     // Load comment counts for all visible feed items
-	    useEffect(() => {
-	      if (!feedItems.length) return;
-	      const unsubList = feedItems.map(item => {
-	        const postId = item.type === "sharedProg"
-	          ? `program_${item.sp.id}`
-	          : item.type === "session"
-	          ? `session_${item.friend?.uid}_${item.session?.id || item.session?.startTime}`
-	          : null;
-	        if (!postId || postId.endsWith("_undefined")) return null;
-	        return fsListenComments(postId, (comments) => {
-	          setCommentCounts(prev => ({ ...prev, [postId]: comments.length }));
-	        });
-	      }).filter(Boolean);
-	      return () => unsubList.forEach(u => { try { u(); } catch {} });
-	    }, [feedItems.map(i => i.type === "sharedProg" ? i.sp?.id : i.type === "session" ? (i.session?.id || i.session?.startTime) : "").join(",")]); 
+    useEffect(() => {
+      if (!feedItems.length) return;
+      const unsubList = feedItems.map(item => {
+        const postId = item.type === "sharedProg"
+          ? `program_${item.sp.id}`
+          : item.type === "session"
+          ? `session_${item.friend?.uid}_${item.session?.id || item.session?.startTime}`
+          : null;
+        if (!postId || postId.endsWith("_undefined")) return null;
+        return fsListenComments(postId, (comments) => {
+          setCommentCounts(prev => ({ ...prev, [postId]: comments.length }));
+        });
+      }).filter(Boolean);
+      return () => unsubList.forEach(u => { try { u(); } catch {} });
+    }, [feedItems.map(i => i.type === "sharedProg" ? i.sp?.id : i.type === "session" ? (i.session?.id || i.session?.startTime) : "").join(",")]);
 
     const handleSendInvite = async () => {
       const email = inviteEmail.trim().toLowerCase();
@@ -13987,7 +13966,12 @@ import "./styles.css";
     };
 
     return (
-      <div className="slide-up" style={{ paddingBottom: 90 }}>
+      <div
+        className="slide-up"
+        onTouchStart={handleSharingTouchStart}
+        onTouchEnd={handleSharingTouchEnd}
+        style={{ paddingBottom: 90 }}
+      >
         <style>{`
           @keyframes sharingFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
           @keyframes invitePop   { from{opacity:0;transform:scale(0.96) translateY(-8px)} to{opacity:1;transform:scale(1) translateY(0)} }
@@ -14408,11 +14392,11 @@ import "./styles.css";
               onSendCoachRequest(friendUid, friendEmail, friendName)
             }
             onGetFriendPrograms={onGetFriendPrograms}
-	            onSaveCoachPrograms={onSaveCoachPrograms}
-	            onStopCoaching={onStopCoaching}
-	            unreadMessages={unreadDirectByFriend[dashFriend.uid] || 0}
-	            mySessions={mySessions}
-	          />,
+            onSaveCoachPrograms={onSaveCoachPrograms}
+            onStopCoaching={onStopCoaching}
+            unreadMessages={unreadDirectByFriend[dashFriend.uid] || 0}
+            mySessions={mySessions}
+          />,
           document.body
         )}
 
@@ -14769,99 +14753,100 @@ import "./styles.css";
               </div>
             ) : feedLoading && feedItems.length === 0 ? (
               <div style={{ ...S.card, padding:"22px 16px", textAlign:"center", color:th.dim, fontSize:14 }}>{t("Loading activity…")}</div>
-	            ) : feedItems.length === 0 ? (
-	              <div style={{ ...S.card, padding:"22px 16px", textAlign:"center" }}>
-	                <div style={{ color:th.muted, fontSize:14, textAlign: "center" }}>{t("No recent workouts from friends yet.")}</div>
-	              </div>
-	            ) : feedItems.map((item, i) => {
-	              if (item.type === "competitionResult") {
-	                const { comp } = item;
-	                const fromFriend = comp.fromUid === user.id
-	                  ? { uid:user.id, name:user.name || t("You"), photoURL:user.photoURL || null }
-	                  : friends.find(f => f.uid === comp.fromUid) || { uid:comp.fromUid, name:comp.fromName || t("Friend"), photoURL:null };
-	                const toFriend = comp.toUid === user.id
-	                  ? { uid:user.id, name:user.name || t("You"), photoURL:user.photoURL || null }
-	                  : friends.find(f => f.uid === comp.toUid) || { uid:comp.toUid, name:comp.toName || t("Friend"), photoURL:null };
-	                const fromSessions = comp.fromUid === user.id ? mySessions : (feedData[comp.fromUid] || []);
-	                const toSessions = comp.toUid === user.id ? mySessions : (feedData[comp.toUid] || []);
-	                const fromScore = comp.fromScore ?? comp.result?.fromScore ?? competitionScore(fromSessions, comp);
-	                const toScore = comp.toScore ?? comp.result?.toScore ?? competitionScore(toSessions, comp);
-	                const winnerUid = competitionWinnerUid(comp, fromScore, toScore);
-	                const isTie = !winnerUid;
-	                const winnerName = isTie
-	                  ? t("Tie")
-	                  : winnerUid === user.id
-	                  ? t("You")
-	                  : winnerUid === comp.fromUid
-	                  ? (comp.fromName || fromFriend.name || t("Friend"))
-	                  : (comp.toName || toFriend.name || t("Friend"));
-	                const actor = winnerUid === comp.fromUid ? fromFriend : winnerUid === comp.toUid ? toFriend : item.friend;
-	                const actorName = isTie ? t("Competition") : winnerName;
-	                const actorInitials = (actorName || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-	                const openFriend = (f) => {
-	                  if (!f?.uid || f.uid === user.id) return;
-	                  const found = friends.find(x => x.uid === f.uid) || f;
-	                  setDashFriend(found);
-	                };
-	                return (
-	                  <div key={`competition-${comp.id || i}`} data-postid={`competition_${comp.id}`} style={{ ...S.card, textAlign:"left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
-	                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-	                      <div onClick={(e) => { if (actor?.uid && actor.uid !== user.id) { addRipple(e, th.accentFg, { target:"firstChild" }); openFriend(actor); } }} style={{ cursor: actor?.uid && actor.uid !== user.id ? "pointer" : "default", flexShrink:0 }}>
-	                        {actor?.photoURL ? (
-	                          <img src={actor.photoURL} alt={actorName} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", display:"block" }} />
-	                        ) : (
-	                          <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(212,175,55,0.18)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#D4AF37" }}>
-	                            {isTie ? "🏆" : actorInitials}
-	                          </div>
-	                        )}
-	                      </div>
-	                      <div style={{ flex:1, minWidth:0 }}>
-	                        <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{actorName}</span>
-	                        <span style={{ fontSize:13, color:th.muted }}> {isTie ? t("finished a 7-day competition") : t("won a 7-day competition")}</span>
-	                      </div>
-	                      <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(item.ts)}</div>
-	                    </div>
-	                    <div style={{
-	                      background:th.sect,
-	                      borderRadius:12,
-	                      padding:"12px 14px",
-	                      border:"1.5px solid color-mix(in srgb, #D4AF37 28%, transparent)",
-	                      boxShadow:"0 8px 22px rgba(212,175,55,0.10)",
-	                    }}>
-	                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12 }}>
-	                        <div>
-	                          <div className="bebas" style={{ color:"#D4AF37", fontSize:24, letterSpacing:1.4, lineHeight:1 }}>
-	                            {isTie ? t("COMPETITION TIED") : t("COMPETITION WON")}
-	                          </div>
-	                          <div style={{ fontSize:12, color:th.muted, marginTop:3 }}>{t("7-day challenge results")}</div>
-	                        </div>
-	                        <div style={{ fontSize:28, lineHeight:1 }}>🏆</div>
-	                      </div>
-	                      <div style={{ display:"grid", gridTemplateColumns:"1fr auto 1fr", gap:10, alignItems:"stretch" }}>
-	                        {[{ side:"from", person:fromFriend, score:fromScore }, { side:"to", person:toFriend, score:toScore }].map(({ side, person, score }) => {
-	                          const won = !isTie && person.uid === winnerUid;
-	                          return (
-	                            <div key={side} style={{
-	                              background: won ? "rgba(212,175,55,0.12)" : `color-mix(in srgb, ${th.card} 62%, transparent)`,
-	                              border:`1.5px solid ${won ? "rgba(212,175,55,0.38)" : th.border}`,
-	                              borderRadius:10,
-	                              padding:"10px 8px",
-	                              textAlign:"center",
-	                              minWidth:0,
-	                            }}>
-	                              <div className="bebas" style={{ fontSize:28, lineHeight:1, color: won ? "#D4AF37" : th.accentFg }}>{score}</div>
-	                              <div style={{ fontSize:11, color:th.dim, fontWeight:700, letterSpacing:"1px", marginTop:4, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-	                                {person.uid === user.id ? t("YOU") : (person.name || t("FRIEND")).split(" ")[0].toUpperCase()}
-	                              </div>
-	                            </div>
-	                          );
-	                        }).reduce((nodes, node, idx) => idx === 0 ? [node, <div key="vs" className="bebas" style={{ alignSelf:"center", color:th.dim, fontSize:22 }}>VS</div>] : [...nodes, node], [])}
-	                      </div>
-	                    </div>
-	                  </div>
-	                );
-	              }
-	              if (item.type === "sharedProg") {
+            ) : feedItems.length === 0 ? (
+              <div style={{ ...S.card, padding:"22px 16px", textAlign:"center" }}>
+                <div style={{ color:th.muted, fontSize:14, textAlign: "center" }}>{t("No recent workouts from friends yet.")}</div>
+              </div>
+            ) : feedItems.map((item, i) => {
+              if (item.type === "competitionResult") {
+                const { comp } = item;
+                const fromFriend = comp.fromUid === user.id
+                  ? { uid:user.id, name:user.name || t("You"), photoURL:user.photoURL || null }
+                  : friends.find(f => f.uid === comp.fromUid) || { uid:comp.fromUid, name:comp.fromName || t("Friend"), photoURL:null };
+                const toFriend = comp.toUid === user.id
+                  ? { uid:user.id, name:user.name || t("You"), photoURL:user.photoURL || null }
+                  : friends.find(f => f.uid === comp.toUid) || { uid:comp.toUid, name:comp.toName || t("Friend"), photoURL:null };
+                const fromSessions = comp.fromUid === user.id ? mySessions : (feedData[comp.fromUid] || []);
+                const toSessions = comp.toUid === user.id ? mySessions : (feedData[comp.toUid] || []);
+                const fromScore = comp.result?.fromScore ?? comp.fromScore ?? competitionScore(fromSessions, comp);
+                const toScore = comp.result?.toScore ?? comp.toScore ?? competitionScore(toSessions, comp);
+                const storedWinner = comp.result?.winnerUid ?? comp.winnerUid;
+                const winnerUid = storedWinner !== undefined ? (storedWinner || null) : competitionWinnerUid(comp, fromScore, toScore);
+                const isTie = !winnerUid;
+                const winnerName = isTie
+                  ? t("Tie")
+                  : winnerUid === user.id
+                  ? t("You")
+                  : winnerUid === comp.fromUid
+                  ? (comp.fromName || fromFriend.name || t("Friend"))
+                  : (comp.toName || toFriend.name || t("Friend"));
+                const actor = winnerUid === comp.fromUid ? fromFriend : winnerUid === comp.toUid ? toFriend : item.friend;
+                const actorName = isTie ? t("Competition") : winnerName;
+                const actorInitials = (actorName || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+                const openFriend = (f) => {
+                  if (!f?.uid || f.uid === user.id) return;
+                  const found = friends.find(x => x.uid === f.uid) || f;
+                  setDashFriend(found);
+                };
+                return (
+                  <div key={`competition-${comp.id || i}`} data-postid={`competition_${comp.id}`} style={{ ...S.card, textAlign:"left", padding:"14px 16px", marginBottom:8, animation:`feedFadeIn 0.3s ease ${i*0.04}s both` }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                      <div onClick={(e) => { if (actor?.uid && actor.uid !== user.id) { addRipple(e, th.accentFg, { target:"firstChild" }); openFriend(actor); } }} style={{ cursor: actor?.uid && actor.uid !== user.id ? "pointer" : "default", flexShrink:0 }}>
+                        {actor?.photoURL ? (
+                          <img src={actor.photoURL} alt={actorName} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", display:"block" }} />
+                        ) : (
+                          <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(212,175,55,0.18)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#D4AF37" }}>
+                            {isTie ? "🏆" : actorInitials}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <span style={{ fontWeight:700, fontSize:14, color:th.text }}>{actorName}</span>
+                        <span style={{ fontSize:13, color:th.muted }}> {isTie ? t("finished a 7-day competition") : t("won a 7-day competition")}</span>
+                      </div>
+                      <div style={{ fontSize:13, color:th.dim, flexShrink:0 }}>{fmtTimeAgo(item.ts)}</div>
+                    </div>
+                    <div style={{
+                      background:th.sect,
+                      borderRadius:12,
+                      padding:"12px 14px",
+                      border:"1.5px solid color-mix(in srgb, #D4AF37 28%, transparent)",
+                      boxShadow:"0 8px 22px rgba(212,175,55,0.10)",
+                    }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12 }}>
+                        <div>
+                          <div className="bebas" style={{ color:"#D4AF37", fontSize:24, letterSpacing:1.4, lineHeight:1 }}>
+                            {isTie ? t("COMPETITION TIED") : t("COMPETITION WON")}
+                          </div>
+                          <div style={{ fontSize:12, color:th.muted, marginTop:3 }}>{t("7-day challenge results")}</div>
+                        </div>
+                        <div style={{ fontSize:28, lineHeight:1 }}>🏆</div>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr auto 1fr", gap:10, alignItems:"stretch" }}>
+                        {[{ side:"from", person:fromFriend, score:fromScore }, { side:"to", person:toFriend, score:toScore }].map(({ side, person, score }) => {
+                          const won = !isTie && person.uid === winnerUid;
+                          return (
+                            <div key={side} style={{
+                              background: won ? "rgba(212,175,55,0.12)" : `color-mix(in srgb, ${th.card} 62%, transparent)`,
+                              border:`1.5px solid ${won ? "rgba(212,175,55,0.38)" : th.border}`,
+                              borderRadius:10,
+                              padding:"10px 8px",
+                              textAlign:"center",
+                              minWidth:0,
+                            }}>
+                              <div className="bebas" style={{ fontSize:28, lineHeight:1, color: won ? "#D4AF37" : th.accentFg }}>{score}</div>
+                              <div style={{ fontSize:11, color:th.dim, fontWeight:700, letterSpacing:"1px", marginTop:4, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                                {person.uid === user.id ? t("YOU") : (person.name || t("FRIEND")).split(" ")[0].toUpperCase()}
+                              </div>
+                            </div>
+                          );
+                        }).reduce((nodes, node, idx) => idx === 0 ? [node, <div key="vs" className="bebas" style={{ alignSelf:"center", color:th.dim, fontSize:22 }}>VS</div>] : [...nodes, node], [])}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              if (item.type === "sharedProg") {
                 const { sp, direction } = item;
                 // Always show the SENDER's photo and name (same layout for both users)
                 const sPhoto = sp.fromPhotoURL || null;
@@ -17216,6 +17201,7 @@ import "./styles.css";
         : String(Math.round(elapsed / 60))
     );
     const [postToStrava, setPostToStrava] = useState(false);
+    const celebrationMsgRef = useRef("");
     return (
       <div className="slide-up" style={{ paddingBottom: 32 }}>
         {/* ── Celebration banner ── */}
@@ -17321,7 +17307,11 @@ import "./styles.css";
           };
 
           const tier_ = tiers[tier];
-          const msg = t(tier_.msgs[Math.floor((finished.doneSets + elapsed + intensity) % tier_.msgs.length)]);
+          if (!celebrationMsgRef.current) {
+            const seed = Math.abs(Math.round((finished.startTime || 0) + (finished.doneSets || 0) + (elapsed || 0)));
+            celebrationMsgRef.current = t(tier_.msgs[seed % tier_.msgs.length]);
+          }
+          const msg = celebrationMsgRef.current;
 
           return (
             <div style={{
@@ -17450,7 +17440,7 @@ import "./styles.css";
           )}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-              const col = n <= 3 ? "#CC1F42" : n <= 6 ? "#E8612C" : th.accentFg;
+              const col = intColor(n, th);
               return (
                 <button
                   key={n}
@@ -18674,7 +18664,7 @@ import "./styles.css";
     const awards = [
       { id:"weekly",   icon:"🗓️", label:weekLabel,          desc:t("5 workouts this week"),           earned: daysThisWeek >= 5 },
       { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), desc:t("20 workouts in {month}", { month: t(monthName) }), earned: daysThisMonth >= 20 },
-	      { id:"comp",     icon:"🏆", label:t("Competition Win"), desc:t("Win a 7-day challenge"),          earned: (user._awardsWon || 0) >= 1 || isPersisted("comp"), persistable:true },
+      { id:"comp",     icon:"🏆", label:t("Competition Win"), desc:t("Win a 7-day challenge"),          earned: (user._awardsWon || 0) >= 1 || isPersisted("comp"), persistable:true },
       { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),    desc:t("Train 7 days in a row"),          earned: streak >= 7  || bestStreak >= 7  || isPersisted("streak7"),  persistable:true },
       { id:"streak14", icon:"⚡", label:t("14-Day Streak"),   desc:t("Train 14 days in a row"),         earned: streak >= 14 || bestStreak >= 14 || isPersisted("streak14"), persistable:true },
       { id:"streak21", icon:"💎", label:t("21-Day Streak"),   desc:t("Train 21 days in a row"),         earned: streak >= 21 || bestStreak >= 21 || isPersisted("streak21"), persistable:true },
@@ -18788,7 +18778,7 @@ import "./styles.css";
       {awardPopup && createPortal(
         <>
           <style>{`
-            @keyframes awardPopIn{from{opacity:0;transform:translate(-50%, calc(-50% + 18px)) scale(0.94)}to{opacity:1;transform:translate(-50%, -50%) scale(1)}}
+            @keyframes awardPopIn{from{opacity:0;transform:translateY(calc(-50% + 18px)) scale(0.94)}to{opacity:1;transform:translateY(-50%) scale(1)}}
           `}</style>
           <div
             onClick={closeAwardPopup}
@@ -18796,14 +18786,13 @@ import "./styles.css";
           />
           <div style={{
             position:"fixed",
-            left:"50%",
+            left:18,
+            right:18,
             top:"50%",
-            transform:"translate(-50%, -50%)",
+            transform:"translateY(-50%)",
             zIndex:89,
-            width:"min(88vw, 360px)",
-            maxHeight:"calc(100vh - 40px)",
-            overflowY:"auto",
-            boxSizing:"border-box",
+            maxWidth:360,
+            margin:"0 auto",
             borderRadius:22,
             padding:"24px 20px 18px",
             textAlign:"center",
@@ -19434,9 +19423,9 @@ import "./styles.css";
                     <StravaWordmark height={13} />
                   </div>
                   <div style={{ fontSize:12, color:stravaConnection?.connected ? th.accentFg : th.muted, fontWeight:700 }}>
-                    {stravaConnection?.connected ? t("Connected to Strava") : t("Not connected")}
+                    {stravaConnection?.connected ? t("Connected") : t("Not connected")}
                   </div>
-                  {stravaStatus ? (
+                  {stravaStatus && !stravaConnection?.connected ? (
                     <div style={{ fontSize:11, color:th.dim, marginTop:3, lineHeight:1.3 }}>{t(stravaStatus)}</div>
                   ) : null}
                 </div>
@@ -19461,7 +19450,7 @@ import "./styles.css";
                 }}
               >
                 {!stravaConnection?.connected && <StravaIcon size={16} />}
-                {stravaConnection?.connected ? t("Disconnect Strava") : t("Connect Strava")}
+                {stravaConnection?.connected ? t("Disconnect") : t("Connect")}
               </button>
             </div>
           </div>
@@ -19483,26 +19472,54 @@ import "./styles.css";
                 style={{ ...S.input, marginBottom: 12 }}
               />
               {/* Birth date & gender side by side */}
-              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-                <div style={{ flex:1 }}>
+              <div style={{ display:"flex", gap:10, marginBottom:12, flexWrap:"wrap", alignItems:"flex-start" }}>
+                <div style={{ flex:"1 1 180px", minWidth:0 }}>
                   <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("BIRTH DATE")}</div>
-                  <input
-                    type="date"
-                    max={dateInputValue()}
-                    value={eBirthDate}
-                    onChange={(e) => setEBirthDate(e.target.value)}
-                    style={{ ...S.input, colorScheme: th.bg === "#080809" ? "dark" : "light" }}
-                  />
+                  <div style={{
+                    ...S.input,
+                    width:"100%",
+                    minWidth:0,
+                    boxSizing:"border-box",
+                    padding:0,
+                    overflow:"hidden",
+                    display:"flex",
+                    alignItems:"center",
+                  }}>
+                    <input
+                      type="date"
+                      max={dateInputValue()}
+                      value={eBirthDate}
+                      onChange={(e) => setEBirthDate(e.target.value)}
+                      style={{
+                        width:"100%",
+                        minWidth:0,
+                        boxSizing:"border-box",
+                        padding:"13px 10px",
+                        border:"none",
+                        outline:"none",
+                        background:"transparent",
+                        color:th.text,
+                        fontSize:14,
+                        fontFamily:"'Outfit',sans-serif",
+                        fontWeight:700,
+                        textAlign:"center",
+                        colorScheme: th.bg === "#080809" ? "dark" : "light",
+                        WebkitAppearance:"none",
+                        appearance:"none",
+                      }}
+                    />
+                  </div>
                 </div>
-                <div style={{ flex:1 }}>
+                <div style={{ flex:"1 1 210px", minWidth:0 }}>
                   <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("GENDER")}</div>
-                  <div style={{ display:"flex", gap:6 }}>
+                  <div style={{ display:"flex", gap:6, minWidth:0 }}>
                     {["Male","Female","Other"].map(g => (
                       <button
                         key={g}
                         onClick={() => setEGender(eGender === g ? "" : g)}
                         style={{
-                          flex:1,
+                          flex:"1 1 0",
+                          minWidth:0,
                           background: eGender === g
                             ? `color-mix(in srgb, ${th.accentBg} 80%, transparent)`
                             : th.inputB,
@@ -19511,7 +19528,7 @@ import "./styles.css";
                           border: `1px solid ${eGender === g ? th.accentBg : th.border}`,
                           borderRadius: 9,
                           color: eGender === g ? th.accentT : th.muted,
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: 700,
                           fontFamily: "'Outfit',sans-serif",
                           padding: "8px 4px",
@@ -20183,16 +20200,12 @@ import "./styles.css";
               }}
               style={{
                 ...buttonTexture(th, showFeedback ? "accent" : "neutral"),
-                borderRadius: 12,
-                padding: "9px 16px",
+                borderRadius: 9,
+                padding: "7px 14px",
                 cursor: "pointer",
-                fontSize: 17,
-                lineHeight: 1,
-                fontFamily: "'Bebas Neue',sans-serif",
+                fontSize: 12,
+                fontFamily: "'Outfit',sans-serif",
                 fontWeight: 700,
-                letterSpacing: "1.6px",
-                minWidth: 68,
-                textTransform: "uppercase",
               }}
             >
               {showFeedback ? t("Close") : isAdmin ? t("View All") : t("Send")}
@@ -20291,7 +20304,7 @@ import "./styles.css";
                   <Btn
                     onClick={handleSendFeedback}
                     disabled={feedbackSending || !feedbackText.trim()}
-                    style={{ width: "100%", fontSize: 18, padding: "15px 22px", letterSpacing: 2 }}
+                    style={{ width: "100%", fontSize: 15, padding: "13px" }}
                   >
                     {feedbackSending ? "SENDING..." : "SEND FEEDBACK"}
                   </Btn>
@@ -21219,6 +21232,22 @@ import "./styles.css";
     // Shape: { id, label, icon }. AwardsDashboard (inside the Profile sheet) consumes
     // it on mount and clears it via onConsumeAwardPopup.
     const [awardPopupRequest, setAwardPopupRequest]   = useState(null);
+    const [competitionResultPopup, setCompetitionResultPopup] = useState(null);
+    const pendingCompetitionPopupsRef = useRef([]);
+    const competitionResultGuardRef = useRef(new Set());
+    const enqueueCompetitionResultPopup = (payload) => {
+      setCompetitionResultPopup(prev => {
+        if (prev) {
+          pendingCompetitionPopupsRef.current.push(payload);
+          return prev;
+        }
+        return payload;
+      });
+    };
+    const closeCompetitionResultPopup = () => {
+      const next = pendingCompetitionPopupsRef.current.shift();
+      setCompetitionResultPopup(next || null);
+    };
 
     useEffect(() => {
       if (!user?.id || user?.isGuest) {
@@ -21250,14 +21279,13 @@ import "./styles.css";
       });
       return () => unsub();
     }, [user?.id, user?.isGuest]);
-	    const [, setLastReadNotif]                         = useState(() => parseInt(ls("ib3-lastReadNotif", "0"), 10) || 0);
-	    const [competitions, setCompetitions]             = useState([]);
-	    const [competitionFinalizeTick, setCompetitionFinalizeTick] = useState(0);
-	    const competitionFinalizeGuardRef = useRef(new Set());
-	    const [pendingCoachRequests, setPendingCoachRequests] = useState([]); // incoming coach requests (user is athlete)
+    const [, setLastReadNotif]                         = useState(() => parseInt(ls("ib3-lastReadNotif", "0"), 10) || 0);
+    const [competitions, setCompetitions]             = useState([]);
+    const [pendingCoachRequests, setPendingCoachRequests] = useState([]); // incoming coach requests (user is athlete)
     const [sentCoachRequests, setSentCoachRequests]       = useState([]); // outgoing coach requests (user is coach, pending)
     const [coachRelations, setCoachRelations]             = useState([]);  // accepted coach/athlete pairs
     const [sessions, setSessions] = useState([]);
+    const [sessionHistoryReady, setSessionHistoryReady] = useState(false);
     const [programs, setPrograms] = useState([]);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [active, setActive] = useState(null);
@@ -21288,6 +21316,7 @@ import "./styles.css";
 
     useEffect(() => {
       if (!user) return;
+      setSessionHistoryReady(false);
 
       // ── Step 1: Show local cache immediately (instant UI) ──────────────────────
       const localProgs = ls(uKey(user.id, "programs"), null);
@@ -21408,6 +21437,8 @@ import "./styles.css";
           }
         } catch (e) {
           console.error("Firestore sync error:", e.code, e.message);
+        } finally {
+          setSessionHistoryReady(true);
         }
       };
       loadFromFirestore();
@@ -21477,85 +21508,125 @@ import "./styles.css";
         return p;
       });
     };
-	    const saveSettings = (s) => {
-	      setSettings(s);
-	      lsSet(uKey(user.id, "settings"), s);
-	      fsSaveSettings(user.id, s);
-	    };
+    const saveSettings = (s) => {
+      setSettings(s);
+      lsSet(uKey(user.id, "settings"), s);
+      fsSaveSettings(user.id, s);
+    };
 
-	    useEffect(() => {
-	      if (!user?.id || user?.isGuest) return;
-	      const earned = Array.isArray(settings?.earnedAwards) ? settings.earnedAwards : [];
-	      const wonCompetition = (competitions || []).some(c => {
-	        if (c?.status !== "finished") return false;
-	        return competitionWinnerUid(c, c.fromScore ?? c.result?.fromScore, c.toScore ?? c.result?.toScore) === user.id;
-	      });
-	      if (wonCompetition && !earned.includes("comp")) {
-	        saveSettings({
-	          ...settings,
-	          earnedAwards: Array.from(new Set([...earned, "comp"])),
-	        });
-	      }
-	    }, [
-	      user?.id,
-	      user?.isGuest,
-	      competitions.map(c => `${c.id}:${c.status}:${c.winnerUid || c.result?.winnerUid || ""}:${c.fromScore ?? c.result?.fromScore ?? ""}:${c.toScore ?? c.result?.toScore ?? ""}`).join("|"),
-	      (settings?.earnedAwards || []).join(","),
-	    ]);
+    useEffect(() => {
+      if (!user?.id || user?.isGuest || !sessionHistoryReady || !Array.isArray(competitions) || !competitions.length) return;
+      let cancelled = false;
+      const processCompetitionResults = async () => {
+        for (const comp of competitions) {
+          if (!comp?.id) continue;
+          const isMine = comp.fromUid === user.id || comp.toUid === user.id;
+          if (!isMine || (comp.status !== "active" && comp.status !== "finished")) continue;
+          const { endAt } = competitionWindow(comp);
+          if (!endAt || Date.now() < endAt) continue;
 
-		    useEffect(() => {
-		      if (!user?.id || user?.isGuest || !competitions.length) return;
-	      let cancelled = false;
-	      const now = Date.now();
-	      const candidates = competitions.filter(c => {
-	        if (!c?.id || !c.fromUid || !c.toUid) return false;
-	        if (![c.fromUid, c.toUid].includes(user.id)) return false;
-	        const expiredActive = c.status === "active" && msValue(c.endAt) > 0 && msValue(c.endAt) <= now;
-	        const missingResult = c.status === "finished" && (c.fromScore == null || c.toScore == null || !competitionResultTs(c));
-	        return expiredActive || missingResult;
-	      });
-	      if (!candidates.length) return;
-	      candidates.forEach(async (comp) => {
-	        const guardKey = `${comp.id}:${comp.status}:${msValue(comp.endAt)}:${comp.fromScore ?? ""}:${comp.toScore ?? ""}:${competitionResultTs(comp) || ""}`;
-	        if (competitionFinalizeGuardRef.current.has(guardKey)) return;
-	        competitionFinalizeGuardRef.current.add(guardKey);
-	        const otherUid = comp.fromUid === user.id ? comp.toUid : comp.fromUid;
-	        const otherSessions = otherUid === user.id ? sessions : await fsGetFriendSessions(otherUid);
-	        if (cancelled || otherSessions === null) return;
-	        const fromSessions = comp.fromUid === user.id ? sessions : otherSessions;
-	        const toSessions = comp.toUid === user.id ? sessions : otherSessions;
-	        const result = await fsFinalizeCompetitionResult(comp, fromSessions, toSessions, user.id);
-	        if (cancelled || !result?.ok || result.winnerUid !== user.id) return;
-	        setSettings(prev => {
-	          const earned = Array.isArray(prev?.earnedAwards) ? prev.earnedAwards : [];
-	          if (earned.includes("comp")) return prev;
-	          const next = { ...prev, earnedAwards: Array.from(new Set([...earned, "comp"])) };
-	          lsSet(uKey(user.id, "settings"), next);
-	          fsSaveSettings(user.id, next);
-	          return next;
-	        });
-	      });
-	      return () => { cancelled = true; };
-	    }, [
-		      user?.id,
-		      user?.isGuest,
-		      competitionFinalizeTick,
-		      sessions.map(s => `${s.id || s.startTime}:${s.updatedAt || ""}`).join("|"),
-		      competitions.map(c => `${c.id}:${c.status}:${msValue(c.endAt)}:${c.fromScore ?? ""}:${c.toScore ?? ""}:${competitionResultTs(c) || ""}`).join("|"),
-		    ]);
+          const resultSeenUids = Array.isArray(comp.resultSeenUids) ? comp.resultSeenUids : [];
+          const popupKey = `${comp.id}:${user.id}`;
+          const earnedAwards = Array.isArray(settings?.earnedAwards) ? settings.earnedAwards : [];
+          const needsPopup = !resultSeenUids.includes(user.id) && !competitionResultGuardRef.current.has(popupKey);
+          const needsAwardCheck = !earnedAwards.includes("comp");
+          const needsFinalize = comp.status === "active" || !comp.result;
+          if (!needsPopup && !needsAwardCheck && !needsFinalize) continue;
 
-	    useEffect(() => {
-	      if (!user?.id || user?.isGuest) return;
-	      const hasActiveCompetition = (competitions || []).some(c => c?.status === "active" && msValue(c.endAt) > 0);
-	      if (!hasActiveCompetition) return;
-	      const id = setInterval(() => setCompetitionFinalizeTick(tick => tick + 1), 60000);
-	      return () => clearInterval(id);
-	    }, [
-	      user?.id,
-	      user?.isGuest,
-	      competitions.map(c => `${c.id}:${c.status}:${msValue(c.endAt)}`).join("|"),
-	    ]);
-		    // Real-time settings listener — syncs dashboard changes across devices
+          competitionResultGuardRef.current.add(popupKey);
+
+          const storedWinnerUid = comp.result?.winnerUid ?? comp.winnerUid;
+          const storedFromScore = comp.result?.fromScore ?? comp.fromScore;
+          const storedToScore = comp.result?.toScore ?? comp.toScore;
+          let fromScore = Number.isFinite(Number(storedFromScore)) ? Number(storedFromScore) : null;
+          let toScore = Number.isFinite(Number(storedToScore)) ? Number(storedToScore) : null;
+
+          const opponentUid = comp.fromUid === user.id ? comp.toUid : comp.fromUid;
+          const friend = friends.find(f => f.uid === opponentUid);
+          const opponentName =
+            friend?.name ||
+            (comp.fromUid === user.id ? comp.toName : comp.fromName) ||
+            "Friend";
+
+          if (fromScore === null || toScore === null) {
+            try {
+              const opponentSessions = await fsGetFriendSessions(opponentUid);
+              if (cancelled) return;
+              const fromSessions = comp.fromUid === user.id ? sessions : (opponentSessions || []);
+              const toSessions = comp.toUid === user.id ? sessions : (opponentSessions || []);
+              fromScore = competitionScore(fromSessions, comp);
+              toScore = competitionScore(toSessions, comp);
+            } catch (e) {
+              console.warn("competition score fetch failed:", e?.code || e?.message || e);
+              fromScore = fromScore ?? 0;
+              toScore = toScore ?? 0;
+            }
+          }
+
+          const winnerUid = storedWinnerUid !== undefined
+            ? (storedWinnerUid || null)
+            : competitionWinnerUid(comp, fromScore, toScore);
+          const didWin = winnerUid === user.id;
+          const tied = !winnerUid;
+          const userScore = comp.fromUid === user.id ? fromScore : toScore;
+          const opponentScore = comp.fromUid === user.id ? toScore : fromScore;
+
+          const updates = {};
+          if (comp.status === "active") {
+            updates.status = "finished";
+            updates.finishedAt = serverTimestamp();
+          }
+          if (!comp.result || comp.winnerUid === undefined) {
+            updates.winnerUid = winnerUid || null;
+            updates.result = {
+              fromScore,
+              toScore,
+              winnerUid: winnerUid || null,
+              computedAt: Date.now(),
+            };
+          }
+          if (needsPopup) updates.resultSeenUids = arrayUnion(user.id);
+          if (Object.keys(updates).length) {
+            updateDoc(doc(fbDb, "competitions", comp.id), updates).catch(e =>
+              console.warn("competition result update failed:", e?.code || e?.message || e)
+            );
+          }
+
+          if (didWin && !earnedAwards.includes("comp")) {
+            const nextSettings = {
+              ...settings,
+              earnedAwards: Array.from(new Set([...earnedAwards, "comp"])),
+            };
+            saveSettings(nextSettings);
+          }
+
+          if (needsPopup) {
+            enqueueCompetitionResultPopup({
+              id: comp.id,
+              didWin,
+              tied,
+              opponentName,
+              userScore,
+              opponentScore,
+              awardAdded: didWin && !earnedAwards.includes("comp"),
+            });
+          }
+        }
+      };
+      processCompetitionResults();
+      return () => { cancelled = true; };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+      user?.id,
+      user?.isGuest,
+      sessionHistoryReady,
+      competitions.map(c => `${c.id}:${c.status}:${asMillis(c.endAt)}:${(c.resultSeenUids || []).join("|")}:${c.winnerUid || ""}:${c.result?.winnerUid || ""}:${c.result?.fromScore ?? ""}:${c.result?.toScore ?? ""}`).join(","),
+      sessions.length,
+      friends.map(f => f.uid).join(","),
+      settings?.earnedAwards?.join(","),
+    ]);
+
+    // Real-time settings listener — syncs dashboard changes across devices
     useEffect(() => {
       if (!user?.id) return;
       const unsub = onSnapshot(
@@ -21831,8 +21902,6 @@ import "./styles.css";
       return clearWorkoutInterval;
     }, [activeWorkoutId, clearWorkoutInterval, paused, syncElapsedFromClock]);
 
-    const stopTimer = clearWorkoutInterval;
-
     if (authLoading || !splashDone)
       return (
         <ThemeCtx.Provider value={th}>
@@ -22017,11 +22086,26 @@ import "./styles.css";
         (a, ex) => a + ex.sets.filter((s) => s.done).length,
         0
       );
+      const finalElapsed = readElapsedSeconds();
+      clearWorkoutInterval();
+      elapsedBeforeRunRef.current = finalElapsed;
+      runStartedAtRef.current = null;
+      pausedRef.current = true;
+      elRef.current = finalElapsed;
+      setElapsed(finalElapsed);
+      setPaused(true);
+      if (active && userId) {
+        const frozenActive = {
+          ...active,
+          timer: { paused: true, elapsedSeconds: finalElapsed, runStartedAt: null },
+        };
+        setActive(frozenActive);
+        lsSet(uKey(userId, "active"), frozenActive);
+      }
       const activeSession = { ...(active || {}) };
       delete activeSession.timer;
       delete activeSession.uiCollapsedExUids;
       setFinished({ ...activeSession, exercises: safeExercises, totalSets: total, doneSets: done });
-      stopTimer();
       setView("complete");
     };
     const handleDeleteSession = async (sessionId) => {
@@ -23587,12 +23671,12 @@ import "./styles.css";
                     : diff < 86400000 ? `${Math.floor(diff/3600000)}${tLang("h ago")}`
                     : d === 1 ? tLang("1 day ago")
                     : `${d} ${tLang("days ago")}`;
-	                  const iconBg = n.type === "award_earned"
-	                    ? "rgba(212,175,55,0.18)"
-	                    : n.type === "direct_message"
-	                    ? `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`
-	                    : n.type === "compete_accepted" || n.type === "compete_invite" || n.type === "competition_result"
-	                    ? "rgba(212,175,55,0.18)"
+                  const iconBg = n.type === "award_earned"
+                    ? "rgba(212,175,55,0.18)"
+                    : n.type === "direct_message"
+                    ? `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`
+                    : n.type === "compete_accepted" || n.type === "compete_invite"
+                    ? "rgba(212,175,55,0.18)"
                     : n.type === "coach_request" || n.type === "coach_accepted"
                     ? "rgba(91,156,246,0.18)"
                     : `color-mix(in srgb, ${th.accentBg} 18%, ${th.row})`;
@@ -23600,8 +23684,8 @@ import "./styles.css";
                     ? <span style={{ fontSize:15 }}>{n.awardIcon || "🏅"}</span>
                     : n.type === "direct_message"
                     ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12.2c0 4.3-4 7.8-9 7.8-1.1 0-2.2-.17-3.2-.5L4 21l1.5-3.8C3.9 15.9 3 14.1 3 12.2 3 7.9 7 4.4 12 4.4s9 3.5 9 7.8Z" stroke={th.accentFg} strokeWidth="2" strokeLinejoin="round"/><path d="M8.2 12h.01M12 12h.01M15.8 12h.01" stroke={th.accentFg} strokeWidth="2.4" strokeLinecap="round"/></svg>
-	                    : n.type === "compete_accepted" || n.type === "compete_invite" || n.type === "competition_result"
-	                    ? <span style={{ fontSize:14 }}>🏆</span>
+                    : n.type === "compete_accepted" || n.type === "compete_invite"
+                    ? <span style={{ fontSize:14 }}>🏆</span>
                     : n.type === "coach_request" || n.type === "coach_accepted"
                     ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="19" rx="2" stroke="#5B9CF6" strokeWidth="2" fill="none"/><rect x="9" y="1.5" width="6" height="4" rx="1" stroke="#5B9CF6" strokeWidth="1.6" fill="rgba(91,156,246,0.25)"/><line x1="7" y1="10" x2="17" y2="10" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round"/><line x1="7" y1="14" x2="17" y2="14" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.7"/><line x1="7" y1="18" x2="14" y2="18" stroke="#5B9CF6" strokeWidth="1.6" strokeLinecap="round" opacity="0.45"/></svg>
                     : n.type === "friend_request"
@@ -23626,14 +23710,9 @@ import "./styles.css";
                     if (n.type === "compete_invite") {
                       return <><span style={{ fontWeight:700 }}>{who}</span><span style={{ color:th.muted }}> {tLang("challenged you to a competition")}</span></>;
                     }
-	                    if (n.type === "compete_accepted") {
-	                      return <><span style={{ fontWeight:700 }}>{who}</span><span style={{ color:th.muted }}> {tLang("accepted your competition challenge")}</span></>;
-	                    }
-	                    if (n.type === "competition_result") {
-	                      return n.isTie
-	                        ? <><span style={{ fontWeight:700 }}>{tLang("Competition ended")}</span><span style={{ color:th.muted }}> {tLang("in a tie")}</span></>
-	                        : <><span style={{ fontWeight:700 }}>{n.winnerName || who}</span><span style={{ color:th.muted }}> {tLang("won the 7-day competition")}</span></>;
-	                    }
+                    if (n.type === "compete_accepted") {
+                      return <><span style={{ fontWeight:700 }}>{who}</span><span style={{ color:th.muted }}> {tLang("accepted your competition challenge")}</span></>;
+                    }
                     if (n.type === "coach_request") {
                       return <><span style={{ fontWeight:700 }}>{who}</span><span style={{ color:th.muted }}> {tLang("wants to be your coach")}</span></>;
                     }
@@ -23663,11 +23742,9 @@ import "./styles.css";
                     linkPayload = { mode:"scroll", postId: `session_${user.id}_${n.sessionId}` };
                   } else if (n.type === "program_star" && n.spId) {
                     linkPayload = { mode:"scroll", postId: n.postId || `program_${n.spId}` };
-	                  } else if (n.type === "direct_message" && n.fromUid) {
-	                    linkPayload = { mode:"message", friendUid:n.fromUid, name:n.name, photoURL:n.photoURL || null };
-	                  } else if (n.type === "competition_result" && n.compId) {
-	                    linkPayload = { mode:"scroll", postId:`competition_${n.compId}` };
-	                  } else if (
+                  } else if (n.type === "direct_message" && n.fromUid) {
+                    linkPayload = { mode:"message", friendUid:n.fromUid, name:n.name, photoURL:n.photoURL || null };
+                  } else if (
                     n.type === "friend_request" ||
                     n.type === "compete_invite" ||
                     n.type === "coach_request" ||
@@ -23712,6 +23789,91 @@ import "./styles.css";
             )}
           </div>
         </>
+      )}
+
+      {/* ── Competition result popup ── */}
+      {competitionResultPopup && createPortal(
+        <>
+          <style>{`
+            @keyframes compResultIn{from{opacity:0;transform:translate(-50%, calc(-50% + 18px)) scale(0.94)}to{opacity:1;transform:translate(-50%, -50%) scale(1)}}
+            @keyframes compResultBackdrop{from{opacity:0}to{opacity:1}}
+          `}</style>
+          <div onClick={closeCompetitionResultPopup} style={{ position:"fixed", inset:0, zIndex:94, background:"rgba(0,0,0,0.58)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", animation:"compResultBackdrop 0.22s ease forwards" }} />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position:"fixed",
+              left:"50%",
+              top:"50%",
+              transform:"translate(-50%, -50%)",
+              width:"min(86vw, 340px)",
+              zIndex:95,
+              borderRadius:22,
+              padding:22,
+              textAlign:"center",
+              background:`color-mix(in srgb, ${th.card} 92%, transparent)`,
+              border:`1px solid ${competitionResultPopup.didWin ? "rgba(212,175,55,0.55)" : th.border}`,
+              boxShadow: competitionResultPopup.didWin
+                ? "0 20px 60px rgba(212,175,55,0.20), 0 10px 34px rgba(0,0,0,0.34)"
+                : "0 20px 60px rgba(0,0,0,0.34)",
+              backdropFilter:"blur(24px) saturate(1.3)",
+              WebkitBackdropFilter:"blur(24px) saturate(1.3)",
+              animation:"compResultIn 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards",
+            }}
+          >
+            <div style={{ fontSize:46, lineHeight:1, marginBottom:12 }}>
+              {competitionResultPopup.tied ? "🤝" : competitionResultPopup.didWin ? "🏆" : "🥈"}
+            </div>
+            <div className="bebas" style={{ fontSize:28, letterSpacing:2, color:competitionResultPopup.didWin ? "#D4AF37" : th.text, marginBottom:6 }}>
+              {competitionResultPopup.tied
+                ? tLang("IT'S A TIE!")
+                : competitionResultPopup.didWin
+                ? tLang("YOU WON!")
+                : tLang("COMPETITION COMPLETE")}
+            </div>
+            <div style={{ fontSize:13, color:th.muted, lineHeight:1.5, marginBottom:16 }}>
+              {competitionResultPopup.tied
+                ? tLang("The 7-day competition ended even.")
+                : competitionResultPopup.didWin
+                ? tLang("You won the 7-day competition.")
+                : `${competitionResultPopup.opponentName || tLang("Your friend")} ${tLang("won the 7-day competition.")}`}
+            </div>
+            <div style={{
+              display:"grid",
+              gridTemplateColumns:"1fr auto 1fr",
+              alignItems:"center",
+              gap:10,
+              padding:"14px 12px",
+              borderRadius:16,
+              background:`color-mix(in srgb, ${th.row} 72%, transparent)`,
+              border:`1px solid ${th.border}`,
+              marginBottom: competitionResultPopup.awardAdded ? 14 : 18,
+            }}>
+              <div>
+                <div className="bebas" style={{ fontSize:30, color:th.accentFg, lineHeight:1 }}>{competitionResultPopup.userScore ?? 0}</div>
+                <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px", marginTop:4 }}>{tLang("YOU")}</div>
+              </div>
+              <div className="bebas" style={{ fontSize:22, color:th.dim }}>{tLang("VS")}</div>
+              <div>
+                <div className="bebas" style={{ fontSize:30, color:"#E8612C", lineHeight:1 }}>{competitionResultPopup.opponentScore ?? 0}</div>
+                <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px", marginTop:4 }}>{(competitionResultPopup.opponentName || tLang("Friend")).split(" ")[0].toUpperCase()}</div>
+              </div>
+            </div>
+            {competitionResultPopup.awardAdded && (
+              <div style={{ fontSize:12, color:th.muted, lineHeight:1.45, marginBottom:18 }}>
+                <span style={{ color:"#D4AF37", fontWeight:800 }}>{tLang("Competition Win")}</span>{" "}
+                {tLang("has been added to your awards.")}
+              </div>
+            )}
+            <button
+              onClick={closeCompetitionResultPopup}
+              style={{ width:"100%", ...buttonTexture(th, competitionResultPopup.didWin ? "accent" : "neutral"), borderRadius:13, padding:"13px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:800, fontSize:13, letterSpacing:0.6 }}
+            >
+              {tLang("DONE")}
+            </button>
+          </div>
+        </>,
+        document.body
       )}
 
       {/* ── Profile bottom-sheet modal ── */}
