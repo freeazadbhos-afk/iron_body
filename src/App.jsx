@@ -47,7 +47,6 @@ import "./styles.css";
     serverTimestamp,
     deleteField,
     increment,
-    arrayUnion,
   } from "firebase/firestore";
   import {
     getFunctions,
@@ -392,9 +391,6 @@ import "./styles.css";
     "COMPLETE": "TAMAMLANDI",
     "SAVE SESSION →": "ANTRENMANI KAYDET →",
     "STRAVA": "STRAVA",
-    "Connect": "Bağla",
-    "Disconnect": "Bağlantıyı kes",
-    "Connected": "Bağlı",
     "Connect Strava": "Strava'yı bağla",
     "Disconnect Strava": "Strava bağlantısını kes",
     "Connected to Strava": "Strava'ya bağlı",
@@ -910,7 +906,6 @@ import "./styles.css";
     "Competition starts immediately after they accept.": "Yarışma kabul ettiklerinde hemen başlar.",
     "WITHDRAW INVITATION": "DAVETİ GERİ ÇEK",
     "COMPETITION ENDED": "YARIŞMA BİTTİ",
-    "COMPETITION COMPLETE": "YARIŞMA TAMAMLANDI",
     "LIVE": "CANLI",
     "day remaining": "gün kaldı",
     "days remaining": "gün kaldı",
@@ -922,13 +917,8 @@ import "./styles.css";
     "SINCE START": "BAŞLANGIÇTAN BERİ",
     "AVG INTENSITY": "ORT YOĞUNLUK",
     "🎉 YOU WIN! CONGRATULATIONS!": "🎉 KAZANDIN! TEBRİKLER!",
-    "YOU WON!": "KAZANDIN!",
     "WINS!": "KAZANDI!",
     "IT'S A TIE!": "BERABERE!",
-    "The 7-day competition ended even.": "7 günlük yarışma berabere bitti.",
-    "You won the 7-day competition.": "7 günlük yarışmayı kazandın.",
-    "won the 7-day competition.": "7 günlük yarışmayı kazandı.",
-    "has been added to your awards.": "başarılarına eklendi.",
     "YOU'RE WINNING!": "KAZANIYORSUN!",
     "IS AHEAD": "ÖNDE",
     "ALL TIED UP": "BERABERE",
@@ -2104,92 +2094,92 @@ import "./styles.css";
     {
       id: "c1",
       name: "Running (Outdoor)",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c2",
       name: "Running (Treadmill)",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c3",
       name: "Walking (Outdoor)",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c4",
       name: "Walking (Treadmill)",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c5",
       name: "Cycling (Outdoor)",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c6",
       name: "Cycling (Stationary)",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c7",
       name: "Elliptical",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c8",
       name: "Swimming (Outdoor)",
-      muscle: "Lats",
-      group: "Back",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c9",
       name: "Swimming (Pool)",
-      muscle: "Lats",
-      group: "Back",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c10",
       name: "Rowing Machine",
-      muscle: "Mid Back",
-      group: "Back",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c11",
       name: "Stair Climber",
-      muscle: "Glutes",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c12",
       name: "Jump Rope",
-      muscle: "Calves",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
     {
       id: "c13",
       name: "HIIT",
-      muscle: "Quads",
-      group: "Legs",
+      muscle: "Full Body",
+      group: "Cardio",
       type: "cardio",
     },
 
@@ -2433,20 +2423,6 @@ import "./styles.css";
     core1:"Hip Flexors", core2:"Hip Flexors", core3:"Abs · Hip Flexors",
     core4:"Lower Back", core5:"Hip Flexors", core6:"Shoulders · Lats",
     core7:"Forearms · Traps",
-    // Cardio — keep cardio entries anatomy-aware without changing their cardio logging flow
-    c1:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
-    c2:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
-    c3:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
-    c4:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
-    c5:"Glutes · Hamstrings · Calves",
-    c6:"Glutes · Hamstrings · Calves",
-    c7:"Glutes · Hamstrings · Calves",
-    c8:"Shoulders · Chest · Triceps · Core",
-    c9:"Shoulders · Chest · Triceps · Core",
-    c10:"Lats · Quads · Glutes · Hamstrings · Biceps · Core",
-    c11:"Quads · Hamstrings · Calves",
-    c12:"Quads · Hamstrings · Shoulders · Forearms · Core",
-    c13:"Glutes · Hamstrings · Calves · Chest · Shoulders · Core",
   };
 
   // ── Difficulty badge helper ──────────────────────────────────────────────────
@@ -4150,7 +4126,7 @@ import "./styles.css";
     { label: "Abs",         fn: (e) => e.muscle === "Abs" },
     { label: "Obliques",    fn: (e) => e.muscle === "Obliques" },
     { label: "Core",        fn: (e) => e.group === "Core" || e.muscle === "Abs" || e.muscle === "Obliques" },
-    { label: "Cardio",      fn: (e) => e.type === "cardio" || e.group === "Cardio" },
+    { label: "Cardio",      fn: (e) => e.group === "Cardio" },
   ];
 
   /* ─── All muscles for "Muscles Trained" display ───────────────────────────────── */
@@ -5205,48 +5181,6 @@ import "./styles.css";
     const unsub2 = onSnapshot(q2, s => { data2 = s.docs.map(d=>({id:d.id,...d.data()})); merge(); });
     return () => { unsub1(); unsub2(); };
   }
-
-  const COMPETITION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-  const asMillis = (v) => {
-    if (!v) return 0;
-    if (typeof v === "number") return v;
-    if (v?.toMillis) return v.toMillis();
-    if (v?.seconds) return v.seconds * 1000;
-    return Number(v) || 0;
-  };
-  const competitionWindow = (comp) => {
-    const startAt = asMillis(comp?.startAt) || asMillis(comp?.acceptedAt) || asMillis(comp?.createdAt);
-    const endAt = asMillis(comp?.endAt) || (startAt ? startAt + COMPETITION_WINDOW_MS : 0);
-    return { startAt, endAt };
-  };
-  const competitionSessionMinutes = (s) => {
-    if (s?.duration && s.duration > 0) return s.duration;
-    return (s?.exercises || []).reduce((b, ex) =>
-      b + (ex.sets || []).filter(st => st.done !== false).reduce((c, st) => c + (st.duration || 0), 0), 0);
-  };
-  const competitionSessionScore = (s) => {
-    let pts = 5;
-    pts += s?.intensity || 0;
-    pts += (s?.calories || 0) / 50;
-    pts += competitionSessionMinutes(s) / 10;
-    pts += sessionVol(s) / 1000;
-    return pts;
-  };
-  const competitionScore = (sessions, comp) => {
-    const { startAt, endAt } = competitionWindow(comp);
-    if (!startAt || !endAt || !Array.isArray(sessions)) return 0;
-    const relevant = sessions.filter(s => {
-      const t = asMillis(s?.endTime) || asMillis(s?.startTime);
-      return t >= startAt && t <= endAt;
-    });
-    if (!relevant.length) return 0;
-    return Math.round(relevant.reduce((sum, s) => sum + competitionSessionScore(s), 0));
-  };
-  const competitionWinnerUid = (comp, fromScore, toScore) => {
-    if (fromScore > toScore) return comp?.fromUid || null;
-    if (toScore > fromScore) return comp?.toUid || null;
-    return null;
-  };
 
   /* ─── Session reactions (stars) ─────────────────────────────────────────────── */
   // Stored at: users/{ownerUid}/sessions/{sessionId}/reactions/{reactorUid}
@@ -13605,26 +13539,6 @@ import "./styles.css";
     const [inviteError, setInviteError] = useState("");
     const [showInvitePanel, setShowInvitePanel] = useState(false);
     const [sharingTab, setSharingTab] = useState("feed"); // "feed" | "friends"
-    const sharingSwipeRef = useRef(null);
-    const handleSharingTouchStart = (e) => {
-      if (e.target?.closest?.("button,a,input,textarea,select,[data-no-share-swipe]")) {
-        sharingSwipeRef.current = null;
-        return;
-      }
-      const touch = e.touches?.[0];
-      sharingSwipeRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
-    };
-    const handleSharingTouchEnd = (e) => {
-      const start = sharingSwipeRef.current;
-      sharingSwipeRef.current = null;
-      const end = e.changedTouches?.[0];
-      if (!start || !end) return;
-      const dx = end.clientX - start.x;
-      const dy = end.clientY - start.y;
-      if (Math.abs(dx) < 52 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
-      if (dx < 0 && sharingTab === "feed") setSharingTab("friends");
-      if (dx > 0 && sharingTab === "friends") setSharingTab("feed");
-    };
     const [boardScores, setBoardScores] = useState({}); // { uid: score }
     const [inviteClosing, setInviteClosing] = useState(false);
     const closeInvitePanel = () => {
@@ -13941,12 +13855,7 @@ import "./styles.css";
     };
 
     return (
-      <div
-        className="slide-up"
-        onTouchStart={handleSharingTouchStart}
-        onTouchEnd={handleSharingTouchEnd}
-        style={{ paddingBottom: 90 }}
-      >
+      <div className="slide-up" style={{ paddingBottom: 90 }}>
         <style>{`
           @keyframes sharingFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
           @keyframes invitePop   { from{opacity:0;transform:scale(0.96) translateY(-8px)} to{opacity:1;transform:scale(1) translateY(0)} }
@@ -17087,7 +16996,6 @@ import "./styles.css";
         : String(Math.round(elapsed / 60))
     );
     const [postToStrava, setPostToStrava] = useState(false);
-    const celebrationMsgRef = useRef("");
     return (
       <div className="slide-up" style={{ paddingBottom: 32 }}>
         {/* ── Celebration banner ── */}
@@ -17193,11 +17101,7 @@ import "./styles.css";
           };
 
           const tier_ = tiers[tier];
-          if (!celebrationMsgRef.current) {
-            const seed = Math.abs(Math.round((finished.startTime || 0) + (finished.doneSets || 0) + (elapsed || 0)));
-            celebrationMsgRef.current = t(tier_.msgs[seed % tier_.msgs.length]);
-          }
-          const msg = celebrationMsgRef.current;
+          const msg = t(tier_.msgs[Math.floor((finished.doneSets + elapsed + intensity) % tier_.msgs.length)]);
 
           return (
             <div style={{
@@ -17326,7 +17230,7 @@ import "./styles.css";
           )}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-              const col = intColor(n, th);
+              const col = n <= 3 ? "#CC1F42" : n <= 6 ? "#E8612C" : th.accentFg;
               return (
                 <button
                   key={n}
@@ -18550,7 +18454,7 @@ import "./styles.css";
     const awards = [
       { id:"weekly",   icon:"🗓️", label:weekLabel,          desc:t("5 workouts this week"),           earned: daysThisWeek >= 5 },
       { id:"monthly",  icon:"📅", label:t("{month} Challenge", { month: t(monthName) }), desc:t("20 workouts in {month}", { month: t(monthName) }), earned: daysThisMonth >= 20 },
-      { id:"comp",     icon:"🏆", label:t("Competition Win"), desc:t("Win a 7-day challenge"),          earned: (user._awardsWon || 0) >= 1 || isPersisted("comp"), persistable:true },
+      { id:"comp",     icon:"🏆", label:t("Competition Win"), desc:t("Win a 7-day challenge"),          earned: (user._awardsWon || 0) >= 1 },
       { id:"streak7",  icon:"🔥", label:t("7-Day Streak"),    desc:t("Train 7 days in a row"),          earned: streak >= 7  || bestStreak >= 7  || isPersisted("streak7"),  persistable:true },
       { id:"streak14", icon:"⚡", label:t("14-Day Streak"),   desc:t("Train 14 days in a row"),         earned: streak >= 14 || bestStreak >= 14 || isPersisted("streak14"), persistable:true },
       { id:"streak21", icon:"💎", label:t("21-Day Streak"),   desc:t("Train 21 days in a row"),         earned: streak >= 21 || bestStreak >= 21 || isPersisted("streak21"), persistable:true },
@@ -19309,9 +19213,9 @@ import "./styles.css";
                     <StravaWordmark height={13} />
                   </div>
                   <div style={{ fontSize:12, color:stravaConnection?.connected ? th.accentFg : th.muted, fontWeight:700 }}>
-                    {stravaConnection?.connected ? t("Connected") : t("Not connected")}
+                    {stravaConnection?.connected ? t("Connected to Strava") : t("Not connected")}
                   </div>
-                  {stravaStatus && !stravaConnection?.connected ? (
+                  {stravaStatus ? (
                     <div style={{ fontSize:11, color:th.dim, marginTop:3, lineHeight:1.3 }}>{t(stravaStatus)}</div>
                   ) : null}
                 </div>
@@ -19336,7 +19240,7 @@ import "./styles.css";
                 }}
               >
                 {!stravaConnection?.connected && <StravaIcon size={16} />}
-                {stravaConnection?.connected ? t("Disconnect") : t("Connect")}
+                {stravaConnection?.connected ? t("Disconnect Strava") : t("Connect Strava")}
               </button>
             </div>
           </div>
@@ -19358,54 +19262,26 @@ import "./styles.css";
                 style={{ ...S.input, marginBottom: 12 }}
               />
               {/* Birth date & gender side by side */}
-              <div style={{ display:"flex", gap:10, marginBottom:12, flexWrap:"wrap", alignItems:"flex-start" }}>
-                <div style={{ flex:"1 1 180px", minWidth:0 }}>
+              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+                <div style={{ flex:1 }}>
                   <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("BIRTH DATE")}</div>
-                  <div style={{
-                    ...S.input,
-                    width:"100%",
-                    minWidth:0,
-                    boxSizing:"border-box",
-                    padding:0,
-                    overflow:"hidden",
-                    display:"flex",
-                    alignItems:"center",
-                  }}>
-                    <input
-                      type="date"
-                      max={dateInputValue()}
-                      value={eBirthDate}
-                      onChange={(e) => setEBirthDate(e.target.value)}
-                      style={{
-                        width:"100%",
-                        minWidth:0,
-                        boxSizing:"border-box",
-                        padding:"13px 10px",
-                        border:"none",
-                        outline:"none",
-                        background:"transparent",
-                        color:th.text,
-                        fontSize:14,
-                        fontFamily:"'Outfit',sans-serif",
-                        fontWeight:700,
-                        textAlign:"center",
-                        colorScheme: th.bg === "#080809" ? "dark" : "light",
-                        WebkitAppearance:"none",
-                        appearance:"none",
-                      }}
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    max={dateInputValue()}
+                    value={eBirthDate}
+                    onChange={(e) => setEBirthDate(e.target.value)}
+                    style={{ ...S.input, colorScheme: th.bg === "#080809" ? "dark" : "light" }}
+                  />
                 </div>
-                <div style={{ flex:"1 1 210px", minWidth:0 }}>
+                <div style={{ flex:1 }}>
                   <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("GENDER")}</div>
-                  <div style={{ display:"flex", gap:6, minWidth:0 }}>
+                  <div style={{ display:"flex", gap:6 }}>
                     {["Male","Female","Other"].map(g => (
                       <button
                         key={g}
                         onClick={() => setEGender(eGender === g ? "" : g)}
                         style={{
-                          flex:"1 1 0",
-                          minWidth:0,
+                          flex:1,
                           background: eGender === g
                             ? `color-mix(in srgb, ${th.accentBg} 80%, transparent)`
                             : th.inputB,
@@ -19414,7 +19290,7 @@ import "./styles.css";
                           border: `1px solid ${eGender === g ? th.accentBg : th.border}`,
                           borderRadius: 9,
                           color: eGender === g ? th.accentT : th.muted,
-                          fontSize: 13,
+                          fontSize: 11,
                           fontWeight: 700,
                           fontFamily: "'Outfit',sans-serif",
                           padding: "8px 4px",
@@ -21118,22 +20994,6 @@ import "./styles.css";
     // Shape: { id, label, icon }. AwardsDashboard (inside the Profile sheet) consumes
     // it on mount and clears it via onConsumeAwardPopup.
     const [awardPopupRequest, setAwardPopupRequest]   = useState(null);
-    const [competitionResultPopup, setCompetitionResultPopup] = useState(null);
-    const pendingCompetitionPopupsRef = useRef([]);
-    const competitionResultGuardRef = useRef(new Set());
-    const enqueueCompetitionResultPopup = (payload) => {
-      setCompetitionResultPopup(prev => {
-        if (prev) {
-          pendingCompetitionPopupsRef.current.push(payload);
-          return prev;
-        }
-        return payload;
-      });
-    };
-    const closeCompetitionResultPopup = () => {
-      const next = pendingCompetitionPopupsRef.current.shift();
-      setCompetitionResultPopup(next || null);
-    };
 
     useEffect(() => {
       if (!user?.id || user?.isGuest) {
@@ -21171,7 +21031,6 @@ import "./styles.css";
     const [sentCoachRequests, setSentCoachRequests]       = useState([]); // outgoing coach requests (user is coach, pending)
     const [coachRelations, setCoachRelations]             = useState([]);  // accepted coach/athlete pairs
     const [sessions, setSessions] = useState([]);
-    const [sessionHistoryReady, setSessionHistoryReady] = useState(false);
     const [programs, setPrograms] = useState([]);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [active, setActive] = useState(null);
@@ -21202,7 +21061,6 @@ import "./styles.css";
 
     useEffect(() => {
       if (!user) return;
-      setSessionHistoryReady(false);
 
       // ── Step 1: Show local cache immediately (instant UI) ──────────────────────
       const localProgs = ls(uKey(user.id, "programs"), null);
@@ -21323,8 +21181,6 @@ import "./styles.css";
           }
         } catch (e) {
           console.error("Firestore sync error:", e.code, e.message);
-        } finally {
-          setSessionHistoryReady(true);
         }
       };
       loadFromFirestore();
@@ -21399,119 +21255,6 @@ import "./styles.css";
       lsSet(uKey(user.id, "settings"), s);
       fsSaveSettings(user.id, s);
     };
-
-    useEffect(() => {
-      if (!user?.id || user?.isGuest || !sessionHistoryReady || !Array.isArray(competitions) || !competitions.length) return;
-      let cancelled = false;
-      const processCompetitionResults = async () => {
-        for (const comp of competitions) {
-          if (!comp?.id) continue;
-          const isMine = comp.fromUid === user.id || comp.toUid === user.id;
-          if (!isMine || (comp.status !== "active" && comp.status !== "finished")) continue;
-          const { endAt } = competitionWindow(comp);
-          if (!endAt || Date.now() < endAt) continue;
-
-          const resultSeenUids = Array.isArray(comp.resultSeenUids) ? comp.resultSeenUids : [];
-          const popupKey = `${comp.id}:${user.id}`;
-          const earnedAwards = Array.isArray(settings?.earnedAwards) ? settings.earnedAwards : [];
-          const needsPopup = !resultSeenUids.includes(user.id) && !competitionResultGuardRef.current.has(popupKey);
-          const needsAwardCheck = !earnedAwards.includes("comp");
-          const needsFinalize = comp.status === "active" || !comp.result;
-          if (!needsPopup && !needsAwardCheck && !needsFinalize) continue;
-
-          competitionResultGuardRef.current.add(popupKey);
-
-          const storedWinnerUid = comp.result?.winnerUid ?? comp.winnerUid;
-          const storedFromScore = comp.result?.fromScore ?? comp.fromScore;
-          const storedToScore = comp.result?.toScore ?? comp.toScore;
-          let fromScore = Number.isFinite(Number(storedFromScore)) ? Number(storedFromScore) : null;
-          let toScore = Number.isFinite(Number(storedToScore)) ? Number(storedToScore) : null;
-
-          const opponentUid = comp.fromUid === user.id ? comp.toUid : comp.fromUid;
-          const friend = friends.find(f => f.uid === opponentUid);
-          const opponentName =
-            friend?.name ||
-            (comp.fromUid === user.id ? comp.toName : comp.fromName) ||
-            "Friend";
-
-          if (fromScore === null || toScore === null) {
-            try {
-              const opponentSessions = await fsGetFriendSessions(opponentUid);
-              if (cancelled) return;
-              const fromSessions = comp.fromUid === user.id ? sessions : (opponentSessions || []);
-              const toSessions = comp.toUid === user.id ? sessions : (opponentSessions || []);
-              fromScore = competitionScore(fromSessions, comp);
-              toScore = competitionScore(toSessions, comp);
-            } catch (e) {
-              console.warn("competition score fetch failed:", e?.code || e?.message || e);
-              fromScore = fromScore ?? 0;
-              toScore = toScore ?? 0;
-            }
-          }
-
-          const winnerUid = storedWinnerUid !== undefined
-            ? (storedWinnerUid || null)
-            : competitionWinnerUid(comp, fromScore, toScore);
-          const didWin = winnerUid === user.id;
-          const tied = !winnerUid;
-          const userScore = comp.fromUid === user.id ? fromScore : toScore;
-          const opponentScore = comp.fromUid === user.id ? toScore : fromScore;
-
-          const updates = {};
-          if (comp.status === "active") {
-            updates.status = "finished";
-            updates.finishedAt = serverTimestamp();
-          }
-          if (!comp.result || comp.winnerUid === undefined) {
-            updates.winnerUid = winnerUid || null;
-            updates.result = {
-              fromScore,
-              toScore,
-              winnerUid: winnerUid || null,
-              computedAt: Date.now(),
-            };
-          }
-          if (needsPopup) updates.resultSeenUids = arrayUnion(user.id);
-          if (Object.keys(updates).length) {
-            updateDoc(doc(fbDb, "competitions", comp.id), updates).catch(e =>
-              console.warn("competition result update failed:", e?.code || e?.message || e)
-            );
-          }
-
-          if (didWin && !earnedAwards.includes("comp")) {
-            const nextSettings = {
-              ...settings,
-              earnedAwards: Array.from(new Set([...earnedAwards, "comp"])),
-            };
-            saveSettings(nextSettings);
-          }
-
-          if (needsPopup) {
-            enqueueCompetitionResultPopup({
-              id: comp.id,
-              didWin,
-              tied,
-              opponentName,
-              userScore,
-              opponentScore,
-              awardAdded: didWin && !earnedAwards.includes("comp"),
-            });
-          }
-        }
-      };
-      processCompetitionResults();
-      return () => { cancelled = true; };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-      user?.id,
-      user?.isGuest,
-      sessionHistoryReady,
-      competitions.map(c => `${c.id}:${c.status}:${asMillis(c.endAt)}:${(c.resultSeenUids || []).join("|")}:${c.winnerUid || ""}:${c.result?.winnerUid || ""}:${c.result?.fromScore ?? ""}:${c.result?.toScore ?? ""}`).join(","),
-      sessions.length,
-      friends.map(f => f.uid).join(","),
-      settings?.earnedAwards?.join(","),
-    ]);
-
     // Real-time settings listener — syncs dashboard changes across devices
     useEffect(() => {
       if (!user?.id) return;
@@ -21788,6 +21531,8 @@ import "./styles.css";
       return clearWorkoutInterval;
     }, [activeWorkoutId, clearWorkoutInterval, paused, syncElapsedFromClock]);
 
+    const stopTimer = clearWorkoutInterval;
+
     if (authLoading || !splashDone)
       return (
         <ThemeCtx.Provider value={th}>
@@ -21972,26 +21717,11 @@ import "./styles.css";
         (a, ex) => a + ex.sets.filter((s) => s.done).length,
         0
       );
-      const finalElapsed = readElapsedSeconds();
-      clearWorkoutInterval();
-      elapsedBeforeRunRef.current = finalElapsed;
-      runStartedAtRef.current = null;
-      pausedRef.current = true;
-      elRef.current = finalElapsed;
-      setElapsed(finalElapsed);
-      setPaused(true);
-      if (active && userId) {
-        const frozenActive = {
-          ...active,
-          timer: { paused: true, elapsedSeconds: finalElapsed, runStartedAt: null },
-        };
-        setActive(frozenActive);
-        lsSet(uKey(userId, "active"), frozenActive);
-      }
       const activeSession = { ...(active || {}) };
       delete activeSession.timer;
       delete activeSession.uiCollapsedExUids;
       setFinished({ ...activeSession, exercises: safeExercises, totalSets: total, doneSets: done });
+      stopTimer();
       setView("complete");
     };
     const handleDeleteSession = async (sessionId) => {
@@ -23675,91 +23405,6 @@ import "./styles.css";
             )}
           </div>
         </>
-      )}
-
-      {/* ── Competition result popup ── */}
-      {competitionResultPopup && createPortal(
-        <>
-          <style>{`
-            @keyframes compResultIn{from{opacity:0;transform:translate(-50%, calc(-50% + 18px)) scale(0.94)}to{opacity:1;transform:translate(-50%, -50%) scale(1)}}
-            @keyframes compResultBackdrop{from{opacity:0}to{opacity:1}}
-          `}</style>
-          <div onClick={closeCompetitionResultPopup} style={{ position:"fixed", inset:0, zIndex:94, background:"rgba(0,0,0,0.58)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", animation:"compResultBackdrop 0.22s ease forwards" }} />
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position:"fixed",
-              left:"50%",
-              top:"50%",
-              transform:"translate(-50%, -50%)",
-              width:"min(86vw, 340px)",
-              zIndex:95,
-              borderRadius:22,
-              padding:22,
-              textAlign:"center",
-              background:`color-mix(in srgb, ${th.card} 92%, transparent)`,
-              border:`1px solid ${competitionResultPopup.didWin ? "rgba(212,175,55,0.55)" : th.border}`,
-              boxShadow: competitionResultPopup.didWin
-                ? "0 20px 60px rgba(212,175,55,0.20), 0 10px 34px rgba(0,0,0,0.34)"
-                : "0 20px 60px rgba(0,0,0,0.34)",
-              backdropFilter:"blur(24px) saturate(1.3)",
-              WebkitBackdropFilter:"blur(24px) saturate(1.3)",
-              animation:"compResultIn 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards",
-            }}
-          >
-            <div style={{ fontSize:46, lineHeight:1, marginBottom:12 }}>
-              {competitionResultPopup.tied ? "🤝" : competitionResultPopup.didWin ? "🏆" : "🥈"}
-            </div>
-            <div className="bebas" style={{ fontSize:28, letterSpacing:2, color:competitionResultPopup.didWin ? "#D4AF37" : th.text, marginBottom:6 }}>
-              {competitionResultPopup.tied
-                ? tLang("IT'S A TIE!")
-                : competitionResultPopup.didWin
-                ? tLang("YOU WON!")
-                : tLang("COMPETITION COMPLETE")}
-            </div>
-            <div style={{ fontSize:13, color:th.muted, lineHeight:1.5, marginBottom:16 }}>
-              {competitionResultPopup.tied
-                ? tLang("The 7-day competition ended even.")
-                : competitionResultPopup.didWin
-                ? tLang("You won the 7-day competition.")
-                : `${competitionResultPopup.opponentName || tLang("Your friend")} ${tLang("won the 7-day competition.")}`}
-            </div>
-            <div style={{
-              display:"grid",
-              gridTemplateColumns:"1fr auto 1fr",
-              alignItems:"center",
-              gap:10,
-              padding:"14px 12px",
-              borderRadius:16,
-              background:`color-mix(in srgb, ${th.row} 72%, transparent)`,
-              border:`1px solid ${th.border}`,
-              marginBottom: competitionResultPopup.awardAdded ? 14 : 18,
-            }}>
-              <div>
-                <div className="bebas" style={{ fontSize:30, color:th.accentFg, lineHeight:1 }}>{competitionResultPopup.userScore ?? 0}</div>
-                <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px", marginTop:4 }}>{tLang("YOU")}</div>
-              </div>
-              <div className="bebas" style={{ fontSize:22, color:th.dim }}>{tLang("VS")}</div>
-              <div>
-                <div className="bebas" style={{ fontSize:30, color:"#E8612C", lineHeight:1 }}>{competitionResultPopup.opponentScore ?? 0}</div>
-                <div style={{ fontSize:9, color:th.dim, letterSpacing:"1px", marginTop:4 }}>{(competitionResultPopup.opponentName || tLang("Friend")).split(" ")[0].toUpperCase()}</div>
-              </div>
-            </div>
-            {competitionResultPopup.awardAdded && (
-              <div style={{ fontSize:12, color:th.muted, lineHeight:1.45, marginBottom:18 }}>
-                <span style={{ color:"#D4AF37", fontWeight:800 }}>{tLang("Competition Win")}</span>{" "}
-                {tLang("has been added to your awards.")}
-              </div>
-            )}
-            <button
-              onClick={closeCompetitionResultPopup}
-              style={{ width:"100%", ...buttonTexture(th, competitionResultPopup.didWin ? "accent" : "neutral"), borderRadius:13, padding:"13px", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:800, fontSize:13, letterSpacing:0.6 }}
-            >
-              {tLang("DONE")}
-            </button>
-          </div>
-        </>,
-        document.body
       )}
 
       {/* ── Profile bottom-sheet modal ── */}
