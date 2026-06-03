@@ -1,26 +1,24 @@
 const { onCall, HttpsError } = require("firebase-functions/https");
 const { defineSecret } = require("firebase-functions/params");
-const STRAVA_CLIENT_ID = "253842";
+const { initializeApp, getApps } = require("firebase-admin/app");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const STRAVA_CLIENT_ID = "254370";
 const STRAVA_CLIENT_SECRET = defineSecret("STRAVA_CLIENT_SECRET");
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
 const STRAVA_ACTIVITIES_URL = "https://www.strava.com/api/v3/activities";
 const STRAVA_DEAUTHORIZE_URL = "https://www.strava.com/oauth/deauthorize";
-const CALL_OPTIONS = { region: "us-central1" };
+const CALL_OPTIONS = { region: "us-central1", invoker: "public" };
 const SECRET_CALL_OPTIONS = { ...CALL_OPTIONS, secrets: [STRAVA_CLIENT_SECRET] };
+const ADMIN_APP_NAME = "iron-body-strava-admin";
 
-let adminInstance = null;
 let dbInstance = null;
 
-function getAdmin() {
-  if (!adminInstance) {
-    adminInstance = require("firebase-admin");
-    if (!adminInstance.apps.length) adminInstance.initializeApp();
-  }
-  return adminInstance;
+function getAdminApp() {
+  return getApps().find((app) => app.name === ADMIN_APP_NAME) || initializeApp({}, ADMIN_APP_NAME);
 }
 
 function getDb() {
-  if (!dbInstance) dbInstance = getAdmin().firestore();
+  if (!dbInstance) dbInstance = getFirestore(getAdminApp());
   return dbInstance;
 }
 
@@ -86,7 +84,7 @@ async function saveTokenSet(uid, tokenData, previous = {}) {
     expiresAt: tokenData.expires_at,
     scope: tokenData.scope || previous.scope || "",
     athlete: cleanAthlete(tokenData.athlete) || previous.athlete || null,
-    updatedAt: getAdmin().firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
   await stravaRef(uid).set(data, { merge: true });
   return data;
