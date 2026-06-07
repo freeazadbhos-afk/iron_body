@@ -20247,16 +20247,13 @@ import "./styles.css";
               }}
               style={{
                 ...buttonTexture(th, showFeedback ? "accent" : "neutral"),
-                borderRadius: 12,
-                padding: "9px 16px",
+                borderRadius: 9,
+                padding: "7px 14px",
                 cursor: "pointer",
-                fontSize: 17,
-                lineHeight: 1,
-                fontFamily: "'Bebas Neue',sans-serif",
+                fontSize: 12,
+                fontFamily: "'Outfit',sans-serif",
                 fontWeight: 700,
-                letterSpacing: "1.6px",
                 minWidth: 68,
-                textTransform: "uppercase",
               }}
             >
               {showFeedback ? t("Close") : isAdmin ? t("View All") : t("Send")}
@@ -20355,7 +20352,13 @@ import "./styles.css";
                   <Btn
                     onClick={handleSendFeedback}
                     disabled={feedbackSending || !feedbackText.trim()}
-                    style={{ width: "100%", fontSize: 18, padding: "15px 22px", letterSpacing: 2 }}
+                    style={{
+                      width: "100%",
+                      fontSize: 14,
+                      padding: "13px",
+                      fontFamily: "'Outfit',sans-serif",
+                      letterSpacing: 0.5,
+                    }}
                   >
                     {feedbackSending ? "SENDING..." : "SEND FEEDBACK"}
                   </Btn>
