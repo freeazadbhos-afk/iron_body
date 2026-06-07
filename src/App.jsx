@@ -7835,7 +7835,20 @@ import "./styles.css";
                 <div style={{ color:"rgba(255,255,255,0.62)", fontSize:11, fontWeight:800, letterSpacing:1.4, textTransform:"uppercase", margin:"0 0 7px 2px" }}>
                   {t("Birth date")}
                 </div>
-                <div style={{ position:"relative" }}>
+                <div style={{
+                  position:"relative",
+                  width:"100%",
+                  maxWidth:"100%",
+                  minWidth:0,
+                  boxSizing:"border-box",
+                  overflow:"hidden",
+                  borderRadius:12,
+                  background:"radial-gradient(circle at 18% 12%, rgba(255,255,255,0.12), transparent 25%), linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.065))",
+                  backdropFilter:"blur(16px)",
+                  WebkitBackdropFilter:"blur(16px)",
+                  border:"1.5px solid rgba(255,255,255,0.17)",
+                  boxShadow:"inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 14px rgba(0,0,0,0.12)",
+                }}>
                   <input
                     type="date"
                     value={signupBirthDate}
@@ -7848,12 +7861,12 @@ import "./styles.css";
                       maxWidth:"100%",
                       minWidth:0,
                       boxSizing:"border-box",
-                      background:"radial-gradient(circle at 18% 12%, rgba(255,255,255,0.12), transparent 25%), linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.065))",
-                      backdropFilter:"blur(16px)",
-                      WebkitBackdropFilter:"blur(16px)",
-                      border:"1.5px solid rgba(255,255,255,0.17)",
-                      boxShadow:"inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 14px rgba(0,0,0,0.12)",
-                      borderRadius:12,
+                      WebkitAppearance:"none",
+                      appearance:"none",
+                      background:"transparent",
+                      border:"none",
+                      boxShadow:"none",
+                      borderRadius:0,
                       padding:"14px 16px",
                       color:"#f0f0f0",
                       colorScheme:"dark",
@@ -19503,26 +19516,44 @@ import "./styles.css";
               {/* Full-width controls remain comfortably inside narrow phone layouts. */}
               <div style={{ marginBottom:12 }}>
                 <div style={{ ...S.label, marginBottom:7, textAlign:"left" }}>{t("BIRTH DATE")}</div>
-                <input
-                  type="date"
-                  max={dateInputValue()}
-                  value={eBirthDate}
-                  onChange={(e) => setEBirthDate(e.target.value)}
-                  style={{
-                    ...S.input,
-                    ...buttonTexture(th, "neutral"),
-                    display:"block",
-                    width:"100%",
-                    maxWidth:"100%",
-                    minWidth:0,
-                    boxSizing:"border-box",
-                    padding:"14px 16px",
-                    color:th.text,
-                    colorScheme:th.bg === "#080809" ? "dark" : "light",
-                    fontSize:16,
-                    fontWeight:600,
-                  }}
-                />
+                <div style={{
+                  ...buttonTexture(th, "neutral"),
+                  position:"relative",
+                  display:"block",
+                  width:"100%",
+                  maxWidth:"100%",
+                  minWidth:0,
+                  boxSizing:"border-box",
+                  overflow:"hidden",
+                  borderRadius:12,
+                }}>
+                  <input
+                    type="date"
+                    max={dateInputValue()}
+                    value={eBirthDate}
+                    onChange={(e) => setEBirthDate(e.target.value)}
+                    style={{
+                      display:"block",
+                      width:"100%",
+                      maxWidth:"100%",
+                      minWidth:0,
+                      boxSizing:"border-box",
+                      WebkitAppearance:"none",
+                      appearance:"none",
+                      background:"transparent",
+                      border:"none",
+                      boxShadow:"none",
+                      borderRadius:0,
+                      outline:"none",
+                      padding:"14px 16px",
+                      color:th.text,
+                      colorScheme:th.bg === "#080809" ? "dark" : "light",
+                      fontFamily:"'Outfit',sans-serif",
+                      fontSize:16,
+                      fontWeight:600,
+                    }}
+                  />
+                </div>
               </div>
               <div style={{ marginBottom:12 }}>
                 <div style={{ ...S.label, marginBottom:7, textAlign:"left" }}>{t("GENDER")}</div>
