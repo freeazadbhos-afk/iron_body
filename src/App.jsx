@@ -7832,59 +7832,85 @@ import "./styles.css";
                 }}
               />
               <div style={{ marginBottom:12 }}>
-                <div style={{ color:"rgba(255,255,255,0.62)", fontSize:11, fontWeight:800, letterSpacing:1.4, textTransform:"uppercase", margin:"0 0 6px 2px" }}>
+                <div style={{ color:"rgba(255,255,255,0.62)", fontSize:11, fontWeight:800, letterSpacing:1.4, textTransform:"uppercase", margin:"0 0 7px 2px" }}>
                   {t("Birth date")}
                 </div>
-                <input
-                  type="date"
-                  value={signupBirthDate}
-                  max={dateInputValue()}
-                  onChange={(e) => setSignupBirthDate(e.target.value)}
-                  aria-label={t("Birth date")}
-                  style={{
-                    width: "100%",
-                    background: "rgba(255,255,255,0.09)",
-                    backdropFilter: "blur(10px)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    borderRadius: 12,
-                    padding: "14px 16px",
-                    color: "#f0f0f0",
-                    colorScheme: "dark",
-                    fontSize: 16,
-                    fontWeight: 500,
-                    outline: "none",
-                    fontFamily: "'Outfit',sans-serif",
-                  }}
-                />
+                <div style={{ position:"relative" }}>
+                  <input
+                    type="date"
+                    value={signupBirthDate}
+                    max={dateInputValue()}
+                    onChange={(e) => setSignupBirthDate(e.target.value)}
+                    aria-label={t("Birth date")}
+                    style={{
+                      display:"block",
+                      width:"100%",
+                      maxWidth:"100%",
+                      minWidth:0,
+                      boxSizing:"border-box",
+                      background:"radial-gradient(circle at 18% 12%, rgba(255,255,255,0.12), transparent 25%), linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.065))",
+                      backdropFilter:"blur(16px)",
+                      WebkitBackdropFilter:"blur(16px)",
+                      border:"1.5px solid rgba(255,255,255,0.17)",
+                      boxShadow:"inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 14px rgba(0,0,0,0.12)",
+                      borderRadius:12,
+                      padding:"14px 16px",
+                      color:"#f0f0f0",
+                      colorScheme:"dark",
+                      fontSize:16,
+                      fontWeight:600,
+                      outline:"none",
+                      fontFamily:"'Outfit',sans-serif",
+                    }}
+                  />
+                </div>
               </div>
             </>
           )}
           {/* Gender picker (signup only) — required so the muscle-atlas model can be
               chosen at signup. Three options as discrete chips, matching profile editor. */}
           {tab === "signup" && (
-            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-              {["Male","Female","Other"].map(g => (
-                <button key={g}
-                  onClick={() => setSignupGender(prev => prev === g ? "" : g)}
-                  style={{
-                    flex:1,
-                    background: signupGender === g
-                      ? "rgba(200,240,48,0.85)"
-                      : "rgba(255,255,255,0.09)",
-                    backdropFilter:"blur(10px)",
-                    border:`1px solid ${signupGender === g ? "rgba(200,240,48,0.95)" : "rgba(255,255,255,0.15)"}`,
-                    borderRadius:12,
-                    padding:"12px 0",
-                    color: signupGender === g ? "#080809" : "rgba(240,240,240,0.85)",
-                    fontSize:14,
-                    fontWeight:700,
-                    cursor:"pointer",
-                    fontFamily:"'Outfit',sans-serif",
-                    transition:"background .15s, color .15s, border-color .15s",
-                  }}>
-                  {t(g)}
-                </button>
-              ))}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:"rgba(255,255,255,0.62)", fontSize:11, fontWeight:800, letterSpacing:1.4, textTransform:"uppercase", margin:"0 0 7px 2px" }}>
+                {t("Gender")}
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0, 1fr))", gap:8 }}>
+                {["Male","Female","Other"].map(g => {
+                  const selected = signupGender === g;
+                  return (
+                    <button
+                      type="button"
+                      key={g}
+                      aria-pressed={selected}
+                      onClick={() => setSignupGender(prev => prev === g ? "" : g)}
+                      style={{
+                        width:"100%",
+                        minWidth:0,
+                        boxSizing:"border-box",
+                        background:selected
+                          ? "radial-gradient(circle at 18% 12%, rgba(255,255,255,0.22), transparent 25%), linear-gradient(135deg, rgba(200,240,48,0.72), rgba(200,240,48,0.94))"
+                          : "radial-gradient(circle at 18% 12%, rgba(255,255,255,0.12), transparent 25%), linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.065))",
+                        backdropFilter:"blur(16px)",
+                        WebkitBackdropFilter:"blur(16px)",
+                        border:`1.5px solid ${selected ? "rgba(200,240,48,0.72)" : "rgba(255,255,255,0.17)"}`,
+                        boxShadow:selected
+                          ? "0 2px 12px rgba(200,240,48,0.24), inset 0 1px 0 rgba(255,255,255,0.15)"
+                          : "inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 14px rgba(0,0,0,0.12)",
+                        borderRadius:12,
+                        padding:"12px 4px",
+                        color:selected ? "#080809" : "rgba(240,240,240,0.82)",
+                        fontSize:14,
+                        fontWeight:800,
+                        cursor:"pointer",
+                        fontFamily:"'Outfit',sans-serif",
+                        transition:"transform .15s, background .18s, color .18s, border-color .18s, box-shadow .18s",
+                      }}
+                    >
+                      {t(g)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
           <input
@@ -19474,45 +19500,60 @@ import "./styles.css";
                 onChange={(e) => setEEmail(e.target.value)}
                 style={{ ...S.input, marginBottom: 12 }}
               />
-              {/* Birth date & gender side by side */}
-              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("BIRTH DATE")}</div>
-                  <input
-                    type="date"
-                    max={dateInputValue()}
-                    value={eBirthDate}
-                    onChange={(e) => setEBirthDate(e.target.value)}
-                    style={{ ...S.input, colorScheme: th.bg === "#080809" ? "dark" : "light" }}
-                  />
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ ...S.label, marginBottom:6, textAlign:"left" }}>{t("GENDER")}</div>
-                  <div style={{ display:"flex", gap:6 }}>
-                    {["Male","Female","Other"].map(g => (
+              {/* Full-width controls remain comfortably inside narrow phone layouts. */}
+              <div style={{ marginBottom:12 }}>
+                <div style={{ ...S.label, marginBottom:7, textAlign:"left" }}>{t("BIRTH DATE")}</div>
+                <input
+                  type="date"
+                  max={dateInputValue()}
+                  value={eBirthDate}
+                  onChange={(e) => setEBirthDate(e.target.value)}
+                  style={{
+                    ...S.input,
+                    ...buttonTexture(th, "neutral"),
+                    display:"block",
+                    width:"100%",
+                    maxWidth:"100%",
+                    minWidth:0,
+                    boxSizing:"border-box",
+                    padding:"14px 16px",
+                    color:th.text,
+                    colorScheme:th.bg === "#080809" ? "dark" : "light",
+                    fontSize:16,
+                    fontWeight:600,
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ ...S.label, marginBottom:7, textAlign:"left" }}>{t("GENDER")}</div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0, 1fr))", gap:8 }}>
+                  {["Male","Female","Other"].map(g => {
+                    const selected = eGender === g;
+                    return (
                       <button
+                        type="button"
                         key={g}
-                        onClick={() => setEGender(eGender === g ? "" : g)}
+                        aria-pressed={selected}
+                        onClick={() => setEGender(selected ? "" : g)}
                         style={{
-                          flex:1,
-                          background: eGender === g
-                            ? `color-mix(in srgb, ${th.accentBg} 80%, transparent)`
-                            : th.inputB,
-                          backdropFilter: "blur(8px)",
-                          WebkitBackdropFilter: "blur(8px)",
-                          border: `1px solid ${eGender === g ? th.accentBg : th.border}`,
-                          borderRadius: 9,
-                          color: eGender === g ? th.accentT : th.muted,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          fontFamily: "'Outfit',sans-serif",
-                          padding: "8px 4px",
-                          cursor: "pointer",
-                          transition: "all .15s",
+                          ...(selected ? buttonTexture(th, "accent") : buttonTexture(th, "neutral")),
+                          width:"100%",
+                          minWidth:0,
+                          boxSizing:"border-box",
+                          borderRadius:11,
+                          color:selected ? th.accentT : th.text,
+                          fontSize:14,
+                          fontWeight:800,
+                          fontFamily:"'Outfit',sans-serif",
+                          padding:"11px 4px",
+                          cursor:"pointer",
+                          transition:"transform .15s, background .18s, color .18s, border-color .18s, box-shadow .18s",
                         }}
-                      >{t(g)}</button>
-                    ))}
-                  </div>
+                      >
+                        {t(g)}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div style={{ ...S.label, marginBottom: 6, textAlign: "left", }}>
