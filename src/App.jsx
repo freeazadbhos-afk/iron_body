@@ -2094,92 +2094,92 @@ import "./styles.css";
     {
       id: "c1",
       name: "Running (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c2",
       name: "Running (Treadmill)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c3",
       name: "Walking (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c4",
       name: "Walking (Treadmill)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c5",
       name: "Cycling (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c6",
       name: "Cycling (Stationary)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c7",
       name: "Elliptical",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c8",
       name: "Swimming (Outdoor)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Lats",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c9",
       name: "Swimming (Pool)",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Lats",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c10",
       name: "Rowing Machine",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Mid Back",
+      group: "Back",
       type: "cardio",
     },
     {
       id: "c11",
       name: "Stair Climber",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Glutes",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c12",
       name: "Jump Rope",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Calves",
+      group: "Legs",
       type: "cardio",
     },
     {
       id: "c13",
       name: "HIIT",
-      muscle: "Full Body",
-      group: "Cardio",
+      muscle: "Quads",
+      group: "Legs",
       type: "cardio",
     },
 
@@ -2285,6 +2285,9 @@ import "./styles.css";
     { id: "core6", name: "Medicine Ball Slam", muscle: "Core", group: "Core" },
     { id: "core7", name: "Suitcase Carry", muscle: "Obliques", group: "Core" },
   ];
+  const DB_BY_ID = new Map(
+    DB.filter(Boolean).map((exercise) => [exercise.id, exercise])
+  );
 
 
   /* ─── Exercise Difficulty Map ────────────────────────────────────────────────
@@ -2423,6 +2426,20 @@ import "./styles.css";
     core1:"Hip Flexors", core2:"Hip Flexors", core3:"Abs · Hip Flexors",
     core4:"Lower Back", core5:"Hip Flexors", core6:"Shoulders · Lats",
     core7:"Forearms · Traps",
+    // Cardio remains cardio for logging, while anatomy reflects the movement.
+    c1:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c2:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c3:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c4:"Hamstrings · Glutes · Calves · Hip Flexors · Core",
+    c5:"Glutes · Hamstrings · Calves",
+    c6:"Glutes · Hamstrings · Calves",
+    c7:"Glutes · Hamstrings · Calves",
+    c8:"Shoulders · Chest · Triceps · Core",
+    c9:"Shoulders · Chest · Triceps · Core",
+    c10:"Lats · Quads · Glutes · Hamstrings · Biceps · Core",
+    c11:"Quads · Hamstrings · Calves",
+    c12:"Quads · Hamstrings · Shoulders · Forearms · Core",
+    c13:"Glutes · Hamstrings · Calves · Chest · Shoulders · Core",
   };
 
   // ── Difficulty badge helper ──────────────────────────────────────────────────
@@ -4594,17 +4611,30 @@ import "./styles.css";
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
   }
+  function exerciseCatalogEntry(ex) {
+    const id = ex?.exId || ex?.id;
+    if (id && DB_BY_ID.has(id)) return DB_BY_ID.get(id);
+    return ex?.name ? DB.find((entry) => entry?.name === ex.name) || null : null;
+  }
+  function exerciseMuscle(ex) {
+    return exerciseCatalogEntry(ex)?.muscle || ex?.muscle || "";
+  }
   function normalizeWorkoutExercise(ex) {
     const safeEx = ex || {};
+    const catalogEntry = exerciseCatalogEntry(safeEx);
     return {
       ...safeEx,
+      ...(catalogEntry
+        ? { muscle: catalogEntry.muscle, group: catalogEntry.group }
+        : {}),
       sets: Array.isArray(safeEx.sets) ? safeEx.sets : [],
     };
   }
   function intColor(n, th) {
     // Intensity color scale runs easy → hard = green → orange → red.
-    // n is a 0–10 self-reported intensity rating.
-    const easy = th ? th.accentFg : "#c8f030";
+    // Keep the base-theme green even when the user selects another accent.
+    const dark = th?.bg === "#080809" || th?.card === "#0f0f12";
+    const easy = dark ? "#c8f030" : "#0D9E8E";
     return n >= 8 ? "#CC1F42" : n >= 5 ? "#E8612C" : easy;
   }
   function sessionVol(s) {
@@ -4798,7 +4828,7 @@ import "./styles.css";
       exId: db.id,
       name: db.name,
       muscle: db.muscle,
-      group: "Cardio",
+      group: db.group,
       type: "cardio",
       sets: [
         {
@@ -9335,7 +9365,8 @@ import "./styles.css";
       .filter((s) => (s.startTime || 0) >= last7Cutoff)
       .forEach((s) =>
         (s.exercises || []).forEach((ex) => {
-          if (ex.muscle) weekMuscleSet.add(ex.muscle);
+          const muscle = exerciseMuscle(ex);
+          if (muscle) weekMuscleSet.add(muscle);
         })
       );
 
@@ -9849,8 +9880,9 @@ import "./styles.css";
             const sTime = s.startTime || 0;
             const hoursAgo = (now - sTime) / 3600000;
             (s.exercises || []).forEach(ex => {
-              if (!ex.muscle || !muscleData[ex.muscle]) return;
-              const md = muscleData[ex.muscle];
+              const muscle = exerciseMuscle(ex);
+              if (!muscle || !muscleData[muscle]) return;
+              const md = muscleData[muscle];
               if (sTime > md.lastMs) md.lastMs = sTime;
               // Volume in last 72h: sets × reps × weight (or just sets×reps for bodyweight)
               if (hoursAgo <= 72) {
@@ -10200,7 +10232,7 @@ import "./styles.css";
   function MusclesTrainedDashboard({ sessions }) {
     const th = useTheme(); const S = useS(); const t = useT();
     const W7 = Date.now()-7*864e5;
-    const hit = new Set(sessions.filter(s=>(s.startTime||0)>=W7).flatMap(s=>(s.exercises||[]).map(e=>e.muscle).filter(Boolean)));
+    const hit = new Set(sessions.filter(s=>(s.startTime||0)>=W7).flatMap(s=>(s.exercises||[]).map(exerciseMuscle).filter(Boolean)));
     return (
       <div style={{...S.card,padding:16,marginBottom:10,textAlign:"left"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -11007,8 +11039,9 @@ import "./styles.css";
               const sTime = s.startTime || 0;
               const hoursAgo = (now - sTime) / 3600000;
               (s.exercises||[]).forEach(ex => {
-                if (!ex.muscle || !muscleData[ex.muscle]) return;
-                const md = muscleData[ex.muscle];
+                const muscle = exerciseMuscle(ex);
+                if (!muscle || !muscleData[muscle]) return;
+                const md = muscleData[muscle];
                 if (sTime > md.lastMs) md.lastMs = sTime;
                 if (hoursAgo <= 72) (ex.sets||[]).filter(st=>st.done).forEach(st => { md.vol72h += (st.reps||0) * Math.max(st.weight||1,1); });
               });
@@ -13886,7 +13919,13 @@ import "./styles.css";
 	      })),
 	    ];
 	    const competitionFeedItems = (competitions || [])
-	      .filter(c => c?.status === "finished" && c.fromUid && c.toUid)
+	      .filter(c =>
+	        !user?.isGuest &&
+	        c?.status === "finished" &&
+	        c.fromUid &&
+	        c.toUid &&
+	        [c.fromUid, c.toUid].includes(user.id)
+	      )
 	      .map(c => {
 	        const otherUid = c.fromUid === user.id ? c.toUid : c.fromUid;
 	        const otherName = c.fromUid === user.id ? c.toName : c.fromName;
@@ -17492,7 +17531,7 @@ import "./styles.css";
           )}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-              const col = n <= 3 ? "#CC1F42" : n <= 6 ? "#E8612C" : th.accentFg;
+              const col = intColor(n, th);
               return (
                 <button
                   key={n}
@@ -18527,7 +18566,7 @@ import "./styles.css";
         {exercises.map((ex, i) => {
           const sets = ex.sets || [];
           const isCardioEx = ex.type === "cardio";
-          const muscle = ex.muscle || ex.group || "Exercise";
+          const muscle = exerciseMuscle(ex) || ex.group || "Exercise";
           const doneS = sets.filter((s) => s.done).length;
           const exVol = sets
             .filter((s) => s.done)
@@ -21863,6 +21902,19 @@ import "./styles.css";
 
     // Real-time sharing listeners — invitations received, sent, friends, and own-session reactions
     useEffect(() => {
+      // Social data is Firestore-only and account-bound. Clear the previous
+      // account immediately so guests and newly signed-in users never inherit it.
+      setPendingInvitations([]);
+      setSentInvitations([]);
+      setFriends([]);
+      setCompetitions([]);
+      setPendingCoachRequests([]);
+      setSentCoachRequests([]);
+      setCoachRelations([]);
+      setStarNotifications([]);
+      setUnreadStars(0);
+      competitionFinalizeGuardRef.current.clear();
+
       if (!user?.id || !user?.email || user?.isGuest) return;
       const unsubReceived = fsListenInvitationsReceived(user.email, setPendingInvitations);
       const unsubSent     = fsListenInvitationsSent(user.id, setSentInvitations);
@@ -21919,7 +21971,7 @@ import "./styles.css";
       );
 
       return () => { unsubReceived(); unsubSent(); unsubFriends(); unsubCompete(); unsubReactions(); unsubNotifs(); unsubCoachReqs(); unsubCoachSent(); unsubCoachRels(); };
-    }, [user?.id, user?.email]);
+    }, [user?.id, user?.email, user?.isGuest]);
     // ── Timer: accumulator-based so pause is a hard freeze ──────────────────────
     const elapsedBeforeRunRef = useRef(0); // whole seconds accumulated before current run segment
     const runStartedAtRef = useRef(null); // Date.now() for the current run segment, null while paused
