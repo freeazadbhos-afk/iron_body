@@ -4390,83 +4390,6 @@ import "./styles.css";
     },
   ];
 
-  const DEFAULT_PROGRAMS = [
-    {
-      id: "p1",
-      name: "Chest Biceps",
-      exs: [
-        { id: "e1", s: 5, r: 10, w: 60 },
-        { id: "e2", s: 4, r: 10, w: 20 },
-        { id: "e3", s: 4, r: 12, w: 15 },
-        { id: "e4", s: 4, r: 10, w: 20 },
-        { id: "e5", s: 4, r: 10, w: 50 },
-        { id: "e6", s: 3, r: 12, w: 10 },
-        { id: "e7", s: 4, r: 10, w: 40 },
-        { id: "e8", s: 3, r: 12, w: 0 },
-        { id: "e9", s: 3, r: 10, w: 30 },
-        { id: "e10", s: 3, r: 12, w: 12 },
-        { id: "e11", s: 4, r: 12, w: 14 },
-        { id: "e12", s: 4, r: 12, w: 10 },
-        { id: "e13", s: 3, r: 12, w: 10 },
-        { id: "e14", s: 5, r: 10, w: 25 },
-      ],
-    },
-    {
-      id: "p2",
-      name: "Back Triceps",
-      exs: [
-        { id: "e15", s: 5, r: 10, w: 50 },
-        { id: "e16", s: 5, r: 10, w: 50 },
-        { id: "e17", s: 4, r: 10, w: 45 },
-        { id: "e18", s: 5, r: 10, w: 60 },
-        { id: "e19", s: 4, r: 10, w: 30 },
-        { id: "e20", s: 4, r: 10, w: 40 },
-        { id: "e21", s: 4, r: 12, w: 20 },
-        { id: "e22", s: 3, r: 12, w: 20 },
-        { id: "e23", s: 5, r: 12, w: 20 },
-        { id: "e24", s: 4, r: 12, w: 15 },
-        { id: "e25", s: 4, r: 12, w: 15 },
-        { id: "e26", s: 4, r: 12, w: 20 },
-        { id: "e27", s: 3, r: 10, w: 0 },
-      ],
-    },
-    {
-      id: "p3",
-      name: "Shoulders Delts",
-      exs: [
-        { id: "e28", s: 4, r: 10, w: 40 },
-        { id: "e29", s: 4, r: 10, w: 16 },
-        { id: "e30", s: 5, r: 10, w: 40 },
-        { id: "e34", s: 3, r: 15, w: 8 },
-        { id: "e35", s: 3, r: 15, w: 8 },
-        { id: "e36", s: 3, r: 15, w: 8 },
-        { id: "e37", s: 4, r: 12, w: 10 },
-        { id: "e38", s: 3, r: 15, w: 8 },
-        { id: "e31", s: 4, r: 15, w: 15 },
-        { id: "e39", s: 4, r: 12, w: 20 },
-        { id: "e32", s: 3, r: 12, w: 30 },
-        { id: "e40", s: 3, r: 15, w: 20 },
-        { id: "e41", s: 4, r: 15, w: 15 },
-        { id: "e33", s: 4, r: 10, w: 20 },
-      ],
-    },
-    {
-      id: "p4",
-      name: "Legs Glutes",
-      exs: [
-        { id: "e42", s: 5, r: 10, w: 80 },
-        { id: "e43", s: 4, r: 10, w: 80 },
-        { id: "e44", s: 4, r: 10, w: 80 },
-        { id: "e45", s: 4, r: 12, w: 120 },
-        { id: "e46", s: 4, r: 15, w: 40 },
-        { id: "e48", s: 4, r: 12, w: 30 },
-        { id: "e49", s: 4, r: 15, w: 50 },
-        { id: "e50", s: 4, r: 15, w: 50 },
-        { id: "e47", s: 4, r: 10, w: 20 },
-      ],
-    },
-  ];
-
   const WEIGHT_PRESETS = [
     0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140,
   ]; // quick-tap dropdown
@@ -7657,7 +7580,7 @@ import "./styles.css";
           email: "",
           isGuest: true,
         });
-        lsSet(uKey(cred.user.uid, "programs"), DEFAULT_PROGRAMS);
+        lsSet(uKey(cred.user.uid, "programs"), []);
         lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false });
       } catch (e) {
         setErr(friendlyError(e.code));
@@ -7708,11 +7631,8 @@ import "./styles.css";
         });
         // Pending stash no longer needed once the proper profile cache is in place
         lsDel("ib3-pending-signup");
-        // 3. Start with an EMPTY Workouts tab — new users build their own programs.
-        //    (We write [] explicitly, and also flag this account as freshly created
-        //    so the App() loader doesn't backfill DEFAULT_PROGRAMS over the empty list.)
+        // 3. Start with an empty Workouts tab so new users build their own programs.
         lsSet(uKey(cred.user.uid, "programs"), []);
-        lsSet("ib3-fresh-signup-" + cred.user.uid, true);
         lsSet(uKey(cred.user.uid, "settings"), { homePrograms: [], homeDashboards: ["streak","intensity","strength","volume"], hasDashOnboarded: false, hasProgramOnboarded: false, hasProgramBuildOnboarded: false, hasSharingOnboarded: false, hasSharingOnboardedV2: false, hasSharingOnboardedV3: false });
         // Persist birth date + gender to Firestore settings so they survive across devices/installs.
         fsSaveSettings(cred.user.uid, { name: trimmedName, birthDate: normalizedBirthDate, age: calculatedAge, gender: signupGender });
@@ -21398,13 +21318,8 @@ import "./styles.css";
 
       // ── Step 1: Show local cache immediately (instant UI) ──────────────────────
       const localProgs = ls(uKey(user.id, "programs"), null);
-      // Freshly signed-up accounts intentionally start with no programs. Only fall
-      // back to DEFAULT_PROGRAMS when there's no cache at all (null) AND this isn't
-      // a fresh signup — an empty array is a valid, respected state.
-      const isFreshSignup = ls("ib3-fresh-signup-" + user.id, false);
-      setPrograms(
-        Array.isArray(localProgs) ? localProgs : (isFreshSignup ? [] : DEFAULT_PROGRAMS)
-      );
+      // Missing and explicitly empty program lists both mean "start fresh".
+      setPrograms(Array.isArray(localProgs) ? localProgs : []);
       setSessions(ls(uKey(user.id, "sessions"), []));
       setSettings(ls(uKey(user.id, "settings"), DEFAULT_SETTINGS));
       setMeasurements(getMeasurements(user.id));
@@ -21421,18 +21336,16 @@ import "./styles.css";
           if (fsProgs && fsProgs.length > 0) {
             setPrograms(fsProgs);
             lsSet(uKey(user.id, "programs"), fsProgs);
-            // Established account synced — clear any stale fresh-signup flag.
-            lsDel("ib3-fresh-signup-" + user.id);
-          } else if (isFreshSignup) {
-            // Brand-new signup with nothing in Firestore — keep the Workouts tab
-            // empty (do NOT seed defaults) and push the empty list up.
-            await fsSavePrograms(user.id, []);
-          } else if (!localProgs || localProgs.length === 0) {
-            // Older account with no programs anywhere — seed defaults to Firestore
-            await fsSavePrograms(user.id, DEFAULT_PROGRAMS);
-          } else {
+          } else if (fsProgs === null) {
+            // A failed remote read must not overwrite either local or remote data.
+          } else if (Array.isArray(localProgs) && localProgs.length > 0) {
             // Local has data but Firestore doesn't — push local up
             await fsSavePrograms(user.id, localProgs);
+          } else {
+            // No programs anywhere is a valid state for guests, new accounts, and
+            // established users who deleted every program.
+            lsSet(uKey(user.id, "programs"), []);
+            await fsSavePrograms(user.id, []);
           }
           // Sessions
           const fsSess = await fsGetSessions(user.id);
@@ -21579,8 +21492,6 @@ import "./styles.css";
         const p = typeof pOrFn === "function" ? pOrFn(prev) : pOrFn;
         lsSet(uKey(user.id, "programs"), p);
         fsSavePrograms(user.id, p);
-        // Once the user has created a program, they're no longer "fresh".
-        if (p && p.length > 0) lsDel("ib3-fresh-signup-" + user.id);
         return p;
       });
     };
